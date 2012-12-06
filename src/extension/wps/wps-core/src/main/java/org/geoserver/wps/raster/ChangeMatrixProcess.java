@@ -62,7 +62,11 @@ import com.vividsolutions.jts.geom.Geometry;
 @DescribeProcess(title = "ChangeMatrix", description = "Compute the ChangeMatrix between two coverages")
 public class ChangeMatrixProcess implements GSProcess {
 	
-p
+    static {
+        Registry.registerRIF(JAI.getDefaultInstance(), new ChangeMatrixDescriptor(), new ChangeMatrixStatsRIF(),
+                Registry.JAI_TOOLS_PRODUCT);
+    }
+	
 	private final static boolean DEBUG= Boolean.getBoolean("org.geoserver.wps.debug");
 
     private Catalog catalog;
