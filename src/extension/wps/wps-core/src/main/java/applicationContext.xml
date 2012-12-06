@@ -197,6 +197,14 @@
     <bean id="getFullCoverage" class="org.geoserver.wps.gs.GetFullCoverage">
       <constructor-arg index="0" ref="catalog"/>
     </bean>
+	
+	<!-- The PPIO that need to be registered into SPI because of their dependencies -->
+    <bean id="changeMatrixDTOPPIO" class="org.geoserver.wps.raster.ChangeMatrixPPIO">
+    </bean>  
+    <bean id="changeMatrix" class="org.geoserver.wps.raster.ChangeMatrixProcess">
+      <constructor-arg index="0" ref="catalog"/>
+      <constructor-arg index="1" ref="geoServer"/>
+    </bean>
     
     <!-- 
        ==================================================================
