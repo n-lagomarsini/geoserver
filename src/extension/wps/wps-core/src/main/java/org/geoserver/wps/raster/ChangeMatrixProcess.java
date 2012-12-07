@@ -5,6 +5,7 @@
 package org.geoserver.wps.raster;
 
 import java.awt.Point;
+import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.io.Serializable;
@@ -17,6 +18,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 import javax.media.jai.JAI;
 import javax.media.jai.ParameterBlockJAI;
+import javax.media.jai.ROI;
+import javax.media.jai.ROIShape;
 import javax.media.jai.RenderedOp;
 
 import org.geoserver.catalog.Catalog;
@@ -28,6 +31,7 @@ import org.geoserver.wps.WPSException;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.gce.imagemosaic.ImageMosaicFormat;
 import org.geotools.geometry.jts.JTS;
+import org.geotools.geometry.jts.LiteShape2;
 import org.geotools.image.jai.Registry;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
@@ -39,11 +43,11 @@ import org.geotools.process.raster.changematrix.ChangeMatrixDescriptor.ChangeMat
 import org.geotools.process.raster.changematrix.ChangeMatrixRIF;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
+import org.geotools.referencing.operation.transform.ProjectiveTransform;
 import org.geotools.resources.image.ImageUtilities;
 import org.opengis.coverage.grid.GridCoverageReader;
 import org.opengis.filter.Filter;
 import org.opengis.metadata.spatial.PixelOrientation;
-import org.opengis.parameter.GeneralParameterDescriptor;
 import org.opengis.parameter.GeneralParameterValue;
 import org.opengis.parameter.ParameterDescriptor;
 import org.opengis.parameter.ParameterValue;
@@ -163,20 +167,19 @@ public class ChangeMatrixProcess implements GSProcess {
             //
             // GRID TO WORLD preparation from reference
             //
-            final AffineTransform mt2D = (AffineTransform) referenceCoverage.getGridGeometry().getGridToCRS2D(PixelOrientation.UPPER_LEFT);
-            
+            final AffineTransform gridToWorld = (AffineTransform) referenceCoverage.getGridGeometry().getGridToCRS2D(PixelOrientation.UPPER_LEFT);
             
             // check if we need to reproject the ROI from WGS84 (standard in the input) to the reference CRS
             final CoordinateReferenceSystem crs=referenceCoverage.getCoordinateReferenceSystem();
             if(CRS.equalsIgnoreMetadata(crs, DefaultGeographicCRS.WGS84)){
-            	pbj.setParameter("ROI", CoverageUtilities.prepareROI(roi, mt2D));
+            	pbj.setParameter("ROI", CoverageUtilities.prepareROI(roi, gridToWorld));
             } else {
             	// reproject 
             	MathTransform transform = CRS.findMathTransform(DefaultGeographicCRS.WGS84, crs,true);
             	if(transform.isIdentity()){
-            		pbj.setParameter("ROI", CoverageUtilities.prepareROI(roi, mt2D));
+            		pbj.setParameter("ROI", prepareROI(roi, gridToWorld));
             	} else {
-            		pbj.setParameter("ROI", CoverageUtilities.prepareROI(JTS.transform(roi, transform), mt2D));
+            		pbj.setParameter("ROI", prepareROI(JTS.transform(roi, transform), gridToWorld));
             	}
             }
         }
@@ -239,9 +242,21 @@ public class ChangeMatrixProcess implements GSProcess {
     }
 
     /**
+     * Transform the provided {@link Geometry} in world coordinates into 
+     * @param roi
+     * @param gridToWorld
+     * @return
+     * @throws Exception
+     */
+    private static ROI prepareROI(Geometry roi, AffineTransform gridToWorld) throws Exception {
+        final Shape cropRoiLS2 = new LiteShape2(roi, ProjectiveTransform.create(gridToWorld).inverse(), null, true,1);
+        return new ROIShape(cropRoiLS2);
+	}
+
+	/**
      * Replace or add the provided parameter in the read parameters
      */
-    private <T> GeneralParameterValue[] replaceParameter(
+    private static <T> GeneralParameterValue[] replaceParameter(
     		GeneralParameterValue[] readParameters, 
     		Object value, 
     		ParameterDescriptor<T> pd) {
