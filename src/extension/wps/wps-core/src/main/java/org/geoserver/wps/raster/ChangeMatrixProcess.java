@@ -143,7 +143,7 @@ public class ChangeMatrixProcess implements GSProcess {
         // merge filter
         params = replaceParameter(
         		params, 
-        		referenceFilter, 
+        		nowFilter, 
         		ImageMosaicFormat.FILTER);
         // merge USE_JAI_IMAGEREAD to false if needed
         params = replaceParameter(
