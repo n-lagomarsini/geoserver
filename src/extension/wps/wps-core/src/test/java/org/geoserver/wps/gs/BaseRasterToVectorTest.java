@@ -42,7 +42,7 @@ public abstract class BaseRasterToVectorTest extends WPSTestSupport {
 	protected void onSetUp(SystemTestData testData) throws Exception {
 	    super.onSetUp(testData);
 	    
-	    addWcs11Coverages(testData);
+	    addDEMCoverages(testData);
 	    testData.addRasterLayer(DEM, "sfdem.tiff", TIFF, null, getClass(), getCatalog());
 	    
 	    Map<LayerProperty, Object> props = new HashMap<SystemTestData.LayerProperty, Object>();

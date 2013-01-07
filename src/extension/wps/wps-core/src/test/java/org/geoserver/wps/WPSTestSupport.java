@@ -166,7 +166,7 @@ public abstract class WPSTestSupport extends GeoServerSystemTestSupport {
      * Adds the wcs 1.1 coverages.
      * @param testData 
      */
-    public void addWcs11Coverages(SystemTestData testData) throws Exception {
+    public void addDEMCoverages(SystemTestData testData) throws Exception {
         String styleName = "raster";
         testData.addStyle(styleName, "raster.sld", MockData.class, getCatalog());
         
@@ -178,5 +178,10 @@ public abstract class WPSTestSupport extends GeoServerSystemTestSupport {
         testData.addRasterLayer(TASMANIA_BM, "tazbm.tiff", TIFF, props, MockData.class, getCatalog());
         testData.addRasterLayer(ROTATED_CAD, "rotated.tiff", TIFF, props, MockData.class, getCatalog());
         testData.addRasterLayer(WORLD, "world.tiff", TIFF, props, MockData.class, getCatalog());
+    }
+
+    @Override
+    protected boolean isMemoryCleanRequired() {
+        return true;
     }
 }

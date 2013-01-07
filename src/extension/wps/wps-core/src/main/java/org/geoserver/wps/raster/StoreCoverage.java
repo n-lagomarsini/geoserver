@@ -2,7 +2,7 @@
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-package org.geoserver.wps.gs;
+package org.geoserver.wps.raster;
 
 import java.io.File;
 import java.io.IOException;

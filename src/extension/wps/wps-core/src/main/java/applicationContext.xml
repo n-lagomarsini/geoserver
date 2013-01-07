@@ -183,7 +183,7 @@
 
     <bean id="aggregateProcessResultPPIO" class="org.geoserver.wps.gs.AggregateProcessPPIO"/>
 
-    <bean id="storeCoverageProcess" class="org.geoserver.wps.gs.StoreCoverage" >
+    <bean id="storeCoverageProcess" class="org.geoserver.wps.raster.StoreCoverage" >
       <constructor-arg index="0" ref="wpsStorageCleaner"></constructor-arg>
     </bean>
     
@@ -194,6 +194,10 @@
     </bean>
     
     <bean id="getFullCoverage" class="org.geoserver.wps.gs.GetFullCoverage">
+      <constructor-arg index="0" ref="catalog"/>
+    </bean>
+    
+    <bean id="rasterAlgebra" class="org.geoserver.wps.raster.algebra.RasterAlgebraProcess">
       <constructor-arg index="0" ref="catalog"/>
     </bean>
     

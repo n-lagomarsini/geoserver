@@ -27,7 +27,7 @@ public class StoreCoverageTest extends WPSTestSupport {
     protected void onSetUp(SystemTestData testData) throws Exception {
         super.onSetUp(testData);
         
-        addWcs11Coverages(testData);
+        addDEMCoverages(testData);
     }
 
     @Test

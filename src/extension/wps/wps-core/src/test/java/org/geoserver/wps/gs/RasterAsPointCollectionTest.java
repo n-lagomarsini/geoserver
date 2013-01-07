@@ -48,7 +48,7 @@ public class RasterAsPointCollectionTest extends WPSTestSupport {
     protected void onSetUp(SystemTestData testData) throws Exception {
         super.onSetUp(testData);
         
-        addWcs11Coverages(testData);
+        addDEMCoverages(testData);
         
         Map<LayerProperty, Object> props = new HashMap<SystemTestData.LayerProperty, Object>();
         props.put(LayerProperty.ENVELOPE, new ReferencedEnvelope(181985.7630, 818014.2370, 1973809.4640, 8894102.4298, CRS.decode("EPSG:26713", true)));

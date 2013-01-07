@@ -17,6 +17,7 @@ import java.awt.image.WritableRaster;
 import javax.media.jai.RasterFactory;
 
 import org.geoserver.wps.WPSTestSupport;
+import org.geoserver.wps.raster.GridCoverage2DRIA;
 import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;

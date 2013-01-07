@@ -1,0 +1,112 @@
+/*
+ *    GeoTools - The Open Source Java GIS Toolkit
+ *    http://geotools.org
+ *
+ *    (C) 2002-2011, Open Source Geospatial Foundation (OSGeo)
+ *
+ *    This library is free software; you can redistribute it and/or
+ *    modify it under the terms of the GNU Lesser General Public
+ *    License as published by the Free Software Foundation;
+ *    version 2.1 of the License.
+ *
+ *    This library is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *    Lesser General Public License for more details.
+ */
+/* Copyright (c) 2001 - 2007 TOPP - www.openplans.org. All rights reserved.
+ * This code is licensed under the GPL 2.0 license, available at the root
+ * application directory.
+ */
+package org.geoserver.wps.raster.algebra;
+
+import java.awt.image.RenderedImage;
+import java.io.IOException;
+
+import javax.media.jai.PlanarImage;
+
+import org.geoserver.catalog.Catalog;
+import org.geoserver.wps.WPSException;
+import org.geotools.coverage.GridSampleDimension;
+import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.coverage.grid.GridCoverageFactory;
+import org.geotools.coverage.grid.GridEnvelope2D;
+import org.geotools.coverage.grid.GridGeometry2D;
+import org.geotools.factory.GeoTools;
+import org.geotools.process.factory.DescribeParameter;
+import org.geotools.process.factory.DescribeProcess;
+import org.geotools.process.factory.DescribeResult;
+import org.geotools.process.gs.GSProcess;
+import org.opengis.filter.Filter;
+
+import com.vividsolutions.jts.geom.Geometry;
+
+/**
+ * A process that returns a coverage fully (something which is un-necessarily hard in WCS)
+ * 
+ * @author Simone Giannecchini, GeoSolutions SAS
+ * @author Andrea Aime, GeoSolutions SAS
+ */
+@SuppressWarnings("deprecation")
+@DescribeProcess(title = "RasterAlgebra", description = "Compute the operations specified by the filter provided on the coverages mentioned in it")
+public class RasterAlgebraProcess implements GSProcess {
+        
+    private Catalog catalog;
+    
+    public RasterAlgebraProcess(Catalog catalog) {
+        this.catalog = catalog;
+    }
+
+    /**
+     * @param classes representing the domain of the classes (Mandatory, not empty)
+     * @param rasterT0 that is the reference Image (Mandatory)
+     * @param rasterT1 rasterT1 that is the update situation (Mandatory)
+     * @param roi that identifies the optional ROI (so that could be null)
+     * @return
+     */
+    @DescribeResult(name = "RasterAlgebra", description = "RasterAlgebra", type=GridCoverage2D.class)
+    public GridCoverage2D execute(
+            @DescribeParameter(name = "expression", description = "Filter to use on the raster data", min = 1) Filter filter,
+            @DescribeParameter(name = "ROI", min = 0, description = "Region Of Interest") Geometry roi)
+            throws IOException {
+        
+        
+        // instantiate collector
+        final CoverageCollector collector= new CoverageCollector(catalog,GeoTools.getDefaultHints());
+        filter.accept(collector, null);
+        
+        // instantiate processor
+        final CoverageProcessor processor= new CoverageProcessor(
+                collector.getCoverages(),
+                collector.getGridGeometry(),
+                GeoTools.getDefaultHints());
+        Object result_ = filter.accept(processor, null);
+        if(result_ instanceof RenderedImage){
+            
+            // === create final gridcoverage
+            
+            final RenderedImage raster=(RenderedImage) result_;
+            
+            // create grid geometry
+            final GridGeometry2D gg2d = new GridGeometry2D(
+                    new GridEnvelope2D(PlanarImage.wrapRenderedImage(raster).getBounds()),
+                    collector.getGridGeometry().getGridToCRS(),
+                    collector.getGridGeometry().getCoordinateReferenceSystem()
+            );
+            
+            // create return coverage reusing origin grid to world 
+            return new GridCoverageFactory(GeoTools.getDefaultHints()).create(
+                    "RasterAlgebra"+System.nanoTime(), 
+                    raster,
+                    gg2d, 
+                    new GridSampleDimension[]{new GridSampleDimension("Binary")},//TODO generalize in the future
+                    null,//TODO carry along sources
+                    null); // TODO carry along no data
+        }
+        
+        // something bad happened
+        throw new WPSException("Unable to create a valid response for this request.");
+        
+      
+    }
+}

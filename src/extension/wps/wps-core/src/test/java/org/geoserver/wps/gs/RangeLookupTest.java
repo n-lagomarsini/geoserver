@@ -32,7 +32,7 @@ public class RangeLookupTest extends WPSTestSupport {
     protected void onSetUp(SystemTestData testData) throws Exception {
         super.onSetUp(testData);
         
-        addWcs11Coverages(testData);
+        addDEMCoverages(testData);
     }
 
     @Test

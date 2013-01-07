@@ -2,9 +2,11 @@
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
-package org.geoserver.wps.gs;
+package org.geoserver.wps.raster;
 
 import java.awt.Rectangle;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
 import java.awt.image.DataBuffer;
 import java.awt.image.RenderedImage;
@@ -27,12 +29,14 @@ import javax.media.jai.iterator.RandomIter;
 import javax.media.jai.iterator.RandomIterFactory;
 
 import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.coverage.grid.GridEnvelope2D;
+import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.referencing.CRS;
+import org.geotools.referencing.operation.matrix.XAffineTransform;
+import org.geotools.util.Utilities;
 import org.opengis.metadata.spatial.PixelOrientation;
-import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.NoninvertibleTransformException;
 import org.opengis.referencing.operation.TransformException;
 
 import com.sun.media.jai.util.ImageUtil;
@@ -48,30 +52,36 @@ import com.sun.media.jai.util.ImageUtil;
  * 
  * @author ETj <etj at geo-solutions.it>
  */
+@SuppressWarnings("unchecked")
 public class GridCoverage2DRIA extends GeometricOpImage {
 
     private final static Logger LOGGER = Logger.getLogger(GridCoverage2DRIA.class.getName());
 
     private final GridCoverage2D src;
 
-    private final GridCoverage2D dst;
+    private final GridGeometry2D dstGridGeometry;
 
-    private final MathTransform g2wd;
+    private final AffineTransform g2wd;
 
-    private final MathTransform g2ws;
+    private final AffineTransform g2ws;
 
-    private final MathTransform w2gd;
+    private final AffineTransform w2gd;
 
-    private final MathTransform w2gs;
+    private final AffineTransform w2gs;
 
-    private final MathTransform src2dstCRSTransform;
+    private MathTransform src2dstCRSTransform;
 
-    private final MathTransform dst2srcCRSTransform;
+    private MathTransform dst2srcCRSTransform;
 
     /** Color table representing source's IndexColorModel. */
-    private byte[][] ctable = null; // ETj: just for keeping compiler quiet: let's see if we really
+    private byte[][] ctable = null; // ETj: just for keeping compiler quiet: let's see if we really need it
 
-    // need it
+    /** Do we need a reprojection.*/
+    private boolean needReprojection;
+
+    private AffineTransform concatenatedForwardTransform;
+
+    private AffineTransform concatenatedBackwardTransform;
 
     /**
      * Wrap the src coverage in the dst layout. <BR>
@@ -90,8 +100,36 @@ public class GridCoverage2DRIA extends GeometricOpImage {
     public static GridCoverage2DRIA create(final GridCoverage2D src, final GridCoverage2D dst,
             final double nodata) {
 
+        Utilities.ensureNonNull("dst", dst);
+        return GridCoverage2DRIA.create(src, dst.getGridGeometry(), nodata);
+    }
+    
+    /**
+     * Wrap the src coverage in the dst {@link GridGeometry2D}. <BR>
+     * The resulting RenderedImage will contain the data in src, and will be accessible via the grid
+     * specs of dst,
+     * 
+     * @param src
+     *            the data coverage to be remapped on dst grid
+     * @param dstGridGeometry
+     *            the final {@link GridGeometry2D}
+     * @param nodata
+     *            the nodata value to set for cells not covered by src but included in dst. All
+     *            bands will share the same nodata value.
+     * @return an instance of Coverage2RenderedImageAdapter
+     */
+    public static GridCoverage2DRIA create(final GridCoverage2D src, final GridGeometry2D dstGridGeometry,
+            double nodata) {
+
+        Utilities.ensureNonNull("dstGridGeometry", dstGridGeometry);
+        Utilities.ensureNonNull("src", src);
+        
+        
         // === Create Layout
-        final ImageLayout imageLayout = new ImageLayout(dst.getRenderedImage());
+        final GridEnvelope2D destinationRasterDimension = dstGridGeometry.getGridRange2D();
+        final ImageLayout imageLayout = new ImageLayout();
+        imageLayout.setMinX(destinationRasterDimension.x).setMinY(destinationRasterDimension.y);
+        imageLayout.setWidth(destinationRasterDimension.width).setHeight(destinationRasterDimension.height);
 
         //
         // SampleModel and ColorModel are related to data itself, so we
@@ -108,12 +146,13 @@ public class GridCoverage2DRIA extends GeometricOpImage {
         //
         BorderExtender extender = new BorderExtenderConstant(new double[] { nodata });
 
-        return new GridCoverage2DRIA(src, dst, vectorize(src.getRenderedImage()), imageLayout,
+        return new GridCoverage2DRIA(src, dstGridGeometry, vectorize(src.getRenderedImage()), imageLayout,
                 null, false, extender, Interpolation.getInstance(Interpolation.INTERP_NEAREST),
                 new double[] { nodata });
     }
 
-    protected GridCoverage2DRIA(final GridCoverage2D src, final GridCoverage2D dst,
+    @SuppressWarnings("rawtypes")
+    protected GridCoverage2DRIA(final GridCoverage2D src, final GridGeometry2D dstGridGeometry,
             final Vector sources, final ImageLayout layout, final Map configuration,
             final boolean cobbleSources, final BorderExtender extender, final Interpolation interp,
             final double[] nodata) {
@@ -121,37 +160,52 @@ public class GridCoverage2DRIA extends GeometricOpImage {
         super(sources, layout, configuration, cobbleSources, extender, interp, nodata);
 
         this.src = src;
-        this.dst = dst;
+        this.dstGridGeometry = new GridGeometry2D(dstGridGeometry);
 
         // === Take one for all all the transformation we need to pass from
         // model, sample, src, target and viceversa.
-        g2wd = dst.getGridGeometry().getGridToCRS2D(PixelOrientation.UPPER_LEFT);
+        g2wd = (AffineTransform) dstGridGeometry.getGridToCRS2D(PixelOrientation.UPPER_LEFT);
 
         try {
-            w2gd = g2wd.inverse();
-        } catch (org.opengis.referencing.operation.NoninvertibleTransformException e) {
-            throw new IllegalArgumentException("Can't compute destination W2G", e);
+            w2gd = g2wd.createInverse();
+        }  catch (NoninvertibleTransformException e) {
+            throw new IllegalArgumentException("Can't compute source W2G", e);
         }
 
-        g2ws = src.getGridGeometry().getGridToCRS2D(PixelOrientation.UPPER_LEFT);
+        g2ws = (AffineTransform) src.getGridGeometry().getGridToCRS2D(PixelOrientation.UPPER_LEFT);
 
         try {
-            w2gs = g2ws.inverse();
-        } catch (org.opengis.referencing.operation.NoninvertibleTransformException e) {
+            w2gs = g2ws.createInverse();
+        }  catch (NoninvertibleTransformException e) {
             throw new IllegalArgumentException("Can't compute source W2G", e);
         }
 
         try {
             CoordinateReferenceSystem sourceCRS = src.getCoordinateReferenceSystem2D();
-            CoordinateReferenceSystem targetCRS = dst.getCoordinateReferenceSystem2D();
+            CoordinateReferenceSystem targetCRS = dstGridGeometry.getCoordinateReferenceSystem2D();
+            if(!CRS.equalsIgnoreMetadata(sourceCRS, targetCRS)){
+                src2dstCRSTransform = CRS.findMathTransform(sourceCRS, targetCRS, true);
+                dst2srcCRSTransform = src2dstCRSTransform.inverse();
+                if(!src2dstCRSTransform.isIdentity()){
+                    needReprojection=true;
+                    return;
+                } 
+            }
+            
+            // === if we got here we don't need to reproject, let's concatenate the transforms
+            // we don't reproject, let's simplify
+            needReprojection=false;
+            concatenatedForwardTransform=(AffineTransform) w2gs.clone();
+            concatenatedForwardTransform.concatenate(g2wd);  
+            concatenatedBackwardTransform=concatenatedForwardTransform.createInverse();
+            if(XAffineTransform.isIdentity(concatenatedForwardTransform, 1E-6)){
+                concatenatedForwardTransform=new AffineTransform();// identity
+                concatenatedBackwardTransform=new AffineTransform();// identity
+            }            
 
-            src2dstCRSTransform = CRS.findMathTransform(sourceCRS, targetCRS, true);
-            dst2srcCRSTransform = src2dstCRSTransform.inverse();
-        } catch (FactoryException e) {
+        } catch (Exception e) {
             throw new IllegalArgumentException("Can't create a transform between CRS", e);
-        } catch (NoninvertibleTransformException e) {
-            throw new IllegalArgumentException("Can't create a transform between CRS", e);
-        }
+        } 
 
     }
 
@@ -168,7 +222,9 @@ public class GridCoverage2DRIA extends GeometricOpImage {
         try {
             mapSrcPoint(coords);
         } catch (TransformException e) {
-            LOGGER.log(Level.WARNING, "Error transforming coords", e);
+            if(LOGGER.isLoggable(Level.WARNING)){
+                LOGGER.log(Level.WARNING, "Error transforming coords", e);
+            }
             return null;
         }
 
@@ -267,7 +323,7 @@ public class GridCoverage2DRIA extends GeometricOpImage {
 
         Point2D ret = ((Point2D) destPt.clone());
         ret.setLocation(coords[0], coords[1]);
-        if (dst.getGridGeometry().getEnvelope2D().contains(ret))
+        if (dstGridGeometry.getEnvelope2D().contains(ret))
             return ret;
         else
             return null;
@@ -275,6 +331,13 @@ public class GridCoverage2DRIA extends GeometricOpImage {
 
     private void mapDestPoint(double[] coords) throws TransformException {
         final int npoints = coords.length / 2;
+        // optimized route
+        if(!needReprojection){
+            if(!concatenatedBackwardTransform.isIdentity()){
+                concatenatedBackwardTransform.transform(coords, 0, coords, 0, npoints);
+            }
+            return;
+        }        
         g2ws.transform(coords, 0, coords, 0, npoints);
         src2dstCRSTransform.transform(coords, 0, coords, 0, npoints);
         w2gd.transform(coords, 0, coords, 0, npoints);
@@ -282,11 +345,21 @@ public class GridCoverage2DRIA extends GeometricOpImage {
 
     private void mapSrcPoint(double[] coords) throws TransformException {
         final int npoints = coords.length / 2;
+        
+        // optimized route
+        if(!needReprojection){
+            if(!concatenatedForwardTransform.isIdentity()){
+                concatenatedForwardTransform.transform(coords, 0, coords, 0, npoints);
+            }
+            return;
+        }
         // StringBuilder sb = new StringBuilder();
         // sb.append("SRC[").append(coords[0]).append(',').append(coords[1]).append(']').append("--g2wd->");
         g2wd.transform(coords, 0, coords, 0, npoints);
+        
         // sb.append("[").append(coords[0]).append(',').append(coords[1]).append(']').append("--d2sCRS->");
         dst2srcCRSTransform.transform(coords, 0, coords, 0, npoints);
+        
         // sb.append('[').append(coords[0]).append(',').append(coords[1]).append(']').append("--w2gs->");
         w2gs.transform(coords, 0, coords, 0, npoints);
         // sb.append('[').append(coords[0]).append(',').append(coords[1]).append(']');
