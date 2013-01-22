@@ -55,6 +55,7 @@ public class BaseRasterAlgebraTest extends WPSTestSupport{
     public static QName srtm_39_04_1 = new QName(WCS_URI, "srtm_39_04_1", WCS_PREFIX);
     public static QName srtm_39_04_2 = new QName(WCS_URI, "srtm_39_04_2", WCS_PREFIX);
     public static QName srtm_39_04_3 = new QName(WCS_URI, "srtm_39_04_3", WCS_PREFIX);
+    public static QName srtm_39_04 = new QName(WCS_URI, "srtm_39_04", WCS_PREFIX);
 
     private OGCConfiguration configuration;
     
@@ -110,6 +111,7 @@ public class BaseRasterAlgebraTest extends WPSTestSupport{
         testData.addRasterLayer(srtm_39_04_1, "srtm_39_04_1.tiff", TIFF, props, getClass(), getCatalog());
         testData.addRasterLayer(srtm_39_04_2, "srtm_39_04_2.tiff", TIFF, props,  getClass(), getCatalog());
         testData.addRasterLayer(srtm_39_04_3, "srtm_39_04_3.tiff", TIFF, props,  getClass(), getCatalog());
+        testData.addRasterLayer(srtm_39_04, "srtm_39_04.tiff", TIFF, props,  getClass(), getCatalog());
     }
 
     /**

@@ -17,8 +17,6 @@
  */
 package org.geoserver.wps.raster.algebra;
 
-import it.geosolutions.imageio.utilities.ImageIOUtilities;
-
 import java.awt.image.RenderedImage;
 import java.io.File;
 import java.util.logging.Logger;
@@ -88,7 +86,7 @@ public class CoverageProcessorTest extends BaseRasterAlgebraTest {
         Assert.assertNotNull(filter);
                 
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,GeoTools.getDefaultHints());
+        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
         filter.accept(collector, null);
         
         // instantiate processor

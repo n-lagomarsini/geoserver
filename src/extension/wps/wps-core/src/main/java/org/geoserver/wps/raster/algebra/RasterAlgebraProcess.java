@@ -67,12 +67,16 @@ public class RasterAlgebraProcess implements GSProcess {
     @DescribeResult(name = "RasterAlgebra", description = "RasterAlgebra", type=GridCoverage2D.class)
     public GridCoverage2D execute(
             @DescribeParameter(name = "expression", description = "Filter to use on the raster data", min = 1) Filter filter,
-            @DescribeParameter(name = "ROI", min = 0, description = "Region Of Interest") Geometry roi)
+            @DescribeParameter(name = "ROI", min = 0, description = "Region Of Interest") Geometry roi,
+            @DescribeParameter(name = "ResolutionChoice", min = 0, description = "How to choose the final resolution") ResolutionChoice resolutionChoice)
             throws IOException {
         
         
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,GeoTools.getDefaultHints());
+        final CoverageCollector collector= new CoverageCollector(
+                catalog,
+                resolutionChoice!=null?resolutionChoice:ResolutionChoice.getDefault(),
+                GeoTools.getDefaultHints());
         filter.accept(collector, null);
         
         // instantiate processor
@@ -106,7 +110,5 @@ public class RasterAlgebraProcess implements GSProcess {
         
         // something bad happened
         throw new WPSException("Unable to create a valid response for this request.");
-        
-      
     }
 }

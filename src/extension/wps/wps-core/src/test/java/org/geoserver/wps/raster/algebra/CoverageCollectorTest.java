@@ -43,7 +43,7 @@ public class CoverageCollectorTest extends BaseRasterAlgebraTest{
         Assert.assertNotNull(filter);
         
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,GeoTools.getDefaultHints());
+        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
         filter.accept(collector, null);
         
         final HashMap<String, GridCoverage2D> coverages = collector.getCoverages();
@@ -65,7 +65,7 @@ public class CoverageCollectorTest extends BaseRasterAlgebraTest{
         
         
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,GeoTools.getDefaultHints());
+        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
         filter.accept(collector, null);
         
         final HashMap<String, GridCoverage2D> coverages = collector.getCoverages();
@@ -84,7 +84,7 @@ public class CoverageCollectorTest extends BaseRasterAlgebraTest{
         Assert.assertNotNull(filter);
         
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,GeoTools.getDefaultHints());
+        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
         filter.accept(collector, null);
         
         final HashMap<String, GridCoverage2D> coverages = collector.getCoverages();
@@ -104,7 +104,7 @@ public class CoverageCollectorTest extends BaseRasterAlgebraTest{
         Assert.assertNotNull(filter);
         
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,GeoTools.getDefaultHints());
+        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
         filter.accept(collector, null);
         
         final HashMap<String, GridCoverage2D> coverages = collector.getCoverages();
@@ -125,7 +125,7 @@ public class CoverageCollectorTest extends BaseRasterAlgebraTest{
         Assert.assertNotNull(filter);
         
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,GeoTools.getDefaultHints());
+        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
         filter.accept(collector, null);
         
         final HashMap<String, GridCoverage2D> coverages = collector.getCoverages();

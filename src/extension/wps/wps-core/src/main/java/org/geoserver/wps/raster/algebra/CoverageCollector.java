@@ -18,8 +18,10 @@ package org.geoserver.wps.raster.algebra;
 
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
@@ -36,8 +38,10 @@ import org.geotools.filter.visitor.DefaultFilterVisitor;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
+import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.geotools.util.NullProgressListener;
+import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterVisitor;
@@ -74,6 +78,7 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
     
     private final static Logger LOGGER= Logging.getLogger(CoverageCollector.class);
 
+    /** The {@link CoverageInfo} objects that we need.*/
     private final Set<CoverageInfo> coverageNames= new HashSet<CoverageInfo>();
     
     /** The coverage to be used as reference for the computation of the final {@link GridGeometry2D}.*/
@@ -90,24 +95,34 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
     
     private final Hints hints;
 
-    /** Final grid-to-world transformation. It is currently mutuated from the reference coverage.*/
-    private AffineTransform2D referenceG2W;
-
     /** Final {@link GridGeometry2D}.*/
     private GridGeometry2D finalGridGeometry;
     
     /** Map that maps names to {@link GridCoverage2D} instances. At the end of the visit it contains all the coverages used in the {@link Filter}.*/
-    private Map<String, GridCoverage2D> coverages; 
+    private Map<String, GridCoverage2D> coverages;
+
+    private ResolutionChoice resolutionChoice;
+
+    /** The list of Pixel Size on the X axis.*/
+    private List<Double> pixelSizesX= new ArrayList<Double>();
+
+    /** The list Pixel Size on the Y axis.*/
+    private List<Double> pixelSizesY= new ArrayList<Double>(); 
     
     /**
      * Constructor.
      * 
      * @param catalog the GeoServer {@link Catalog} to get {@link CoverageInfo} from.
+     * @param resolutionChoice how to choose the final pixel size.
      * @param hints {@link Hints} to be used when instantiating {@link GridCoverage2D}.
      */
-    public CoverageCollector(Catalog catalog, Hints hints) {
+    public CoverageCollector(Catalog catalog, ResolutionChoice resolutionChoice, Hints hints) {
+        Utilities.ensureNonNull("resolutionChoice", resolutionChoice);
+        Utilities.ensureNonNull("catalog", catalog);
+        
         this.catalog = catalog;
         this.hints=hints.clone();
+        this.resolutionChoice=resolutionChoice;
     }
 
     /**
@@ -130,15 +145,18 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
         if(coverage==null){
             throw new IllegalArgumentException("Unable to locate coverage:"+name);
         } else {
+            MathTransform tempTransform = coverage.getGrid().getGridToCRS();
+            if(!(tempTransform instanceof AffineTransform)){
+                throw new IllegalArgumentException("Grid to world tranform is not an AffineTransform:"+name);
+            }
+            final AffineTransform tr=(AffineTransform) tempTransform;
+            pixelSizesX.add(XAffineTransform.getScaleX0(tr));
+            pixelSizesY.add(XAffineTransform.getScaleY0(tr));
+            
             if(referenceCoverage==null){
                 // set the first use as reference coverage
                 referenceCoverage=coverage;
                 referenceCRS= referenceCoverage.getCRS();
-                MathTransform tempTransform = referenceCoverage.getGrid().getGridToCRS();
-                if(!(tempTransform instanceof AffineTransform)){
-                    throw new IllegalArgumentException("Grid to world tranform is not an AffineTransform:"+name);
-                }
-                referenceG2W=new AffineTransform2D((AffineTransform) tempTransform);
                 
                 try {
                     finalEnvelope = referenceCoverage.getNativeBoundingBox();
@@ -164,8 +182,7 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
                 }
                 
                 // intersect the reference envelope with the coverage one
-                finalEnvelope=ReferencedEnvelope.reference(finalEnvelope.intersection(envelope));
-                
+                finalEnvelope=ReferencedEnvelope.reference(finalEnvelope.intersection(envelope));                
 
                 // add to the set as this is not a reference coverage
                 coverageNames.add(coverage);
@@ -249,10 +266,22 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
             final GeneralEnvelope envelope=new GeneralEnvelope(finalEnvelope);
             envelope.setCoordinateReferenceSystem(referenceCRS);
             
+            double finalScaleX=resolutionChoice.compute(pixelSizesX);
+            double finalScaleY=resolutionChoice.compute(pixelSizesY);
+            // G2W transform
+            final AffineTransform2D g2w= new AffineTransform2D(
+                    finalScaleX,
+                    0,
+                    0,
+                    -finalScaleY,//TODO make this generic with respect to CRS
+                    envelope.getUpperCorner().getOrdinate(0)+finalScaleX/2,
+                    envelope.getUpperCorner().getOrdinate(1)-finalScaleX/2);
+            
+            
             // prepare final gridgeometry
             finalGridGeometry= new GridGeometry2D(
                     PixelInCell.CELL_CENTER,
-                    referenceG2W,
+                    g2w,
                     envelope,
                     hints
             );            

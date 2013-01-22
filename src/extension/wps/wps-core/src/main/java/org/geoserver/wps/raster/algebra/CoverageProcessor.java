@@ -168,7 +168,7 @@ class CoverageProcessor extends DefaultFilterVisitor implements FilterVisitor {
         // fetch source image 
         final RenderedImage source = fetchSourceImage(name);
         
-        // create tablei
+        // create table
         return evaluateNumericBinaryComparisonOperator(minValue, true,maxValue,true, source);
     }
 
@@ -188,12 +188,15 @@ class CoverageProcessor extends DefaultFilterVisitor implements FilterVisitor {
      */
     private RenderedImage evaluateNumericBinaryComparisonOperator(final double minValue, boolean minInclusive, final double maxValue, boolean maxInclusive,
             final RenderedImage source) {
-        RangeLookupTable<Double,Byte> table= new RangeLookupTable<Double, Byte>((byte)0);
-        table.add(new Range<Double>(minValue,minInclusive , maxValue, maxInclusive), (byte)1);
+        
+        final RangeLookupTable.Builder<Double,Byte> builder = new RangeLookupTable.Builder<Double,Byte>();
+        builder.add(new Range<Double>(minValue,minInclusive , maxValue, maxInclusive), (byte)1);
+        RangeLookupTable<Double,Byte> table= builder.build();
         
         ParameterBlockJAI pb = new ParameterBlockJAI("rangelookup");
         pb.setSource("source0", source);
         pb.setParameter("table", table);
+        pb.setParameter("default", Byte.valueOf((byte)0));
         final RenderedImage rangeLookup = JAI.create("rangelookup", pb,hints);
         
         // return result
