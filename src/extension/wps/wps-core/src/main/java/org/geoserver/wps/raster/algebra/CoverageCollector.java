@@ -52,9 +52,13 @@ import org.opengis.filter.expression.PropertyName;
 import org.opengis.geometry.Envelope;
 import org.opengis.parameter.GeneralParameterValue;
 import org.opengis.parameter.ParameterValue;
+import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.datum.PixelInCell;
 import org.opengis.referencing.operation.MathTransform;
+
+import com.vividsolutions.jts.geom.Geometry;
 
 /**
  * Implementation of {@link ExpressionVisitor} and {@link FilterVisitor} that collects the coverages from the 
@@ -109,7 +113,9 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
     private List<Double> pixelSizesX= new ArrayList<Double>();
 
     /** The list Pixel Size on the Y axis.*/
-    private List<Double> pixelSizesY= new ArrayList<Double>(); 
+    private List<Double> pixelSizesY= new ArrayList<Double>();
+
+    private Geometry roi; 
     
     /**
      * Constructor.
@@ -119,11 +125,23 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
      * @param hints {@link Hints} to be used when instantiating {@link GridCoverage2D}.
      */
     public CoverageCollector(Catalog catalog, ResolutionChoice resolutionChoice, Hints hints) {
+        this(catalog, resolutionChoice, null, hints);
+    }
+
+    /**
+     * @param catalog2
+     * @param resolutionChoice2
+     * @param roi
+     * @param hints2
+     */
+    public CoverageCollector(Catalog catalog, ResolutionChoice resolutionChoice, Geometry roi, Hints hints) {
         Utilities.ensureNonNull("resolutionChoice", resolutionChoice);
         Utilities.ensureNonNull("catalog", catalog);
+        Utilities.ensureNonNull("hints", hints);
         
         this.catalog = catalog;
         this.hints=hints.clone();
+        this.roi=roi;
         this.resolutionChoice=resolutionChoice;
     }
 
@@ -208,7 +226,11 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
     public synchronized HashMap<String, GridCoverage2D> getCoverages() throws IOException {
         
         // compute final GridGeometry
-        prepareFinalGridGeometry();
+        try {
+            prepareFinalGridGeometry();
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
         
         // prepare coverages
         prepareFinalCoverage();
@@ -258,11 +280,30 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
 
     /**
      * Create, once, the final {@link GridGeometry2D} to be used for futher processing.
+     * @throws Exception 
      * 
      */
-    private void prepareFinalGridGeometry() {
+    private void prepareFinalGridGeometry() throws Exception {
         if(finalGridGeometry==null){
             // prepare the envelope and make sure the CRS is set
+            
+            // use ROI if present
+            if(roi!=null){
+                final com.vividsolutions.jts.geom.Envelope envelope = roi.getEnvelopeInternal();
+                final CoordinateReferenceSystem roiCRS;
+                // assuming WGS84 if no SRID is there
+                final int srid=roi.getSRID();
+                if(srid>0){
+                    roiCRS=CRS.decode("EPSG:"+srid);
+                } else {
+                    roiCRS=CRS.decode("EPSG:4326");
+                }
+                
+                ReferencedEnvelope refEnvelope= new ReferencedEnvelope(envelope, roiCRS);
+                refEnvelope=refEnvelope.transform(referenceCRS, true);
+                finalEnvelope=new ReferencedEnvelope(refEnvelope.intersection(finalEnvelope),referenceCRS);
+                
+            }
             final GeneralEnvelope envelope=new GeneralEnvelope(finalEnvelope);
             envelope.setCoordinateReferenceSystem(referenceCRS);
             
@@ -296,7 +337,11 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
      * @throws IOException 
      */
     public synchronized GridGeometry2D getGridGeometry() throws IOException {
-        prepareFinalGridGeometry();
+        try {
+            prepareFinalGridGeometry();
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
         prepareFinalCoverage();
         return finalGridGeometry;
     }

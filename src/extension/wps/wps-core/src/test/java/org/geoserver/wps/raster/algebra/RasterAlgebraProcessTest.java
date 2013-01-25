@@ -70,8 +70,8 @@ public class RasterAlgebraProcessTest extends BaseRasterAlgebraTest {
         GridCoverage2D gc = reader.read(null);
         Assert.assertNotNull("Unable to read this coverage",gc);
         Assert.assertTrue(CRS.equalsIgnoreMetadata(gc.getCoordinateReferenceSystem(), CRS.decode("EPSG:4326")));
-        Assert.assertEquals(11.0, gc.getEnvelope().getMinimum(0),1E-6);
-        Assert.assertEquals(41.0, gc.getEnvelope().getMinimum(1),1E-6);
+        Assert.assertEquals(12.0, gc.getEnvelope().getMinimum(0),1E-6);
+        Assert.assertEquals(42.0, gc.getEnvelope().getMinimum(1),1E-6);
         Assert.assertEquals(13.0, gc.getEnvelope().getMaximum(0),1E-6);
         Assert.assertEquals(44.0, gc.getEnvelope().getMaximum(1),1E-6);
 
@@ -99,7 +99,7 @@ public class RasterAlgebraProcessTest extends BaseRasterAlgebraTest {
         Assert.assertNotNull("Unable to read this coverage",gc);
         Assert.assertTrue(CRS.equalsIgnoreMetadata(gc.getCoordinateReferenceSystem(), CRS.decode("EPSG:4326")));
         Assert.assertEquals(12.0, gc.getEnvelope().getMinimum(0),1E-6);
-        Assert.assertEquals(42.0, gc.getEnvelope().getMinimum(1),1E-6);
+        Assert.assertEquals(43.0, gc.getEnvelope().getMinimum(1),1E-6);
         Assert.assertEquals(13.0, gc.getEnvelope().getMaximum(0),1E-6);
         Assert.assertEquals(44.0, gc.getEnvelope().getMaximum(1),1E-6);
 
@@ -127,7 +127,7 @@ public class RasterAlgebraProcessTest extends BaseRasterAlgebraTest {
         GridCoverage2D gc = reader.read(null);
         Assert.assertNotNull("Unable to read this coverage",gc);
         Assert.assertTrue(CRS.equalsIgnoreMetadata(gc.getCoordinateReferenceSystem(), CRS.decode("EPSG:4326")));
-        Assert.assertEquals(12.0, gc.getEnvelope().getMinimum(0),1E-6);
+        Assert.assertEquals(13.0, gc.getEnvelope().getMinimum(0),1E-6);
         Assert.assertEquals(42.0, gc.getEnvelope().getMinimum(1),1E-6);
         Assert.assertEquals(15.0, gc.getEnvelope().getMaximum(0),1E-6);
         Assert.assertEquals(44.0, gc.getEnvelope().getMaximum(1),1E-6);

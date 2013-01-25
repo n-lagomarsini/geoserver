@@ -85,9 +85,11 @@ public class RasterAlgebraProcess implements GSProcess {
         layout.setTileHeight(JAI.getDefaultTileSize().height);
         hints.add(new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout));
         
+        // collect input coverages
         final CoverageCollector collector= new CoverageCollector(
                 catalog,
                 resolutionChoice!=null?resolutionChoice:ResolutionChoice.getDefault(),
+                roi,
                 hints);
         filter.accept(collector, null);
         

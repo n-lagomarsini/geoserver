@@ -95,6 +95,8 @@ public class CoverageProcessorTest extends BaseRasterAlgebraTest {
                 collector.getGridGeometry(),
                 GeoTools.getDefaultHints());
         final RenderedImage result=testProcessor(filter, processor);
+        Assert.assertNotNull(result);
+        testBinaryImage(result);
         
         // dispose
         collector.dispose();
