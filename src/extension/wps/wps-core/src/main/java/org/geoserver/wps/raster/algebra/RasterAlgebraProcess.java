@@ -78,7 +78,7 @@ public class RasterAlgebraProcess implements GSProcess {
         
         // === instantiate collector
         
-        // hints
+        // hints for tiling
         final Hints hints = GeoTools.getDefaultHints().clone();
         final ImageLayout2 layout = new ImageLayout2();
         layout.setTileWidth(JAI.getDefaultTileSize().width);

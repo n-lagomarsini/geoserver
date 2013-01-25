@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
 
 import org.geoserver.catalog.Catalog;
@@ -40,6 +41,7 @@ import org.geotools.filter.visitor.DefaultFilterVisitor;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
+import org.geotools.referencing.operation.builder.GridToEnvelopeMapper;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.geotools.util.NullProgressListener;
@@ -52,12 +54,11 @@ import org.opengis.filter.expression.PropertyName;
 import org.opengis.geometry.Envelope;
 import org.opengis.parameter.GeneralParameterValue;
 import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.datum.PixelInCell;
 import org.opengis.referencing.operation.MathTransform;
 
+import com.sun.media.jai.opimage.RIFUtil;
 import com.vividsolutions.jts.geom.Geometry;
 
 /**
@@ -165,13 +166,13 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
         if(coverage==null){
             throw new IllegalArgumentException("Unable to locate coverage:"+name);
         } else {
+            
+            // pixel scale
             MathTransform tempTransform = coverage.getGrid().getGridToCRS();
             if(!(tempTransform instanceof AffineTransform)){
                 throw new IllegalArgumentException("Grid to world tranform is not an AffineTransform:"+name);
             }
-            final AffineTransform tr=(AffineTransform) tempTransform;
-            pixelSizesX.add(XAffineTransform.getScaleX0(tr));
-            pixelSizesY.add(XAffineTransform.getScaleY0(tr));
+            AffineTransform tr=(AffineTransform) tempTransform;
             
             if(referenceCoverage==null){
                 // set the first use as reference coverage
@@ -184,8 +185,13 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
                     LOGGER.log(Level.WARNING, e.getMessage(), e);
                 }
                 
-                // 
+                // resolution
+                pixelSizesX.add(XAffineTransform.getScaleX0(tr));
+                pixelSizesY.add(XAffineTransform.getScaleY0(tr));
+                
             } else {
+                // === we already have a reference coverage
+                boolean reproject=false;
                 
                 // get envelope and crs
                 final CoordinateReferenceSystem crs= coverage.getCRS();
@@ -196,13 +202,25 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
                     // reproject the coverage envelope if needed
                     if(!CRS.equalsIgnoreMetadata(crs, referenceCRS)){
                         envelope=envelope.transform(referenceCRS, true);
+                        reproject=true;
                     }                    
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
                 
                 // intersect the reference envelope with the coverage one
-                finalEnvelope=ReferencedEnvelope.reference(finalEnvelope.intersection(envelope));                
+                finalEnvelope=new ReferencedEnvelope(finalEnvelope.intersection(envelope),this.referenceCRS);    
+                
+                // resolution
+                if(!reproject){
+                    pixelSizesX.add(XAffineTransform.getScaleX0(tr));
+                    pixelSizesY.add(XAffineTransform.getScaleY0(tr));
+                } else {
+                    // simulate reprojection
+                    tr=new GridToEnvelopeMapper(coverage.getGrid().getGridRange(), envelope).createAffineTransform(); 
+                    pixelSizesX.add(XAffineTransform.getScaleX0(tr));
+                    pixelSizesY.add(XAffineTransform.getScaleY0(tr));
+                }
 
                 // add to the set as this is not a reference coverage
                 coverageNames.add(coverage);
@@ -233,7 +251,7 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
         }
         
         // prepare coverages
-        prepareFinalCoverage();
+        prepareCoveragesList();
         
         return new HashMap<String, GridCoverage2D>(coverages);
     }
@@ -242,8 +260,7 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
      * @throws IOException 
      * 
      */
-    @SuppressWarnings("serial")
-    private void prepareFinalCoverage() throws IOException {
+    private void prepareCoveragesList() throws IOException {
         // === checks, we don't want to build this twice
         if(coverages!=null){
             return;
@@ -255,12 +272,21 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
         
         final ParameterValue<GridGeometry2D> readGG = AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
         readGG.setValue(finalGridGeometry);
-        
+
         final ParameterValue<String> suggestedTileSize = AbstractGridFormat.SUGGESTED_TILE_SIZE.createValue();
-        suggestedTileSize.setValue(
-                String.valueOf(JAI.getDefaultInstance().getDefaultTileSize().width)+
-                ","+
-                String.valueOf(JAI.getDefaultInstance().getDefaultTileSize().height));
+        final ImageLayout layout = RIFUtil.getImageLayoutHint(hints);
+        if(layout!=null&&layout.isValid(ImageLayout.TILE_HEIGHT_MASK)&&layout.isValid(ImageLayout.TILE_WIDTH_MASK)){
+            suggestedTileSize.setValue(
+                    String.valueOf(layout.getTileWidth(null))+
+                    ","+
+                    String.valueOf(layout.getTileHeight(null)));            
+        } else {
+            // default
+            suggestedTileSize.setValue(
+                    String.valueOf(JAI.getDefaultInstance().getDefaultTileSize().width)+
+                    ","+
+                    String.valueOf(JAI.getDefaultInstance().getDefaultTileSize().height));            
+        }
         
         // now prepare the target coverages to match the target GridGeometry
         
@@ -307,6 +333,11 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
             final GeneralEnvelope envelope=new GeneralEnvelope(finalEnvelope);
             envelope.setCoordinateReferenceSystem(referenceCRS);
             
+            // check envelope and ROI to make sure it is not empty
+            if(envelope.isEmpty()){
+                throw new IllegalStateException("Final envelope is empty!");
+            }
+            
             double finalScaleX=resolutionChoice.compute(pixelSizesX);
             double finalScaleY=resolutionChoice.compute(pixelSizesY);
             // G2W transform
@@ -342,7 +373,7 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
         } catch (Exception e) {
             throw new IOException(e);
         }
-        prepareFinalCoverage();
+        prepareCoveragesList();
         return finalGridGeometry;
     }
     

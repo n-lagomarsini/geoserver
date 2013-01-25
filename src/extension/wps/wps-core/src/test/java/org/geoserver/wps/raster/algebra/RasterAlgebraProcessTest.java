@@ -140,4 +140,13 @@ public class RasterAlgebraProcessTest extends BaseRasterAlgebraTest {
         scheduleForDisposal(gc);
         reader.dispose();
     }
+
+
+    @Test
+    public void testOperationComplex3() throws Exception {
+        String xml = FileUtils.readFileToString(new File("./src/test/resources/rasteralgebraComplex3.xml"));
+    
+        MockHttpServletResponse response = postAsServletResponse(root(), xml);
+        Assert.assertEquals("Wrong mime type, expected text/xml",response.getContentType(), "text/xml");
+    }
 }
