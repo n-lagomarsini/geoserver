@@ -136,7 +136,6 @@ public class RasterAlgebraProcessTest extends BaseRasterAlgebraTest {
         Assert.assertEquals(0.013888888888888892,  XAffineTransform.getScaleY0((AffineTransform)gc.getGridGeometry().getGridToCRS()),1E-6);
     
         testBinaryGC(gc);
-        gc.show();
         
         scheduleForDisposal(gc);
         reader.dispose();

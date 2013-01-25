@@ -20,9 +20,11 @@
  */
 package org.geoserver.wps.raster.algebra;
 
+import java.awt.RenderingHints;
 import java.awt.image.RenderedImage;
 import java.io.IOException;
 
+import javax.media.jai.JAI;
 import javax.media.jai.PlanarImage;
 
 import org.geoserver.catalog.Catalog;
@@ -33,10 +35,12 @@ import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.factory.GeoTools;
+import org.geotools.factory.Hints;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.geotools.process.gs.GSProcess;
+import org.jaitools.imageutils.ImageLayout2;
 import org.opengis.filter.Filter;
 
 import com.vividsolutions.jts.geom.Geometry;
@@ -72,18 +76,26 @@ public class RasterAlgebraProcess implements GSProcess {
             throws IOException {
         
         
-        // instantiate collector
+        // === instantiate collector
+        
+        // hints
+        final Hints hints = GeoTools.getDefaultHints().clone();
+        final ImageLayout2 layout = new ImageLayout2();
+        layout.setTileWidth(JAI.getDefaultTileSize().width);
+        layout.setTileHeight(JAI.getDefaultTileSize().height);
+        hints.add(new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout));
+        
         final CoverageCollector collector= new CoverageCollector(
                 catalog,
                 resolutionChoice!=null?resolutionChoice:ResolutionChoice.getDefault(),
-                GeoTools.getDefaultHints());
+                hints);
         filter.accept(collector, null);
         
         // instantiate processor
         final CoverageProcessor processor= new CoverageProcessor(
                 collector.getCoverages(),
                 collector.getGridGeometry(),
-                GeoTools.getDefaultHints());
+                hints);
         Object result_ = filter.accept(processor, null);
         if(result_ instanceof RenderedImage){
             
@@ -99,7 +111,7 @@ public class RasterAlgebraProcess implements GSProcess {
             );
             
             // create return coverage reusing origin grid to world 
-            return new GridCoverageFactory(GeoTools.getDefaultHints()).create(
+            return new GridCoverageFactory(hints).create(
                     "RasterAlgebra"+System.nanoTime(), 
                     raster,
                     gg2d, 

@@ -27,6 +27,8 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.media.jai.JAI;
+
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.wcs.CoverageCleanerCallback;
@@ -232,27 +234,25 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
         final ParameterValue<GridGeometry2D> readGG = AbstractGridFormat.READ_GRIDGEOMETRY2D.createValue();
         readGG.setValue(finalGridGeometry);
         
+        final ParameterValue<String> suggestedTileSize = AbstractGridFormat.SUGGESTED_TILE_SIZE.createValue();
+        suggestedTileSize.setValue(
+                String.valueOf(JAI.getDefaultInstance().getDefaultTileSize().width)+
+                ","+
+                String.valueOf(JAI.getDefaultInstance().getDefaultTileSize().height));
+        
         // now prepare the target coverages to match the target GridGeometry
-        if(coverageNames.size()==0){
-            coverages= new HashMap<String, GridCoverage2D>(){
-                {
-                    put(referenceCoverage.prefixedName(),(GridCoverage2D)referenceCoverage.getGridCoverageReader(
-                            new NullProgressListener(), 
-                            hints)
-                                .read(new GeneralParameterValue[]{streamingRead,readGG})
-                    );
-                }
-            };
-        }
         
         // === we have other grid coverage beside the reference one, let's process them
         // add the reference one
         coverages= new HashMap<String, GridCoverage2D>();
-        coverages.put(referenceCoverage.prefixedName(), (GridCoverage2D)referenceCoverage.getGridCoverage(null, hints));
+        coverages.put(
+                referenceCoverage.prefixedName(), 
+                (GridCoverage2D)referenceCoverage.getGridCoverageReader(new NullProgressListener(), hints).read(new GeneralParameterValue[]{streamingRead,readGG,suggestedTileSize}));
         
         // add the others with proper reprojection if needed
         for(CoverageInfo cov:coverageNames){
-            coverages.put(cov.prefixedName(), (GridCoverage2D)cov.getGridCoverage(null, hints));
+            coverages.put(cov.prefixedName(), 
+            (GridCoverage2D)cov.getGridCoverageReader(new NullProgressListener(), hints).read(new GeneralParameterValue[]{streamingRead,readGG,suggestedTileSize}));
         }                
     }
 
@@ -274,13 +274,13 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
                     0,
                     0,
                     -finalScaleY,//TODO make this generic with respect to CRS
-                    envelope.getUpperCorner().getOrdinate(0)+finalScaleX/2,
-                    envelope.getUpperCorner().getOrdinate(1)-finalScaleX/2);
+                    envelope.getLowerCorner().getOrdinate(0),
+                    envelope.getUpperCorner().getOrdinate(1));
             
             
             // prepare final gridgeometry
             finalGridGeometry= new GridGeometry2D(
-                    PixelInCell.CELL_CENTER,
+                    PixelInCell.CELL_CORNER,
                     g2w,
                     envelope,
                     hints

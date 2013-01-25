@@ -130,6 +130,7 @@ public class GridCoverage2DRIA extends GeometricOpImage {
         final ImageLayout imageLayout = new ImageLayout();
         imageLayout.setMinX(destinationRasterDimension.x).setMinY(destinationRasterDimension.y);
         imageLayout.setWidth(destinationRasterDimension.width).setHeight(destinationRasterDimension.height);
+        imageLayout.setTileHeight(src.getRenderedImage().getSampleModel().getHeight()).setTileWidth(src.getRenderedImage().getSampleModel().getWidth());
 
         //
         // SampleModel and ColorModel are related to data itself, so we
