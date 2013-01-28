@@ -35,7 +35,7 @@ import org.geotools.util.Utilities;
  * @author Simone Giannecchini, GeoSolutions SAS
  *
  */
-public enum ResolutionChoice {
+enum ResolutionChoice {
     MIN {
         @Override
         public double compute(List<Double> pixelScales) {

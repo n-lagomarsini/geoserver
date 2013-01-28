@@ -159,13 +159,13 @@ class CoverageProcessor extends DefaultFilterVisitor implements FilterVisitor {
     public Object visit(PropertyIsBetween filter, Object data) {
         
         // parse values
-        final String lowerS = (String) filter.getLowerBoundary().accept(this, data);
-        final String upperS = (String) filter.getUpperBoundary().accept(this, data);
+        final Object lowerS = filter.getLowerBoundary().accept(this, data);
+        final Object upperS = filter.getUpperBoundary().accept(this, data);
         final String name= (String) filter.getExpression().accept(this, data);
         
         // check values
-        final double minValue=Double.parseDouble(lowerS);
-        final double maxValue=Double.parseDouble(upperS);
+        final double minValue=Converters.convert(lowerS, Double.class);
+        final double maxValue=Converters.convert(upperS, Double.class);
         
         
         // fetch source image 

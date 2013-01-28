@@ -283,9 +283,9 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
         } else {
             // default
             suggestedTileSize.setValue(
-                    String.valueOf(JAI.getDefaultInstance().getDefaultTileSize().width)+
+                    String.valueOf(JAI.getDefaultTileSize().width)+
                     ","+
-                    String.valueOf(JAI.getDefaultInstance().getDefaultTileSize().height));            
+                    String.valueOf(JAI.getDefaultTileSize().height));            
         }
         
         // now prepare the target coverages to match the target GridGeometry
