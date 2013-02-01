@@ -28,9 +28,11 @@ import junit.framework.Assert;
 import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.geotools.factory.GeoTools;
+import org.geotools.filter.text.cql2.CQL;
 import org.geotools.resources.image.ImageUtilities;
 import org.junit.Test;
 import org.opengis.filter.Filter;
+import org.opengis.filter.expression.Expression;
 
 
 /**
@@ -121,5 +123,121 @@ public class CoverageProcessorTest extends BaseRasterAlgebraTest {
         // check values
         testBinaryImage(result);
         return result;
+    }
+    
+    @Test
+    public void max() throws Exception{
+        
+        Expression function = CQL.toExpression("max2(wcs:srtm_39_04_1,wcs:srtm_39_04_2,wcs:srtm_39_04_3,wcs:srtm_39_04)");
+        // instantiate collector
+        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
+        function.accept(collector, null);
+        
+        // instantiate processor
+        final CoverageProcessor processor= new CoverageProcessor(
+                collector.getCoverages(),
+                collector.getGridGeometry(),
+                GeoTools.getDefaultHints());
+        
+        Object result_ = function.accept(processor, null);
+        Assert.assertNotNull(result_);
+        Assert.assertTrue(result_ instanceof RenderedImage);
+        RenderedImage result= (RenderedImage) result_;
+        PlanarImage.wrapRenderedImage(result).getTiles();
+        
+        // check values
+        testMaxImage(result);
+        
+        // dispose
+        collector.dispose();
+        processor.dispose();
+        ImageUtilities.disposePlanarImageChain(PlanarImage.wrapRenderedImage(result));
+    }
+    
+    @Test
+    public void min() throws Exception{
+        
+        Expression function = CQL.toExpression("min2(wcs:srtm_39_04_1,wcs:srtm_39_04_2,wcs:srtm_39_04_3,wcs:srtm_39_04)");
+        // instantiate collector
+        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
+        function.accept(collector, null);
+        
+        // instantiate processor
+        final CoverageProcessor processor= new CoverageProcessor(
+                collector.getCoverages(),
+                collector.getGridGeometry(),
+                GeoTools.getDefaultHints());
+        
+        Object result_ = function.accept(processor, null);
+        Assert.assertNotNull(result_);
+        Assert.assertTrue(result_ instanceof RenderedImage);
+        RenderedImage result= (RenderedImage) result_;
+        PlanarImage.wrapRenderedImage(result).getTiles();
+        
+        // check values
+        testMinImage(result);
+        
+        // dispose
+        collector.dispose();
+        processor.dispose();
+        ImageUtilities.disposePlanarImageChain(PlanarImage.wrapRenderedImage(result));
+    }
+    
+    @Test
+    public void abs() throws Exception{
+        
+        Expression function = CQL.toExpression("abs(wcs:srtm_39_04_1)");
+        // instantiate collector
+        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
+        function.accept(collector, null);
+        
+        // instantiate processor
+        final CoverageProcessor processor= new CoverageProcessor(
+                collector.getCoverages(),
+                collector.getGridGeometry(),
+                GeoTools.getDefaultHints());
+        
+        Object result_ = function.accept(processor, null);
+        Assert.assertNotNull(result_);
+        Assert.assertTrue(result_ instanceof RenderedImage);
+        RenderedImage result= (RenderedImage) result_;
+        PlanarImage.wrapRenderedImage(result).getTiles();
+        
+        // check values
+        testAbsImage(result);
+        
+        // dispose
+        collector.dispose();
+        processor.dispose();
+        ImageUtilities.disposePlanarImageChain(PlanarImage.wrapRenderedImage(result));
+    }
+    
+    @Test
+    public void exp() throws Exception{
+        
+        Expression function = CQL.toExpression("exp(wcs:srtm_39_04_1)");
+        // instantiate collector
+        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
+        function.accept(collector, null);
+        
+        // instantiate processor
+        final CoverageProcessor processor= new CoverageProcessor(
+                collector.getCoverages(),
+                collector.getGridGeometry(),
+                GeoTools.getDefaultHints());
+        
+        Object result_ = function.accept(processor, null);
+        Assert.assertNotNull(result_);
+        Assert.assertTrue(result_ instanceof RenderedImage);
+        RenderedImage result= (RenderedImage) result_;
+        PlanarImage.wrapRenderedImage(result).getTiles();
+        
+        // check values
+        testExpImage(result);
+        
+        // dispose
+        collector.dispose();
+        processor.dispose();
+        ImageUtilities.disposePlanarImageChain(PlanarImage.wrapRenderedImage(result));
     }
 }

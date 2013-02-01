@@ -11,9 +11,7 @@
 		<wps:Input>
 			<ows:Identifier>expression</ows:Identifier>
 			<wps:Data>
-				<wps:ComplexData mimeType="text/plain; subtype=cql">
-	                          <![CDATA[NOT (wcs:srtm_39_04_1 < 0)]]>
-				</wps:ComplexData>
+				<wps:LiteralData>NOT (wcs:srtm_39_04_1 &lt; 0)</wps:LiteralData>
 			</wps:Data>
 		</wps:Input>
 	</wps:DataInputs>

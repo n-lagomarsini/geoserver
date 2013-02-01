@@ -82,6 +82,34 @@ public class RasterAlgebraProcessTest extends BaseRasterAlgebraTest {
     }
     
     @Test
+    public void testMax() throws Exception {
+        String xml = FileUtils.readFileToString(new File("./src/test/resources/rasteralgebraMax.xml"));
+
+        MockHttpServletResponse response = postAsServletResponse(root(), xml);
+        Assert.assertEquals("Wrong mime type, expected image/tiff",response.getContentType(), "image/tiff");
+
+
+        final File output = File.createTempFile("algebra", "tif", new File("./target"));
+        FileUtils.writeByteArrayToFile(output,getBinary(response));
+        
+        GeoTiffFormat format = new GeoTiffFormat();
+        Assert.assertTrue("GeoTiff format unable to parse this file",format.accepts(output));
+        GeoTiffReader reader = format.getReader(output);
+        GridCoverage2D gc = reader.read(null);
+        Assert.assertNotNull("Unable to read this coverage",gc);
+        Assert.assertTrue(CRS.equalsIgnoreMetadata(gc.getCoordinateReferenceSystem(), CRS.decode("EPSG:4326")));
+        Assert.assertEquals(12.0, gc.getEnvelope().getMinimum(0),1E-6);
+        Assert.assertEquals(42.0, gc.getEnvelope().getMinimum(1),1E-6);
+        Assert.assertEquals(13.0, gc.getEnvelope().getMaximum(0),1E-6);
+        Assert.assertEquals(44.0, gc.getEnvelope().getMaximum(1),1E-6);
+
+        testMaxImage(gc.getRenderedImage());
+        
+        scheduleForDisposal(gc);
+        reader.dispose();
+    }
+    
+    @Test
     public void testOperationComplex1() throws Exception {
         String xml = FileUtils.readFileToString(new File("./src/test/resources/rasteralgebraComplex1.xml"));
 

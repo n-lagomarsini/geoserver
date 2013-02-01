@@ -11,19 +11,13 @@
 		<wps:Input>
 			<ows:Identifier>expression</ows:Identifier>
 			<wps:Data>
-				<wps:LiteralData>wcs:srtm_39_04_1 &lt; 12 AND wcs:srtm_39_04_2 &lt; 111 AND wcs:srtm_39_04_3 &lt; 5</wps:LiteralData>
+				<wps:LiteralData>max2(wcs:srtm_39_04_1,wcs:srtm_39_04_2,wcs:srtm_39_04_3)</wps:LiteralData>
 			</wps:Data>
 		</wps:Input>
-		<wps:Input>
-		  <ows:Identifier>ROI</ows:Identifier>
-		  <wps:Data>
-		    <wps:ComplexData mimeType="application/wkt"><![CDATA[POLYGON((12 43, 12 44, 13 44, 13 43, 12 43 ))]]></wps:ComplexData>
-		  </wps:Data>
-		</wps:Input>		
 	</wps:DataInputs>
 	<wps:ResponseForm>
 		<wps:RawDataOutput mimeType="image/tiff">
-			<ows:Identifier>result</ows:Identifier>
+			<ows:Identifier>RasterAlgebra</ows:Identifier>
 		</wps:RawDataOutput>
 	</wps:ResponseForm>
-</wps:Execute> 
+</wps:Execute>

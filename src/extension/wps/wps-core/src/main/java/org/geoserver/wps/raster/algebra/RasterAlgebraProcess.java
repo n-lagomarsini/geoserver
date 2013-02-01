@@ -36,12 +36,14 @@ import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.factory.GeoTools;
 import org.geotools.factory.Hints;
+import org.geotools.filter.text.ecql.ECQL;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.geotools.process.gs.GSProcess;
 import org.jaitools.imageutils.ImageLayout2;
 import org.opengis.filter.Filter;
+import org.opengis.filter.expression.Expression;
 
 import com.vividsolutions.jts.geom.Geometry;
 
@@ -70,11 +72,22 @@ public class RasterAlgebraProcess implements GSProcess {
      */
     @DescribeResult(name = "RasterAlgebra", description = "RasterAlgebra", type=GridCoverage2D.class)
     public GridCoverage2D execute(
-            @DescribeParameter(name = "expression", description = "Filter to use on the raster data", min = 1) Filter filter,
+            @DescribeParameter(name = "expression", description = "Filter to use on the raster data", min = 1) String rasterAlgebra,
             @DescribeParameter(name = "ROI", min = 0, description = "Region Of Interest") Geometry roi,
             @DescribeParameter(name = "ResolutionChoice", min = 0, description = "How to choose the final resolution") ResolutionChoice resolutionChoice)
             throws IOException {
         
+        // === filter or expression
+        Object ra=null;
+        try{
+            ra=ECQL.toFilter(rasterAlgebra);
+        } catch (Exception e) {
+            try{
+                ra=ECQL.toExpression(rasterAlgebra);
+            } catch (Exception e1) {
+                throw new WPSException("Unable to parse input expression", e1);
+            }
+        }
         
         // === instantiate collector
         
@@ -91,14 +104,23 @@ public class RasterAlgebraProcess implements GSProcess {
                 resolutionChoice!=null?resolutionChoice:ResolutionChoice.getDefault(),
                 roi,
                 hints);
-        filter.accept(collector, null);
+        if(ra instanceof Expression){
+            ((Expression)ra).accept(collector, null);
+        } else if(ra instanceof Filter){
+            ((Filter)ra).accept(collector, null);
+        }
         
         // instantiate processor
         final CoverageProcessor processor= new CoverageProcessor(
                 collector.getCoverages(),
                 collector.getGridGeometry(),
                 hints);
-        Object result_ = filter.accept(processor, null);
+        Object result_ = null;
+        if(ra instanceof Expression){
+            result_ =((Expression)ra).accept(processor, null);
+        } else if(ra instanceof Filter){
+            result_ =((Filter)ra).accept(processor, null);
+        }
         if(result_ instanceof RenderedImage){
             
             // === create final gridcoverage

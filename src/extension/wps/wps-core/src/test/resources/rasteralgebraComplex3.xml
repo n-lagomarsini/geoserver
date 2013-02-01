@@ -11,9 +11,7 @@
 		<wps:Input>
 			<ows:Identifier>expression</ows:Identifier>
 			<wps:Data>
-				<wps:ComplexData mimeType="text/plain; subtype=cql">
-	                          <![CDATA[wcs:srtm_39_04 < 12 AND wcs:srtm_39_04_2 < 111 AND wcs:srtm_39_04_3 < 5]]>
-				</wps:ComplexData>
+				<wps:LiteralData>wcs:srtm_39_04 &lt; 12 AND wcs:srtm_39_04_2 &lt; 111 AND wcs:srtm_39_04_3 &lt; 5</wps:LiteralData>
 			</wps:Data>
 		</wps:Input>
 		<wps:Input>

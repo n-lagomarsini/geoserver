@@ -54,6 +54,8 @@ import org.opengis.filter.PropertyIsGreaterThanOrEqualTo;
 import org.opengis.filter.PropertyIsLessThan;
 import org.opengis.filter.PropertyIsLessThanOrEqualTo;
 import org.opengis.filter.PropertyIsNotEqualTo;
+import org.opengis.filter.expression.Expression;
+import org.opengis.filter.expression.Function;
 import org.opengis.filter.expression.Literal;
 import org.opengis.filter.expression.PropertyName;
 
@@ -351,5 +353,27 @@ class CoverageProcessor extends DefaultFilterVisitor implements FilterVisitor {
     public void dispose() {
         // TODO Auto-generated method stub
         
+    }
+
+    @Override
+    public Object visit(Function function, Object arg1) {
+        Utilities.ensureNonNull("function", function);
+        
+        // parse function
+        final List<Expression> params = function.getParameters();
+        String functionName=function.getName();
+        final List<String> inputs = new ArrayList<String>();
+        for(Expression exp:params){
+            inputs.add((String) exp.accept(this, null));
+        }
+        
+        // execute function
+        Operator operator= Operator.valueOf(functionName.toUpperCase());
+        final RenderedImage img[]= new RenderedImage[inputs.size()];
+        for(int i=0;i<img.length;i++){
+            img[i]=fetchSourceImage(inputs.get(i));
+        }
+        // execute operator
+        return operator.process(img, hints);
     }
 }

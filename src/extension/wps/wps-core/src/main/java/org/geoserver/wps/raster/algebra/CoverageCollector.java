@@ -49,7 +49,9 @@ import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterVisitor;
+import org.opengis.filter.expression.Expression;
 import org.opengis.filter.expression.ExpressionVisitor;
+import org.opengis.filter.expression.Function;
 import org.opengis.filter.expression.PropertyName;
 import org.opengis.geometry.Envelope;
 import org.opengis.parameter.GeneralParameterValue;
@@ -160,7 +162,16 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
         if(name==null||name.length()<=0){
             throw new IllegalArgumentException("Unable to extract property name from the provided expression:"+expression); 
         }
+        visitCoverage(name);       
         
+        // return
+        return null;
+    }
+
+    /**
+     * @param name
+     */
+    private void visitCoverage(String name) {
         // === extract from catalog and check the coverage
         final CoverageInfo coverage = catalog.getCoverageByName(name);
         if(coverage==null){
@@ -227,9 +238,6 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
             }
         }
         
-        
-        // return
-        return null;
     }
 
     /**
@@ -399,5 +407,16 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
         }
         
         
+    }
+
+    @Override
+    public Object visit(Function function, Object arg1) {
+        Utilities.ensureNonNull("function", function);
+        
+        final List<Expression> params = function.getParameters();
+        for(Expression exp:params){
+            exp.accept(this, null);
+        }
+        return null;
     }
 }
