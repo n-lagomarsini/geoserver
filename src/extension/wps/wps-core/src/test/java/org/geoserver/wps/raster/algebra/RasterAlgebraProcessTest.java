@@ -11,6 +11,7 @@ import org.apache.commons.io.FileUtils;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.gce.geotiff.GeoTiffFormat;
 import org.geotools.gce.geotiff.GeoTiffReader;
+import org.geotools.image.ImageWorker;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.junit.Assert;
@@ -103,7 +104,17 @@ public class RasterAlgebraProcessTest extends BaseRasterAlgebraTest {
         Assert.assertEquals(13.0, gc.getEnvelope().getMaximum(0),1E-6);
         Assert.assertEquals(44.0, gc.getEnvelope().getMaximum(1),1E-6);
 
-        testMaxImage(gc.getRenderedImage());
+        // check values
+        final ImageWorker worker = new ImageWorker(gc.getRenderedImage());
+        // check values
+        final double[] maximum = worker.getMaximums();
+        Assert.assertNotNull(maximum);
+        Assert.assertEquals(1, maximum.length);
+        Assert.assertEquals(2049.0, maximum[0],1E-6);
+        final double[] minimum = worker.getMinimums();
+        Assert.assertNotNull(minimum);
+        Assert.assertEquals(1, minimum.length);
+        Assert.assertEquals(-32768.0, minimum[0],1E-6);
         
         scheduleForDisposal(gc);
         reader.dispose();

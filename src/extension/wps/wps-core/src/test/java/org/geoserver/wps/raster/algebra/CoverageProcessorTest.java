@@ -29,6 +29,7 @@ import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.geotools.factory.GeoTools;
 import org.geotools.filter.text.cql2.CQL;
+import org.geotools.image.ImageWorker;
 import org.geotools.resources.image.ImageUtilities;
 import org.junit.Test;
 import org.opengis.filter.Filter;
@@ -88,7 +89,7 @@ public class CoverageProcessorTest extends BaseRasterAlgebraTest {
         Assert.assertNotNull(filter);
                 
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
+        final FilterCoverageCollector collector= new FilterCoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
         filter.accept(collector, null);
         
         // instantiate processor
@@ -130,7 +131,7 @@ public class CoverageProcessorTest extends BaseRasterAlgebraTest {
         
         Expression function = CQL.toExpression("max2(wcs:srtm_39_04_1,wcs:srtm_39_04_2,wcs:srtm_39_04_3,wcs:srtm_39_04)");
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
+        final FilterCoverageCollector collector= new FilterCoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
         function.accept(collector, null);
         
         // instantiate processor
@@ -146,7 +147,16 @@ public class CoverageProcessorTest extends BaseRasterAlgebraTest {
         PlanarImage.wrapRenderedImage(result).getTiles();
         
         // check values
-        testMaxImage(result);
+        final ImageWorker worker = new ImageWorker(result);
+        // check values
+        final double[] maximum = worker.getMaximums();
+        Assert.assertNotNull(maximum);
+        Assert.assertEquals(1, maximum.length);
+        Assert.assertEquals(2049.0, maximum[0],1E-6);
+        final double[] minimum = worker.getMinimums();
+        Assert.assertNotNull(minimum);
+        Assert.assertEquals(1, minimum.length);
+        Assert.assertEquals(-32768.0, minimum[0],1E-6);
         
         // dispose
         collector.dispose();
@@ -159,7 +169,7 @@ public class CoverageProcessorTest extends BaseRasterAlgebraTest {
         
         Expression function = CQL.toExpression("min2(wcs:srtm_39_04_1,wcs:srtm_39_04_2,wcs:srtm_39_04_3,wcs:srtm_39_04)");
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
+        final FilterCoverageCollector collector= new FilterCoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
         function.accept(collector, null);
         
         // instantiate processor
@@ -188,7 +198,7 @@ public class CoverageProcessorTest extends BaseRasterAlgebraTest {
         
         Expression function = CQL.toExpression("abs(wcs:srtm_39_04_1)");
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
+        final FilterCoverageCollector collector= new FilterCoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
         function.accept(collector, null);
         
         // instantiate processor
@@ -217,7 +227,7 @@ public class CoverageProcessorTest extends BaseRasterAlgebraTest {
         
         Expression function = CQL.toExpression("exp(wcs:srtm_39_04_1)");
         // instantiate collector
-        final CoverageCollector collector= new CoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
+        final FilterCoverageCollector collector= new FilterCoverageCollector(catalog,ResolutionChoice.getDefault(),GeoTools.getDefaultHints());
         function.accept(collector, null);
         
         // instantiate processor

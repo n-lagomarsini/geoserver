@@ -99,7 +99,7 @@ public class RasterAlgebraProcess implements GSProcess {
         hints.add(new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout));
         
         // collect input coverages
-        final CoverageCollector collector= new CoverageCollector(
+        final FilterCoverageCollector collector= new FilterCoverageCollector(
                 catalog,
                 resolutionChoice!=null?resolutionChoice:ResolutionChoice.getDefault(),
                 roi,

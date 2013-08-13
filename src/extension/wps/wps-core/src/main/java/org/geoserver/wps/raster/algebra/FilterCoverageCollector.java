@@ -83,9 +83,9 @@ import com.vividsolutions.jts.geom.Geometry;
  * @author Simone Giannecchini, GeoSolutions SAS
  * TODO make the logic to choose the final {@link AffineTransform2D} more generic and if possible customizable.
  */
-class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, ExpressionVisitor {
+class FilterCoverageCollector extends DefaultFilterVisitor implements FilterVisitor, ExpressionVisitor {
     
-    private final static Logger LOGGER= Logging.getLogger(CoverageCollector.class);
+    private final static Logger LOGGER= Logging.getLogger(FilterCoverageCollector.class);
 
     /** The {@link CoverageInfo} objects that we need.*/
     private final Set<CoverageInfo> coverageNames= new HashSet<CoverageInfo>();
@@ -127,7 +127,7 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
      * @param resolutionChoice how to choose the final pixel size.
      * @param hints {@link Hints} to be used when instantiating {@link GridCoverage2D}.
      */
-    public CoverageCollector(Catalog catalog, ResolutionChoice resolutionChoice, Hints hints) {
+    public FilterCoverageCollector(Catalog catalog, ResolutionChoice resolutionChoice, Hints hints) {
         this(catalog, resolutionChoice, null, hints);
     }
 
@@ -137,7 +137,7 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
      * @param roi
      * @param hints2
      */
-    public CoverageCollector(Catalog catalog, ResolutionChoice resolutionChoice, Geometry roi, Hints hints) {
+    public FilterCoverageCollector(Catalog catalog, ResolutionChoice resolutionChoice, Geometry roi, Hints hints) {
         Utilities.ensureNonNull("resolutionChoice", resolutionChoice);
         Utilities.ensureNonNull("catalog", catalog);
         Utilities.ensureNonNull("hints", hints);
@@ -389,7 +389,7 @@ class CoverageCollector extends DefaultFilterVisitor implements FilterVisitor, E
      * Perform clean up on internal resources.
      * 
      * <p>
-     * Using this {@link CoverageCollector} after this method has been invoked may result in 
+     * Using this {@link FilterCoverageCollector} after this method has been invoked may result in 
      * unexpected behaviors.
      * 
      */

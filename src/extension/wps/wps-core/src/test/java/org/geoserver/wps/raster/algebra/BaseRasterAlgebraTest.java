@@ -172,11 +172,11 @@ public class BaseRasterAlgebraTest extends WPSTestSupport{
         final double[] maximum = worker.getMaximums();
         Assert.assertNotNull(maximum);
         Assert.assertEquals(1, maximum.length);
-        Assert.assertEquals(2049.0, maximum[0],1E-6);
+        Assert.assertEquals(1.0, maximum[0],1E-6);
         final double[] minimum = worker.getMinimums();
         Assert.assertNotNull(minimum);
         Assert.assertEquals(1, minimum.length);
-        Assert.assertEquals(-32768, minimum[0],1E-6);
+        Assert.assertEquals(0, minimum[0],1E-6);
     }
     
     /**

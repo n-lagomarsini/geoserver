@@ -201,6 +201,10 @@
       <constructor-arg index="0" ref="catalog"/>
     </bean>
     
+    <bean id="jiffle" class="org.geoserver.wps.raster.algebra.JiffleProcess">
+      <constructor-arg index="0" ref="catalog"/>
+    </bean>
+    
     <!--
     Factory for deprecated processes 
     -->
