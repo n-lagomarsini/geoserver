@@ -596,9 +596,8 @@ public class DownloadProcessTest extends WPSTestSupport {
             Assert.assertEquals(
                     "java.lang.IllegalArgumentException: Download Limits Exceeded. Unable to proceed!: Download Limits Exceeded. Unable to proceed!",
                     e.getMessage() + (e.getCause() != null ? ": " + e.getCause().getMessage() : ""));
-
+            return;
         }
-
     }
 
     /**

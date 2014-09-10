@@ -41,13 +41,8 @@ public class DownloadServiceConfigurationWatcher extends TimerTask implements Do
 
 	private Timer timer;
 
-    /** Default watches download.properties */
+    /** Default watches controlflow.properties */
     public DownloadServiceConfigurationWatcher() {
-    	this(PROPERTYFILENAME);
-    }
-
-	/** Default watches provided file name*/
-    public DownloadServiceConfigurationWatcher(String fileName) {
         GeoServerResourceLoader loader = GeoServerExtensions.bean(GeoServerResourceLoader.class);
         Resource downloadProperties = loader.get(PROPERTYFILENAME);
         init(new PropertyFileWatcher(downloadProperties));   
