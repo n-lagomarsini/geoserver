@@ -596,7 +596,6 @@ public class DownloadProcessTest extends WPSTestSupport {
             Assert.assertEquals(
                     "java.lang.IllegalArgumentException: Download Limits Exceeded. Unable to proceed!: Download Limits Exceeded. Unable to proceed!",
                     e.getMessage() + (e.getCause() != null ? ": " + e.getCause().getMessage() : ""));
-            return;
         }
     }
 
@@ -635,14 +634,13 @@ public class DownloadProcessTest extends WPSTestSupport {
                     true, // cropToGeometry
                     new NullProgressListener() // progressListener
                     );
+
+            Assert.assertFalse(true);
         } catch (ProcessException e) {
             Assert.assertEquals(
                     "org.geotools.process.ProcessException: java.io.IOException: Download Exceeded the maximum HARD allowed size!: java.io.IOException: Download Exceeded the maximum HARD allowed size!",
                     e.getMessage() + (e.getCause() != null ? ": " + e.getCause().getMessage() : ""));
-            return;
         }
-
-        Assert.assertFalse(true);
     }
 
     /**
@@ -673,13 +671,12 @@ public class DownloadProcessTest extends WPSTestSupport {
                     false, // cropToGeometry
                     new NullProgressListener() // progressListener
                     );
+
+            Assert.assertFalse(true);
         } catch (ProcessException e) {
             Assert.assertEquals("java.io.IOException: Download Exceeded the maximum HARD allowed size!: Download Exceeded the maximum HARD allowed size!", e.getMessage()
                     + (e.getCause() != null ? ": " + e.getCause().getMessage() : ""));
-            return;
-        }
-
-        Assert.assertFalse(true);
+        };
     }
 
     /**
