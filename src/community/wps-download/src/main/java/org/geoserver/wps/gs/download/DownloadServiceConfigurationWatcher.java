@@ -6,6 +6,8 @@
 package org.geoserver.wps.gs.download;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.URL;
 import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -16,6 +18,7 @@ import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.GeoServerResourceLoader;
 import org.geoserver.platform.resource.Resource;
 import org.geoserver.security.PropertyFileWatcher;
+import org.geotools.data.DataUtilities;
 import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
 
@@ -44,6 +47,27 @@ public class DownloadServiceConfigurationWatcher extends TimerTask implements Do
     /** Default watches controlflow.properties */
     public DownloadServiceConfigurationWatcher() {
         GeoServerResourceLoader loader = GeoServerExtensions.bean(GeoServerResourceLoader.class);
+        File  properties = null;
+        try {
+            properties = loader.find(PROPERTYFILENAME);
+        } catch (IOException e) {
+            if(LOGGER.isLoggable(Level.WARNING)){
+                LOGGER.log(Level.WARNING, e.getMessage(), e);
+            }
+        }
+        // Properties file not found
+        if(properties == null || !properties.exists()){
+            try {
+                String path = "download-process" + File.separator + PROPERTYFILENAME;
+                URL url = DownloadServiceConfigurationWatcher.class.getResource(path);
+                if(url != null){
+                    properties = loader.createFile(PROPERTYFILENAME);
+                    loader.copyFromClassPath(path, properties, DownloadServiceConfigurationWatcher.class);
+                }
+            } catch (IOException e) {
+                LOGGER.log(Level.FINER, e.getMessage(), e);
+            }
+        }
         Resource downloadProperties = loader.get(PROPERTYFILENAME);
         init(new PropertyFileWatcher(downloadProperties));   
     }
