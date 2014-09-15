@@ -69,7 +69,7 @@ class RasterEstimator {
         //
         // Do we need to do anything?
         //
-        final long readLimits=downloadServiceConfiguration.getReadLimits(); 
+        final long readLimits=downloadServiceConfiguration.getRasterSizeLimits(); 
         if (readLimits <= 0) {
             LOGGER.fine("No raster read limits, moving on....");
             return true;

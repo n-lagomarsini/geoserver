@@ -103,7 +103,7 @@ final class ROIManager {
         }
         this.targetCRS=targetCRS;
         if(isROIBBOX){
-            // we need to use a larget bbox in native CRS
+            // we need to use a larger bbox in native CRS
             roiInTargetCRS=DownloadUtilities.transformGeometry(safeRoiInNativeCRS, targetCRS);
             DownloadUtilities.checkPolygonROI(roiInTargetCRS);
             safeRoiInTargetCRS=roiInTargetCRS.getEnvelope();

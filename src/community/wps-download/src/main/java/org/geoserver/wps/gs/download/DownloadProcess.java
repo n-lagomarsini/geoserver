@@ -38,8 +38,8 @@ import com.vividsolutions.jts.geom.Geometry;
 /**
  * The main DownloadProcess class.
  * 
- * This class is simply responsible for deciding who is going to take care of the request 
- * and then for putting together the final result as a zip file adding the needed styles.
+ * This class is simply responsible for deciding who is going to take care of the request and then for putting together the final result as a zip file
+ * adding the needed styles.
  * 
  * 
  * @author "Alessio Fabiani - alessio.fabiani@geo-solutions.it"
@@ -58,7 +58,7 @@ public class DownloadProcess implements GSProcess {
     /** The catalog. */
     private final Catalog catalog;
 
-	private WPSResourceManager resourceManager;
+    private WPSResourceManager resourceManager;
 
     /**
      * Instantiates a new download process.
@@ -68,15 +68,16 @@ public class DownloadProcess implements GSProcess {
      * @param estimator the estimator
      * @param resourceManager the resourceManager to track resources to be cleaned up
      */
-    public DownloadProcess(GeoServer geoServer, DownloadEstimatorProcess estimator,WPSResourceManager resourceManager) {
+    public DownloadProcess(GeoServer geoServer, DownloadEstimatorProcess estimator,
+            WPSResourceManager resourceManager) {
         Utilities.ensureNonNull("geoServer", geoServer);
         this.catalog = geoServer.getCatalog();
         this.estimator = estimator;
-        this.resourceManager=resourceManager;
+        this.resourceManager = resourceManager;
     }
 
     /**
-     * Execute.
+     * This process returns a zipped file containing the selected layer, cropped if needed.
      * 
      * @param layerName the layer name
      * @param filter the filter
@@ -102,7 +103,7 @@ public class DownloadProcess implements GSProcess {
             final ProgressListener progressListener) throws ProcessException {
 
         try {
-            
+
             //
             // initial checks on mandatory params
             //
@@ -110,11 +111,12 @@ public class DownloadProcess implements GSProcess {
             if (layerName == null || layerName.length() <= 0) {
                 throw new IllegalArgumentException("Empty or null layerName provided!");
             }
-            LOGGER.fine("Download process called on resource: "+layerName);
+            LOGGER.fine("Download process called on resource: " + layerName);
             // Default behavior is intersection
             if (clip == null) {
                 clip = false;
             }
+            // Checking the validity of the input ROI
             if (roi != null) {
                 DownloadUtilities.checkPolygonROI(roi);
                 if (roiCRS == null) {
@@ -135,7 +137,7 @@ public class DownloadProcess implements GSProcess {
             //
             // Move on with the real code
             //
-            // cheking for the rsources on the GeoServer catalog
+            // checking for the resources on the GeoServer catalog
             LayerInfo layerInfo = catalog.getLayerByName(layerName);
             if (layerInfo == null) {
                 // could not find any layer ... abruptly interrupt the process
@@ -149,35 +151,36 @@ public class DownloadProcess implements GSProcess {
                         + layerName);
 
             }
-            
+
             //
             // Limits
             //
-            DownloadServiceConfiguration limits= estimator.getDownloadServiceConfiguration();
-            LOGGER.log(Level.FINE,"Employing limits "+limits);
-            
-            LOGGER.log(Level.FINE,"The resource to work on is "+resourceInfo.getName());
+            DownloadServiceConfiguration limits = estimator.getDownloadServiceConfiguration();
+            LOGGER.log(Level.FINE, "Employing limits " + limits);
+
+            LOGGER.log(Level.FINE, "The resource to work on is " + resourceInfo.getName());
 
             // CORE CODE
-            File internalOutput=null;
+            File internalOutput = null;
             if (resourceInfo instanceof FeatureTypeInfo) {
-                LOGGER.log(Level.FINE,"The resource to work on is a vector layer");
+                LOGGER.log(Level.FINE, "The resource to work on is a vector layer");
                 //
                 // VECTOR
                 //
                 // perform the actual download of vectorial data accordingly to the request inputs
-                internalOutput = new VectorDownload(limits, resourceManager).execute((FeatureTypeInfo) resourceInfo,
-                        mimeType, roi, clip, filter, targetCRS, progressListener);
+                internalOutput = new VectorDownload(limits, resourceManager).execute(
+                        (FeatureTypeInfo) resourceInfo, mimeType, roi, clip, filter, targetCRS,
+                        progressListener);
 
             } else if (resourceInfo instanceof CoverageInfo) {
-                LOGGER.log(Level.FINE,"The resource to work on is a raster layer");
+                LOGGER.log(Level.FINE, "The resource to work on is a raster layer");
                 //
                 // RASTER
                 //
                 CoverageInfo cInfo = (CoverageInfo) resourceInfo;
                 // convert/reproject/crop if needed the coverage
-                internalOutput = new RasterDownload(limits, resourceManager).execute(mimeType, progressListener, cInfo,
-                        roi, targetCRS, clip, filter);
+                internalOutput = new RasterDownload(limits, resourceManager).execute(mimeType,
+                        progressListener, cInfo, roi, targetCRS, clip, filter);
             } else {
 
                 // wrong type
@@ -205,26 +208,26 @@ public class DownloadProcess implements GSProcess {
             }
 
             // adding the style and zipping
-            LOGGER.log(Level.FINE,"Preparing the result");
+            LOGGER.log(Level.FINE, "Preparing the result");
             // build output zip
-            final File result = resourceManager.getOutputFile(resourceManager.getExecutionId(true), resourceInfo.getName()+".zip");
+            final File result = resourceManager.getOutputFile(resourceManager.getExecutionId(true),
+                    resourceInfo.getName() + ".zip");
 
             FileOutputStream os1 = null;
             try {
                 os1 = new FileOutputStream(result);
 
                 // output
-                List<File> filesToDownload = new ArrayList<File>(); 
+                List<File> filesToDownload = new ArrayList<File>();
                 filesToDownload.add(internalOutput);
-                
-                
+
                 // add all SLD to zip
-                List<File> styles=DownloadUtilities.collectStyles(layerInfo);
+                List<File> styles = DownloadUtilities.collectStyles(layerInfo);
                 filesToDownload.addAll(styles);
-                
+
                 // zip them all
-                new ZipArchivePPIO(
-                		estimator.getDownloadServiceConfiguration().getCompressionLevel() ).encode(filesToDownload, os1);
+                new ZipArchivePPIO(estimator.getDownloadServiceConfiguration()
+                        .getCompressionLevel()).encode(filesToDownload, os1);
 
             } finally {
                 if (os1 != null) {
@@ -245,9 +248,9 @@ public class DownloadProcess implements GSProcess {
             // return
             return result;
         } catch (Throwable e) {
-            
-        	// FAILED
-        	
+
+            // FAILED
+
             // catch and rethrow but warn the listener
             final ProcessException processException = new ProcessException(e);
             if (progressListener != null) {

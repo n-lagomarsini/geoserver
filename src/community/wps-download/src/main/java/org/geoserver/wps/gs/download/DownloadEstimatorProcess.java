@@ -26,11 +26,11 @@ import org.opengis.util.ProgressListener;
 import com.vividsolutions.jts.geom.Geometry;
 
 /**
- * The Class DownloadEstimatorProcess.
+ * The DownloadEstimatorProcess is used for checking if the download request does not exceeds the defined limits.
  * 
  * @author "Alessio Fabiani - alessio.fabiani@geo-solutions.it"
  */
-@DescribeProcess(title = "Enterprise Download Process", description = "Downloads Layer Stream and provides a ZIP.")
+@DescribeProcess(title = "Estimator Process", description = "Checks if the input file does not exceed the limits")
 public class DownloadEstimatorProcess implements GSProcess {
 
     /** The Constant LOGGER. */
@@ -47,13 +47,15 @@ public class DownloadEstimatorProcess implements GSProcess {
      * @param hardOutputLimit
      * @param geoserver
      */
-    public DownloadEstimatorProcess(DownloadServiceConfigurationGenerator downloadServiceConfigurationGenerator, GeoServer geoserver) {
+    public DownloadEstimatorProcess(
+            DownloadServiceConfigurationGenerator downloadServiceConfigurationGenerator,
+            GeoServer geoserver) {
         this.catalog = geoserver.getCatalog();
-        this.downloadServiceConfigurationGenerator=downloadServiceConfigurationGenerator;
+        this.downloadServiceConfigurationGenerator = downloadServiceConfigurationGenerator;
     }
 
     /**
-     * Execute.
+     * This process returns a boolean value which indicates if the requested download does not exceed the imposed limits, if present
      * 
      * @param layerName the layer name
      * @param filter the filter
@@ -98,7 +100,7 @@ public class DownloadEstimatorProcess implements GSProcess {
         //
         // Move on with the real code
         //
-        // checking for the rsources on the GeoServer catalog
+        // checking for the resources on the GeoServer catalog
         LayerInfo layerInfo = catalog.getLayerByName(layerName);
         if (layerInfo == null) {
             // could not find any layer ... abruptly interrupt the process
@@ -112,12 +114,12 @@ public class DownloadEstimatorProcess implements GSProcess {
                     + layerName);
 
         }
-        
 
         //
         // Get curent limits
         //
-        DownloadServiceConfiguration limits=downloadServiceConfigurationGenerator.getConfiguration();
+        DownloadServiceConfiguration limits = downloadServiceConfigurationGenerator
+                .getConfiguration();
 
         // ////
         // 1. DataStore -> look for vectorial data download
@@ -126,8 +128,8 @@ public class DownloadEstimatorProcess implements GSProcess {
         if (resourceInfo instanceof FeatureTypeInfo) {
             final FeatureTypeInfo featureTypeInfo = (FeatureTypeInfo) resourceInfo;
 
-            return new VectorEstimator(limits).execute(featureTypeInfo, roi, clip, filter, targetCRS,
-                    progressListener);
+            return new VectorEstimator(limits).execute(featureTypeInfo, roi, clip, filter,
+                    targetCRS, progressListener);
 
         } else if (resourceInfo instanceof CoverageInfo) {
             final CoverageInfo coverage = (CoverageInfo) resourceInfo;
@@ -140,6 +142,8 @@ public class DownloadEstimatorProcess implements GSProcess {
                 "Could not complete the Download Process: target resource is of Illegal type --> "
                         + resourceInfo != null ? resourceInfo.getClass().getCanonicalName()
                         : "null");
+
+        // Notify the listener if present
         if (progressListener != null) {
             progressListener.exceptionOccurred(ex);
         }
@@ -147,7 +151,10 @@ public class DownloadEstimatorProcess implements GSProcess {
 
     }
 
-	public DownloadServiceConfiguration getDownloadServiceConfiguration() {
-		return downloadServiceConfigurationGenerator.getConfiguration();
-	}
+    /**
+     * @return the {@link DownloadServiceConfiguration} containing the limits to check
+     */
+    public DownloadServiceConfiguration getDownloadServiceConfiguration() {
+        return downloadServiceConfigurationGenerator.getConfiguration();
+    }
 }
