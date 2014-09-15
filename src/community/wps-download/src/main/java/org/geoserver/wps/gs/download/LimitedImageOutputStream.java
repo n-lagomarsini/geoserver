@@ -12,7 +12,7 @@ import java.io.IOException;
 import javax.imageio.stream.ImageOutputStream;
 
 /**
- * An output stream, which limits its data size. This stream is used, if the content length is unknown.
+ * An image output stream, which limits its data size. This stream is used if the content length is unknown.
  * 
  * @author "Alessio Fabiani - alessio.fabiani@geo-solutions.it"
  */

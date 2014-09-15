@@ -22,21 +22,22 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.util.ProgressListener;
 
 import com.vividsolutions.jts.geom.Geometry;
+
 /**
- * Checks whether or not the provided request exceeds the provided download limits.
+ * Checks whether or not the provided request exceeds the provided download limits for a vectorial resource.
  * 
  * @author Simone Giannecchini, GeoSolutions SAS
- *
+ * 
  */
 class VectorEstimator {
 
     private static final Logger LOGGER = Logging.getLogger(VectorEstimator.class);
-    
-    /** The downloadServiceConfiguration. */
+
+    /** The downloadServiceConfiguration object containing the limits to check */
     private DownloadServiceConfiguration downloadServiceConfiguration;
 
     /**
-     * Constructor. 
+     * Constructor.
      * 
      * @param limits an instance of the {@link DownloadEstimatorProcess} that contains the limits to enforce
      */
@@ -56,15 +57,10 @@ class VectorEstimator {
      * @return <code>true</code> if we do not exceeds the limits, <code>false</code> otherwise.
      * @throws Exception in case something bad happens.
      */
-    public boolean execute(
-            FeatureTypeInfo resourceInfo, 
-            Geometry roi, 
-            boolean clip, 
-            Filter filter,
-            CoordinateReferenceSystem targetCRS, 
-            final ProgressListener progressListener)
+    public boolean execute(FeatureTypeInfo resourceInfo, Geometry roi, boolean clip, Filter filter,
+            CoordinateReferenceSystem targetCRS, final ProgressListener progressListener)
             throws Exception {
-        
+
         //
         // Do we need to do anything?
         //
@@ -74,17 +70,17 @@ class VectorEstimator {
 
         // prepare native CRS
         CoordinateReferenceSystem nativeCRS = DownloadUtilities.getNativeCRS(resourceInfo);
-        if(LOGGER.isLoggable(Level.FINE)){
-            LOGGER.fine("Native CRS is "+nativeCRS.toWKT());
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.fine("Native CRS is " + nativeCRS.toWKT());
         }
 
         //
         // STEP 0 - Push ROI back to native CRS (if ROI is provided)
         //
-        ROIManager roiManager= null;
+        ROIManager roiManager = null;
         if (roi != null) {
             CoordinateReferenceSystem roiCRS = (CoordinateReferenceSystem) roi.getUserData();
-            roiManager=new ROIManager(roi, roiCRS);
+            roiManager = new ROIManager(roi, roiCRS);
             // set use nativeCRS
             roiManager.useNativeCRS(nativeCRS);
         }
@@ -108,7 +104,8 @@ class VectorEstimator {
                     .getLocalName();
             final Intersects intersectionFilter = FeatureUtilities.DEFAULT_FILTER_FACTORY
                     .intersects(FeatureUtilities.DEFAULT_FILTER_FACTORY.property(dataGeomName),
-                            FeatureUtilities.DEFAULT_FILTER_FACTORY.literal(roiManager.getSafeRoiInNativeCRS()));
+                            FeatureUtilities.DEFAULT_FILTER_FACTORY.literal(roiManager
+                                    .getSafeRoiInNativeCRS()));
             ra = FeatureUtilities.DEFAULT_FILTER_FACTORY.and(ra, intersectionFilter);
         }
 

@@ -31,16 +31,19 @@ import org.geotools.util.logging.Logging;
  */
 public class ZipArchivePPIO extends BinaryPPIO {
 
+    public static final String ZIP = "zip";
+
     private final static Logger LOGGER = Logging.getLogger(ZipArchivePPIO.class);
 
-    private int compressionLevel ;
+    /** Parameter indicating the compression level to use */
+    private int compressionLevel;
 
     /**
      * Instantiates a new zip archive ppio.
      * 
      * @param resources the resources
      */
-    public ZipArchivePPIO( int compressionLevel) {
+    public ZipArchivePPIO(int compressionLevel) {
         super(File.class, File.class, "application/zip");
         if (compressionLevel < ZipOutputStream.STORED
                 || compressionLevel > ZipOutputStream.DEFLATED) {
@@ -48,7 +51,7 @@ public class ZipArchivePPIO extends BinaryPPIO {
         }
         this.compressionLevel = compressionLevel;
     }
-    
+
     /**
      * Default constructor using ZipOutputStream.STORED compression level.
      * 
@@ -58,14 +61,14 @@ public class ZipArchivePPIO extends BinaryPPIO {
     }
 
     /**
-     * Encode.
+     * Encodes the output file.
      * 
      * @param output the output
      * @param os the os
      * @throws Exception the exception
      */
     @SuppressWarnings("rawtypes")
-	@Override
+    @Override
     public void encode(final Object output, OutputStream os) throws Exception {
         // avoid double zipping
         if (output instanceof File && isZpFile((File) output)) {
@@ -120,7 +123,7 @@ public class ZipArchivePPIO extends BinaryPPIO {
      */
     @Override
     public String getFileExtension() {
-        return "zip";
+        return ZIP;
     }
 
     /**
@@ -155,13 +158,15 @@ public class ZipArchivePPIO extends BinaryPPIO {
                     "Provided File is not valid and/or reqadable! --> File:" + file != null ? file
                             .getAbsolutePath() : "null");
         }
-
+        // Check if the file is a directory
         if (file.isDirectory()) {
             return false;
         }
+        // Check on the path length
         if (file.length() < 4) {
             return false;
         }
+        // Check on the first Integer
         DataInputStream in = null;
         try {
             in = new DataInputStream(new FileInputStream(file));
@@ -178,7 +183,6 @@ public class ZipArchivePPIO extends BinaryPPIO {
                 org.apache.commons.io.IOUtils.closeQuietly(in);
             }
         }
-
     }
 
     /**
@@ -221,8 +225,8 @@ public class ZipArchivePPIO extends BinaryPPIO {
         zipout.flush();
     }
 
-	@Override
-	public Object decode(InputStream input) throws Exception {
-		throw new UnsupportedOperationException("Decode unsupported");
-	}
+    @Override
+    public Object decode(InputStream input) throws Exception {
+        throw new UnsupportedOperationException("Decode unsupported");
+    }
 }

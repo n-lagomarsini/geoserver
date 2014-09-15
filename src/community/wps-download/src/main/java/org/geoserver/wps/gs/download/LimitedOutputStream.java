@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * An output stream, which limits its data size. This stream is used, if the content length is unknown.
+ * An output stream, which limits its data size. This stream is used if the content length is unknown.
  * 
  * @author "Alessio Fabiani - alessio.fabiani@geo-solutions.it"
  */

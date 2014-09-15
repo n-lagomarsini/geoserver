@@ -26,28 +26,27 @@ import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.PrecisionModel;
 
 /**
- * This class check whether or not the provided download request goes beyond the provided
- * limits for raster data or not.
+ * This class check whether or not the provided download request goes beyond the provided limits for raster data or not.
  * 
  * @author Simone Giannecchini, GeoSolutions
- *
+ * 
  */
 class RasterEstimator {
 
     private static final Logger LOGGER = Logging.getLogger(RasterEstimator.class);
 
-    /** The parent process. */
+    /** The downloadServiceConfiguration object containing the limits to check */
     private DownloadServiceConfiguration downloadServiceConfiguration;
 
     /**
-     * Constructor 
+     * Constructor
      * 
      * @param limits the parent {@link DownloadEstimatorProcess} that contains the download limits to be enforced.
      * 
      */
     public RasterEstimator(DownloadServiceConfiguration limits) {
         this.downloadServiceConfiguration = limits;
-        if(limits==null){
+        if (limits == null) {
             throw new NullPointerException("The provided DownloadEstimatorProcess is null!");
         }
     }
@@ -69,42 +68,44 @@ class RasterEstimator {
         //
         // Do we need to do anything?
         //
-        final long readLimits=downloadServiceConfiguration.getRasterSizeLimits(); 
-        if (readLimits <= 0) {
+        final long rasterSizeLimits = downloadServiceConfiguration.getRasterSizeLimits();
+        if (rasterSizeLimits <= 0) {
             LOGGER.fine("No raster read limits, moving on....");
             return true;
         }
-        if(LOGGER.isLoggable(Level.FINE)){
-            LOGGER.fine("Raster read limits: "+readLimits);
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.fine("Raster read limits: " + rasterSizeLimits);
         }
 
         //
         // ---> READ FROM NATIVE RESOLUTION <--
         //
-        if(LOGGER.isLoggable(Level.FINE)){
+        if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.fine("Checking download limits for raster request");
         }
         CoordinateReferenceSystem nativeCRS = DownloadUtilities.getNativeCRS(coverageInfo);
-        if(LOGGER.isLoggable(Level.FINE)){
-            LOGGER.fine("Native CRS is "+nativeCRS.toWKT());
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.fine("Native CRS is " + nativeCRS.toWKT());
         }
-        
+
         //
         // STEP 0 - Push ROI back to native CRS (if ROI is provided)
         //
-        ROIManager roiManager= null;
+        ROIManager roiManager = null;
         if (roi != null) {
             CoordinateReferenceSystem roiCRS = (CoordinateReferenceSystem) roi.getUserData();
-            roiManager=new ROIManager(roi, roiCRS);
+            roiManager = new ROIManager(roi, roiCRS);
             // set use nativeCRS
             roiManager.useNativeCRS(nativeCRS);
         }
-        
-        // get a reader for this CoverageInfo
-        final GridCoverage2DReader reader = (GridCoverage2DReader) coverageInfo.getGridCoverageReader(null, null);
 
-        // read GridGeometry preparation
+        // get a reader for this CoverageInfo
+        final GridCoverage2DReader reader = (GridCoverage2DReader) coverageInfo
+                .getGridCoverageReader(null, null);
+
+        // Area to read in pixel
         final double areaRead;
+        // If ROI is present, then the coverage BBOX is cropped with the ROI geometry
         if (roi != null) {
             final Geometry safeRoiInNativeCRS = roiManager.getSafeRoiInNativeCRS();
             Geometry roiInNativeCRS_ = safeRoiInNativeCRS.intersection(FeatureUtilities.getPolygon(
@@ -117,13 +118,13 @@ class RasterEstimator {
             final AffineTransform2D w2G = (AffineTransform2D) reader.getOriginalGridToWorld(
                     PixelInCell.CELL_CORNER).inverse();
             final Geometry rasterGeometry = JTS.transform(roiInNativeCRS_, w2G);
-            
-            // try to make an estimate of the area we need to read 
+
+            // try to make an estimate of the area we need to read
             // NOTE I use the envelope since in the end I can only pass down
-            // a rectangular source region to the ImageIO-Ext reader, but in the end I am only going 
+            // a rectangular source region to the ImageIO-Ext reader, but in the end I am only going
             // to read the tile I will need during processing as in this case I am going to perform
             // deferred reads
-            areaRead = rasterGeometry.getEnvelope().getArea();         
+            areaRead = rasterGeometry.getEnvelope().getArea();
             // TODO investigate on improved precision taking into account tiling on raster geometry
 
         } else {
@@ -133,10 +134,11 @@ class RasterEstimator {
 
         }
         // checks on the area we want to download
-        if(LOGGER.isLoggable(Level.FINE)){
-            LOGGER.fine("Area to read in pixels: "+areaRead);
-        }        
-        if (areaRead > readLimits) {
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.fine("Area to read in pixels: " + areaRead);
+        }
+        // If the area exceeds the limits, false is returned
+        if (areaRead > rasterSizeLimits) {
             return false;
         }
         return true;

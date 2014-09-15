@@ -44,20 +44,23 @@ import org.opengis.referencing.operation.MathTransform;
 import org.opengis.util.ProgressListener;
 
 import com.vividsolutions.jts.geom.Geometry;
+
 /**
- * Implements the download services for raster data
+ * Implements the download services for raster data. If limits are configured this class will use {@link LimitedImageOutputStream}, which raises an
+ * exception when the download size exceeded the limits.
  * 
  * @author Simone Giannecchini, GeoSolutions SAS
- *
+ * 
  */
 class RasterDownload {
 
-	private static final Logger LOGGER = Logging.getLogger(RasterDownload.class);
+    private static final Logger LOGGER = Logging.getLogger(RasterDownload.class);
 
-    /** The estimator. */
+    /** The {@link DownloadServiceConfiguration} object containing the configured limits. */
     private DownloadServiceConfiguration limits;
 
-	private WPSResourceManager resourceManager;
+    /** The resource manager for handling the used resources. */
+    private WPSResourceManager resourceManager;
 
     /**
      * Constructor, takes a {@link DownloadEstimatorProcess}.
@@ -65,20 +68,26 @@ class RasterDownload {
      * @param limits the {@link DownloadEstimatorProcess} to check for not exceeding the download limits.
      * @param resourceManager the {@link WPSResourceManager} to handl generated resources
      */
-    public RasterDownload(DownloadServiceConfiguration limits,
-			WPSResourceManager resourceManager) {
-		this.limits = limits;
-		this.resourceManager = resourceManager;
-	}
+    public RasterDownload(DownloadServiceConfiguration limits, WPSResourceManager resourceManager) {
+        this.limits = limits;
+        this.resourceManager = resourceManager;
+    }
 
     /**
+     * This method does the following operations:
+     * <ul>
+     * <li>Reprojection of the coverage (if needed)</li>
+     * <li>Clips the coverage (if needed)</li>
+     * <li>Writes the result</li>
+     * <li>Cleanup the generated coverages</li>
+     * </ul>
      * 
-     * @param mimeType
-     * @param progressListener
-     * @param coverageInfo
-     * @param roi
-     * @param targetCRS
-     * @param clip
+     * @param mimeType mimetype of the result
+     * @param progressListener listener to use for logging the operations
+     * @param coverageInfo resource associated to the Coverage
+     * @param roi input ROI object
+     * @param targetCRS CRS of the file to write
+     * @param clip indicates if the clipping geometry must be exactly that of the ROI or simply its envelope
      * @param filter the {@link Filter} to load the data
      * @return
      * @throws Exception
@@ -100,10 +109,20 @@ class RasterDownload {
 
             // prepare native CRS
             CoordinateReferenceSystem nativeCRS = DownloadUtilities.getNativeCRS(coverageInfo);
-            if(LOGGER.isLoggable(Level.FINE)){
-                LOGGER.fine("Native CRS is "+nativeCRS.toWKT());
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.fine("Native CRS is " + nativeCRS.toWKT());
             }
-            
+
+            //
+            // STEP 0 - Push ROI back to native CRS (if ROI is provided)
+            //
+            ROIManager roiManager = null;
+            if (roi != null) {
+                final CoordinateReferenceSystem roiCRS = (CoordinateReferenceSystem) roi
+                        .getUserData();
+                roiManager = new ROIManager(roi, roiCRS);
+            }
+
             //
             // STEP 1 - Reproject if needed
             //
@@ -112,26 +131,15 @@ class RasterDownload {
             if (targetCRS != null && !CRS.equalsIgnoreMetadata(nativeCRS, targetCRS)) {
 
                 // testing reprojection...
-                reprojectionTrasform = CRS.findMathTransform(nativeCRS, targetCRS,true);
+                reprojectionTrasform = CRS.findMathTransform(nativeCRS, targetCRS, true);
                 if (!reprojectionTrasform.isIdentity()) {
                     // avoid doing the transform if this is the identity
                     reproject = true;
                 }
             } else {
-                targetCRS=nativeCRS;
+                targetCRS = nativeCRS;
             }
 
-            //
-            // STEP 0 - Push ROI back to native CRS (if ROI is provided)
-            //
-            ROIManager roiManager= null;
-            if (roi != null) {
-                final CoordinateReferenceSystem roiCRS = (CoordinateReferenceSystem) roi.getUserData();
-                roiManager=new ROIManager(roi, roiCRS);
-            }
-            
-
-            
             // get a reader for this CoverageInfo
             final GridCoverage2DReader reader = (GridCoverage2DReader) coverageInfo
                     .getGridCoverageReader(null, null);
@@ -153,22 +161,14 @@ class RasterDownload {
                 // set crs in roi manager
                 roiManager.useNativeCRS(reader.getCoordinateReferenceSystem());
                 roiManager.useTargetCRS(targetCRS);
-                
+
                 // create GridGeometry
-                final ReferencedEnvelope roiEnvelope = new ReferencedEnvelope(
-                        roiManager.getSafeRoiInNativeCRS().getEnvelopeInternal(), // safe envelope 
+                final ReferencedEnvelope roiEnvelope = new ReferencedEnvelope(roiManager
+                        .getSafeRoiInNativeCRS().getEnvelopeInternal(), // safe envelope
                         nativeCRS);
                 GridGeometry2D gg2D = new GridGeometry2D(PixelInCell.CELL_CENTER,
                         reader.getOriginalGridToWorld(PixelInCell.CELL_CENTER), roiEnvelope,
                         GeoTools.getDefaultHints());
-//                if (reproject) {
-//                    // enlarge GridRange by 20 px in each direction
-//                    Rectangle gr2D = gg2D.getGridRange2D();
-//                    gr2D.grow((int)(gr2D.width*0.5+0.5), (int)(gr2D.height*0.5+0.5));
-//                    // new GG2D
-//                    gg2D = new GridGeometry2D(new GridEnvelope2D(gr2D), gg2D.getGridToCRS(),
-//                            gg2D.getCoordinateReferenceSystem());
-//                }
                 // TODO make sure the GridRange is not empty, depending on the resolution it might happen
                 readParameters = CoverageUtils.mergeParameter(parameterDescriptors, readParameters,
                         gg2D, AbstractGridFormat.READ_GRIDGEOMETRY2D.getName().getCode());
@@ -216,22 +216,20 @@ class RasterDownload {
                 // do nothing
                 clippedGridCoverage = reprojectedGridCoverage;
             }
-            //
-            // RenderedImageBrowser.showChain(clippedGridCoverage.getRenderedImage(),false,false);
-            
+
             //
             // STEP 3 - Writing
             //
             return writeRaster(mimeType, coverageInfo, clippedGridCoverage);
         } finally {
-            if (originalGridCoverage != null){
-            	resourceManager.addResource(new GridCoverageResource(originalGridCoverage));
+            if (originalGridCoverage != null) {
+                resourceManager.addResource(new GridCoverageResource(originalGridCoverage));
             }
-            if (reprojectedGridCoverage != null){
-            	resourceManager.addResource(new GridCoverageResource(reprojectedGridCoverage));
+            if (reprojectedGridCoverage != null) {
+                resourceManager.addResource(new GridCoverageResource(reprojectedGridCoverage));
             }
-            if (clippedGridCoverage != null){
-            	resourceManager.addResource(new GridCoverageResource(clippedGridCoverage));
+            if (clippedGridCoverage != null) {
+                resourceManager.addResource(new GridCoverageResource(clippedGridCoverage));
             }
         }
     }
@@ -239,9 +237,9 @@ class RasterDownload {
     /**
      * Writes the providede GridCoverage as a GeoTiff file.
      * 
-     * @param mimeType
-     * @param coverageInfo
-     * @param gridCoverage
+     * @param mimeType result mimetype
+     * @param coverageInfo resource associated to the input coverage
+     * @param gridCoverage gridcoverage to write 
      * @return a {@link File} that points to the GridCoverage we wrote.
      * 
      * @throws Exception
@@ -267,38 +265,39 @@ class RasterDownload {
         String extension = complexPPIO.getFileExtension();
 
         // writing the output to a temporary folder
-        final File output = resourceManager.getTemporaryFile("."+extension);
+        final File output = resourceManager.getTemporaryFile("." + extension);
 
-        // the limit ouutput stream will throw an exception if the process is trying to writr more than the max allowed bytes
+        // the limit output stream will throw an exception if the process is trying to writer more than the max allowed bytes
         final FileImageOutputStreamExtImpl fileImageOutputStreamExtImpl = new FileImageOutputStreamExtImpl(
                 output);
         ImageOutputStream os = null;
         // write
         try {
-        	if (limit > DownloadServiceConfiguration.NO_LIMIT) {
-        		os = new LimitedImageOutputStream(fileImageOutputStreamExtImpl, limit) {
+            // If limit is defined, LimitedImageOutputStream is used
+            if (limit > DownloadServiceConfiguration.NO_LIMIT) {
+                os = new LimitedImageOutputStream(fileImageOutputStreamExtImpl, limit) {
 
-        			@Override
-        			protected void raiseError(long pSizeMax, long pCount) throws IOException {
-        				IOException e = new IOException(
-        						"Download Exceeded the maximum HARD allowed size!");
-        				throw e;
-        			}
-        		};
-        	} else {
-        		os = fileImageOutputStreamExtImpl;
-        	}
-
-        	complexPPIO.encode(gridCoverage, new OutputStreamAdapter(os));
-        	os.flush();
+                    @Override
+                    protected void raiseError(long pSizeMax, long pCount) throws IOException {
+                        IOException e = new IOException(
+                                "Download Exceeded the maximum HARD allowed size!");
+                        throw e;
+                    }
+                };
+            } else {
+                os = fileImageOutputStreamExtImpl;
+            }
+            // Encoding the GridCoverage
+            complexPPIO.encode(gridCoverage, new OutputStreamAdapter(os));
+            os.flush();
         } finally {
-        	try {
-        		if (os != null) {
-        			os.close();
-        		}
-        	} catch (Exception e) {
-        		LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
-        	}
+            try {
+                if (os != null) {
+                    os.close();
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
+            }
         }
         return output;
     }

@@ -5,6 +5,7 @@
  */
 package org.geoserver.wps.gs.download;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.geoserver.catalog.Catalog;
@@ -88,8 +89,14 @@ public class DownloadEstimatorProcess implements GSProcess {
         }
         if (clip == null) {
             clip = false;
+            if(LOGGER.isLoggable(Level.FINE)){
+                LOGGER.log(Level.FINE, "Clipping disabled");
+            }
         }
         if (roi != null) {
+            if(LOGGER.isLoggable(Level.FINE)){
+                LOGGER.log(Level.FINE, "ROI present");
+            }
             DownloadUtilities.checkPolygonROI(roi);
             if (roiCRS == null) {
                 throw new IllegalArgumentException("ROI without a CRS is not usable!");

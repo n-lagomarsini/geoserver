@@ -13,6 +13,9 @@ package org.geoserver.wps.gs.download;
  */
 public interface DownloadServiceConfigurationGenerator {
 
+    /**
+     * @return the {@link DownloadServiceConfiguration} object
+     */
     public DownloadServiceConfiguration getConfiguration();
 
 }

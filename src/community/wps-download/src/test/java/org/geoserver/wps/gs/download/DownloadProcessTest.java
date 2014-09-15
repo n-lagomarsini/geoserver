@@ -56,18 +56,18 @@ import com.vividsolutions.jts.geom.Polygon;
 import com.vividsolutions.jts.io.ParseException;
 
 /**
- * The Class DownloadProcessTest.
+ * This class tests checks if the DownloadProcess class behaves correctly.
  * 
  * @author "Alessio Fabiani - alessio.fabiani@geo-solutions.it"
  */
 public class DownloadProcessTest extends WPSTestSupport {
 
     /**
-     * Decode.
+     * This method is used for decoding an input file.
      * 
-     * @param input the input
-     * @param tempDirectory 
-     * @return the object
+     * @param input the input stream to decode
+     * @param tempDirectory temporary directory on where the file is decoded.
+     * @return the object the decoded file
      * @throws Exception the exception TODO review
      */
     public static File decode(InputStream input, File tempDirectory) throws Exception {
@@ -78,6 +78,7 @@ public class DownloadProcessTest extends WPSTestSupport {
             zis = new ZipInputStream(input);
             ZipEntry entry = null;
 
+            // Copy the whole file in the new position
             while ((entry = zis.getNextEntry()) != null) {
                 File file = new File(tempDirectory, entry.getName());
                 if (entry.isDirectory()) {
@@ -109,25 +110,10 @@ public class DownloadProcessTest extends WPSTestSupport {
 
         return tempDirectory;
     }
-	
-    @Override
-	protected void onSetUp(SystemTestData testData) throws Exception {
-		super.onSetUp(testData);
-		testData.addRasterLayer(MockData.USA_WORLDIMG, "usa.zip", MockData.PNG, getCatalog());
-	}
 
-    
-	@Override
-	protected void setUpTestData(SystemTestData testData) throws Exception {
-		super.setUpTestData(testData);
-		// add limits properties file
-		testData.copyTo(DownloadProcessTest.class.getClassLoader().getResourceAsStream(
-                "download-process/download.properties"), "download.properties");
-	}
-
-	/** Test download of vectorial data. */
-
+    /** Test ROI used */
     final static Polygon roi;
+
     static {
         try {
             roi = (Polygon) new WKTReader2()
@@ -137,6 +123,21 @@ public class DownloadProcessTest extends WPSTestSupport {
         }
     }
 
+    @Override
+    protected void onSetUp(SystemTestData testData) throws Exception {
+        super.onSetUp(testData);
+        testData.addRasterLayer(MockData.USA_WORLDIMG, "usa.zip", MockData.PNG, getCatalog());
+    }
+
+    @Override
+    protected void setUpTestData(SystemTestData testData) throws Exception {
+        super.setUpTestData(testData);
+        // add limits properties file
+        testData.copyTo(
+                DownloadProcessTest.class.getClassLoader().getResourceAsStream(
+                        "download-process/download.properties"), "download.properties");
+    }
+
     /**
      * Test get features as shapefile.
      * 
@@ -144,14 +145,18 @@ public class DownloadProcessTest extends WPSTestSupport {
      */
     @Test
     public void testGetFeaturesAsShapefile() throws Exception {
-    	DownloadEstimatorProcess limits = new DownloadEstimatorProcess(new StaticDownloadServiceConfiguration(),getGeoServer());
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(), getGeoServer());
         final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,  resourceManager);
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
 
         FeatureTypeInfo ti = getCatalog().getFeatureTypeByName(getLayerId(MockData.POLYGONS));
         SimpleFeatureCollection rawSource = (SimpleFeatureCollection) ti.getFeatureSource(null,
                 null).getFeatures();
-
+        // Download
         File shpeZip = downloadProcess.execute(getLayerId(MockData.POLYGONS), // layerName
                 null, // mail
                 "application/zip", // outputFormat
@@ -162,6 +167,7 @@ public class DownloadProcessTest extends WPSTestSupport {
                 new NullProgressListener() // progressListener
                 );
 
+        // Final checks on the result
         Assert.assertNotNull(shpeZip);
 
         SimpleFeatureCollection rawTarget = (SimpleFeatureCollection) decodeShape(new FileInputStream(
@@ -173,55 +179,20 @@ public class DownloadProcessTest extends WPSTestSupport {
     }
 
     /**
-     * Test get features as shapefile with a different outputCRS from the native one.
-     * 
-     * @throws Exception the exception
-     */
-
-    // DISABLED: The test case always returns
-    // Caused by: java.lang.RuntimeException: Unrecognized target type com.vividsolutions.jts.geom.Polygon
-    // at org.geotools.process.feature.gs.ClipProcess$ClippingFeatureIterator.clipGeometry(ClipProcess.java:275)
-    // at org.geotools.process.feature.gs.ClipProcess$ClippingFeatureIterator.hasNext(ClipProcess.java:195)
-
-    // public void testGetProjectedFeaturesAsShapefile() throws Exception {
-    // DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), null, null);
-    //
-    // FeatureTypeInfo ti = getCatalog().getFeatureTypeByName(getLayerId(MockData.POLYGONS));
-    // SimpleFeatureCollection rawSource = (SimpleFeatureCollection) ti.getFeatureSource(null,
-    // null).getFeatures();
-    //
-    // File shpeZip = downloadProcess.execute(getLayerId(MockData.POLYGONS), // layerName
-    // null, // filter
-    // null, // mail
-    // "shape-zip", // outputFormat
-    // CRS.decode("EPSG:4326"), // targetCRS
-    // CRS.decode("EPSG:32615"), // roiCRS
-    // roi, // roi
-    // true, // cropToGeometry
-    // new NullProgressListener() // progressListener
-    // );
-    //
-    // assertNotNull(shpeZip);
-    //
-    // SimpleFeatureCollection rawTarget = (SimpleFeatureCollection) decodeShape(new FileInputStream(
-    // shpeZip));
-    //
-    // assertNotNull(rawTarget);
-    //
-    // assertEquals(rawSource.size(), rawTarget.size());
-    // }
-
-    /**
      * Test filtered clipped features.
      * 
      * @throws Exception the exception
      */
     @Test
     public void testFilteredClippedFeatures() throws Exception {
-    	DownloadEstimatorProcess limits = new DownloadEstimatorProcess(new StaticDownloadServiceConfiguration(),getGeoServer());
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(), getGeoServer());
         final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,  resourceManager);
-
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
+        // ROI object
         Polygon roi = (Polygon) new WKTReader2()
                 .read("POLYGON ((0.0008993124415341 0.0006854377923293, 0.0008437876520112 0.0006283489242283, 0.0008566913002806 0.0005341131898971, 0.0009642217025257 0.0005188634237605, 0.0011198475210477 0.000574779232928, 0.0010932581852198 0.0006572843779233, 0.0008993124415341 0.0006854377923293))");
 
@@ -229,6 +200,7 @@ public class DownloadProcessTest extends WPSTestSupport {
         SimpleFeatureCollection rawSource = (SimpleFeatureCollection) ti.getFeatureSource(null,
                 null).getFeatures();
 
+        // Download
         File shpeZip = downloadProcess.execute(getLayerId(MockData.BUILDINGS), // layerName
                 CQL.toFilter("ADDRESS = '123 Main Street'"), // filter
                 "application/zip", // outputFormat
@@ -239,6 +211,7 @@ public class DownloadProcessTest extends WPSTestSupport {
                 new NullProgressListener() // progressListener
                 );
 
+        // Final checks on the result
         Assert.assertNotNull(shpeZip);
 
         SimpleFeatureCollection rawTarget = (SimpleFeatureCollection) decodeShape(new FileInputStream(
@@ -253,6 +226,7 @@ public class DownloadProcessTest extends WPSTestSupport {
 
         Assert.assertEquals(srcFeature.getAttribute("ADDRESS"), trgFeature.getAttribute("ADDRESS"));
 
+        // Final checks on the ROI
         Geometry srcGeometry = (Geometry) srcFeature.getDefaultGeometry();
         Geometry trgGeometry = (Geometry) trgFeature.getDefaultGeometry();
 
@@ -267,15 +241,19 @@ public class DownloadProcessTest extends WPSTestSupport {
      */
     @Test
     public void testGetFeaturesAsGML() throws Exception {
-    	DownloadEstimatorProcess limits = new DownloadEstimatorProcess(new StaticDownloadServiceConfiguration(),getGeoServer());
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(), getGeoServer());
         final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,  resourceManager);
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
 
         FeatureTypeInfo ti = getCatalog().getFeatureTypeByName(getLayerId(MockData.POLYGONS));
         SimpleFeatureCollection rawSource = (SimpleFeatureCollection) ti.getFeatureSource(null,
                 null).getFeatures();
 
-        // GML 2
+        // Download as GML 2
         File gml2Zip = downloadProcess.execute(getLayerId(MockData.POLYGONS), // layerName
                 null, // filter
                 "application/wfs-collection-1.0", // outputFormat
@@ -286,6 +264,7 @@ public class DownloadProcessTest extends WPSTestSupport {
                 new NullProgressListener() // progressListener
                 );
 
+        // Final checks on the result
         Assert.assertNotNull(gml2Zip);
 
         File[] files = exctractGMLFile(gml2Zip);
@@ -297,7 +276,7 @@ public class DownloadProcessTest extends WPSTestSupport {
 
         Assert.assertEquals(rawSource.size(), rawTarget.size());
 
-        // GML 3
+        // Download as GML 3
         File gml3Zip = downloadProcess.execute(getLayerId(MockData.POLYGONS), // layerName
                 null, // filter
                 "application/wfs-collection-1.1", // outputFormat
@@ -308,6 +287,7 @@ public class DownloadProcessTest extends WPSTestSupport {
                 new NullProgressListener() // progressListener
                 );
 
+        // Final checks on the result
         Assert.assertNotNull(gml3Zip);
 
         files = exctractGMLFile(gml2Zip);
@@ -321,6 +301,8 @@ public class DownloadProcessTest extends WPSTestSupport {
     }
 
     /**
+     * This method is used for extracting only the xml file from a GML output file
+     * 
      * @param gml2Zip
      * @return
      * @throws IOException
@@ -338,6 +320,8 @@ public class DownloadProcessTest extends WPSTestSupport {
     }
 
     /**
+     * This method is used for extracting only the json file from a JSON output file
+     * 
      * @param jsonZip
      * @return
      * @throws IOException
@@ -355,6 +339,8 @@ public class DownloadProcessTest extends WPSTestSupport {
     }
 
     /**
+     * This method is used for extracting only the tiff file from a Tiff/GeoTiff output file
+     * 
      * @param gtiffZip
      * @return
      * @throws IOException
@@ -367,8 +353,7 @@ public class DownloadProcessTest extends WPSTestSupport {
             public boolean accept(File dir, String name) {
                 return
 
-                (FilenameUtils.getExtension(name)
-                        .equalsIgnoreCase("tif")
+                (FilenameUtils.getExtension(name).equalsIgnoreCase("tif")
                         || FilenameUtils.getExtension(name).equalsIgnoreCase("tiff") || FilenameUtils
                         .getExtension(name).equalsIgnoreCase("geotiff"));
             }
@@ -383,14 +368,18 @@ public class DownloadProcessTest extends WPSTestSupport {
      */
     @Test
     public void testGetFeaturesAsGeoJSON() throws Exception {
-    	DownloadEstimatorProcess limits = new DownloadEstimatorProcess(new StaticDownloadServiceConfiguration(),getGeoServer());
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(), getGeoServer());
         final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,  resourceManager);
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
 
         FeatureTypeInfo ti = getCatalog().getFeatureTypeByName(getLayerId(MockData.POLYGONS));
         SimpleFeatureCollection rawSource = (SimpleFeatureCollection) ti.getFeatureSource(null,
                 null).getFeatures();
-
+        // Download the file as Json
         File jsonZip = downloadProcess.execute(getLayerId(MockData.POLYGONS), // layerName
                 null, // filter
                 "application/json", // outputFormat
@@ -400,7 +389,7 @@ public class DownloadProcessTest extends WPSTestSupport {
                 false, // cropToGeometry
                 new NullProgressListener() // progressListener
                 );
-
+        // Final checks on the result
         Assert.assertNotNull(jsonZip);
 
         File[] files = exctractJSONFile(jsonZip);
@@ -420,22 +409,24 @@ public class DownloadProcessTest extends WPSTestSupport {
      */
     @Test
     public void testDownloadRaster() throws Exception {
-    	DownloadEstimatorProcess limits = new DownloadEstimatorProcess(new StaticDownloadServiceConfiguration(),getGeoServer());
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(), getGeoServer());
         final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,  resourceManager);
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
 
-        // Envelope env = new Envelope(-125.074006936869,-123.88300771369998, 48.5552612829,49.03872);
-        // Polygon roi = JTS.toGeometry(env);
-
+        // test ROI
         Polygon roi = (Polygon) new WKTReader2()
                 .read("POLYGON (( -127.57473954542964 54.06575021619523, -130.88669845369998 52.00807146727025, -129.50812897394974 49.85372324691927, -130.5300633861675 49.20465679591609, -129.25955033314003 48.60392508062591, -128.00975216684665 50.986137055052474, -125.8623089087404 48.63154492960477, -123.984159178178 50.68231871628503, -126.91186316993704 52.15307567440926, -125.3444367403868 53.54787804784162, -127.57473954542964 54.06575021619523 ))");
         roi.setSRID(4326);
-
+        // ROI reprojection
         Polygon roiResampled = (Polygon) JTS.transform(
                 roi,
                 CRS.findMathTransform(CRS.decode("EPSG:4326", true),
                         CRS.decode("EPSG:900913", true)));
-
+        // Download the coverage as tiff (Not reprojected)
         File rasterZip = downloadProcess.execute(getLayerId(MockData.USA_WORLDIMG), // layerName
                 null, // filter
                 "image/tiff", // outputFormat
@@ -446,35 +437,40 @@ public class DownloadProcessTest extends WPSTestSupport {
                 new NullProgressListener() // progressListener
                 );
 
+        // Final checks on the result
         Assert.assertNotNull(rasterZip);
         GeoTiffReader reader = null;
         GridCoverage2D gc = null, gcResampled = null;
         try {
             final File[] tiffFiles = extractTIFFFile(rasterZip);
             Assert.assertNotNull(tiffFiles);
-            Assert.assertTrue(tiffFiles.length>0);
-			reader = new GeoTiffReader(tiffFiles[0]);
+            Assert.assertTrue(tiffFiles.length > 0);
+            reader = new GeoTiffReader(tiffFiles[0]);
             gc = reader.read(null);
 
             Assert.assertNotNull(gc);
 
-            Assert.assertEquals(-130.88669845369998, gc.getEnvelope().getLowerCorner().getOrdinate(0),1E-6);
-            Assert.assertEquals(48.611129008700004, gc.getEnvelope().getLowerCorner().getOrdinate(1),1E-6);
-            Assert.assertEquals(-123.95304462109999, gc.getEnvelope().getUpperCorner().getOrdinate(0),1E-6);
-            Assert.assertEquals(54.0861661371, gc.getEnvelope().getUpperCorner().getOrdinate(1),1E-6);
+            Assert.assertEquals(-130.88669845369998,
+                    gc.getEnvelope().getLowerCorner().getOrdinate(0), 1E-6);
+            Assert.assertEquals(48.611129008700004, gc.getEnvelope().getLowerCorner()
+                    .getOrdinate(1), 1E-6);
+            Assert.assertEquals(-123.95304462109999,
+                    gc.getEnvelope().getUpperCorner().getOrdinate(0), 1E-6);
+            Assert.assertEquals(54.0861661371, gc.getEnvelope().getUpperCorner().getOrdinate(1),
+                    1E-6);
 
         } finally {
-            if (gc != null){
-            	CoverageCleanerCallback.disposeCoverage(gc);
+            if (gc != null) {
+                CoverageCleanerCallback.disposeCoverage(gc);
             }
-            if (reader != null){
-            	reader.dispose();
+            if (reader != null) {
+                reader.dispose();
             }
-            
+
             // clean up process
             resourceManager.finished(resourceManager.getExecutionId(true));
         }
-
+        // Download the coverage as tiff (Reprojected)
         File resampledZip = downloadProcess.execute(getLayerId(MockData.USA_WORLDIMG), // layerName
                 null, // filter
                 "image/tiff", // outputFormat
@@ -484,30 +480,32 @@ public class DownloadProcessTest extends WPSTestSupport {
                 true, // cropToGeometry
                 new NullProgressListener() // progressListener
                 );
-
+        // Final checks on the result
         Assert.assertNotNull(resampledZip);
-
-        
 
         try {
             File[] files = extractTIFFFile(resampledZip);
-            reader = new GeoTiffReader(files[files.length-1]);
+            reader = new GeoTiffReader(files[files.length - 1]);
             gcResampled = reader.read(null);
 
             Assert.assertNotNull(gcResampled);
 
-            Assert.assertEquals(-1.457024062347863E7, gcResampled.getEnvelope().getLowerCorner().getOrdinate(0),1E-6);
-            Assert.assertEquals(6209706.404894806, gcResampled.getEnvelope().getLowerCorner().getOrdinate(1),1E-6);
-            Assert.assertEquals(-1.379838980949677E7, gcResampled.getEnvelope().getUpperCorner().getOrdinate(0),1E-6);
-            Assert.assertEquals(7187128.139081598, gcResampled.getEnvelope().getUpperCorner().getOrdinate(1),1E-6);
+            Assert.assertEquals(-1.457024062347863E7, gcResampled.getEnvelope().getLowerCorner()
+                    .getOrdinate(0), 1E-6);
+            Assert.assertEquals(6209706.404894806, gcResampled.getEnvelope().getLowerCorner()
+                    .getOrdinate(1), 1E-6);
+            Assert.assertEquals(-1.379838980949677E7, gcResampled.getEnvelope().getUpperCorner()
+                    .getOrdinate(0), 1E-6);
+            Assert.assertEquals(7187128.139081598, gcResampled.getEnvelope().getUpperCorner()
+                    .getOrdinate(1), 1E-6);
 
         } finally {
 
-            if (gcResampled != null){
-            	CoverageCleanerCallback.disposeCoverage(gcResampled);
+            if (gcResampled != null) {
+                CoverageCleanerCallback.disposeCoverage(gcResampled);
             }
             if (reader != null)
-            	
+
                 reader.dispose();
             // clean up process
             resourceManager.finished(resourceManager.getExecutionId(true));
@@ -522,14 +520,20 @@ public class DownloadProcessTest extends WPSTestSupport {
      */
     @Test
     public void testZipGeoTiffPPIO() throws Exception {
-        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(new StaticDownloadServiceConfiguration(),getGeoServer());
-        ZipArchivePPIO ppio = new ZipArchivePPIO(DownloadServiceConfiguration.DEFAULT_COMPRESSION_LEVEL);
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(), getGeoServer());
+        ZipArchivePPIO ppio = new ZipArchivePPIO(
+                DownloadServiceConfiguration.DEFAULT_COMPRESSION_LEVEL);
         final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,  resourceManager);
-        // -130.88669845369998 : -123.88300771369998, 48.5552612829 : 54.1420338629
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
+        // ROI as a BBOX
         Envelope env = new Envelope(-125.074006936869, -123.88300771369998, 48.5552612829, 49.03872);
         Polygon roi = JTS.toGeometry(env);
 
+        // Download the data with ROI
         File rasterZip = downloadProcess.execute(getLayerId(MockData.USA_WORLDIMG), // layerName
                 null, // filter
                 "image/tiff", // outputFormat
@@ -540,48 +544,49 @@ public class DownloadProcessTest extends WPSTestSupport {
                 new NullProgressListener() // progressListener
                 );
 
+        // Final checks on the result
         Assert.assertNotNull(rasterZip);
 
         // make sure we create files locally so that we don't clog the sytem temp
         final File currentDirectory = new File(DownloadProcessTest.class.getResource(".").toURI());
-        File tempZipFile = File.createTempFile("zipppiotemp", ".zip",currentDirectory);
+        File tempZipFile = File.createTempFile("zipppiotemp", ".zip", currentDirectory);
         ppio.encode(rasterZip, new FileOutputStream(tempZipFile));
 
         Assert.assertTrue(tempZipFile.length() > 0);
 
-        final File tempDir=new File(currentDirectory,Long.toString(System.nanoTime()));
+        final File tempDir = new File(currentDirectory, Long.toString(System.nanoTime()));
         Assert.assertTrue(tempDir.mkdir());
-		File tempFile = (File) decode(new FileInputStream(tempZipFile), tempDir);
+        File tempFile = (File) decode(new FileInputStream(tempZipFile), tempDir);
         Assert.assertNotNull(tempFile);
         IOUtils.delete(tempFile);
     }
 
     /**
-     * Test download estimator for raster data.
+     * Test download estimator for raster data. The result should exceed the limits
      * 
      * @throws Exception the exception
      */
     @Test
     public void testDownloadEstimatorReadLimitsRaster() throws Exception {
-
-    	DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
-    			new StaticDownloadServiceConfiguration(
-    					new DownloadServiceConfiguration(
-    							DownloadServiceConfiguration.NO_LIMIT,
-    							10, 
-    							DownloadServiceConfiguration.NO_LIMIT, 
-    							DownloadServiceConfiguration.NO_LIMIT, 
-    							DownloadServiceConfiguration.DEFAULT_COMPRESSION_LEVEL)
-    				),getGeoServer());
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(new DownloadServiceConfiguration(
+                        DownloadServiceConfiguration.NO_LIMIT, 10,
+                        DownloadServiceConfiguration.NO_LIMIT,
+                        DownloadServiceConfiguration.NO_LIMIT,
+                        DownloadServiceConfiguration.DEFAULT_COMPRESSION_LEVEL)), getGeoServer());
 
         final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,  resourceManager);
-
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
+        // ROI as polygon
         Polygon roi = (Polygon) new WKTReader2()
                 .read("POLYGON (( -127.57473954542964 54.06575021619523, -130.8545966116691 52.00807146727025, -129.50812897394974 49.85372324691927, -130.5300633861675 49.20465679591609, -129.25955033314003 48.60392508062591, -128.00975216684665 50.986137055052474, -125.8623089087404 48.63154492960477, -123.984159178178 50.68231871628503, -126.91186316993704 52.15307567440926, -125.3444367403868 53.54787804784162, -127.57473954542964 54.06575021619523 ))");
         roi.setSRID(4326);
 
         try {
+            // Download the data with ROI. It should throw an exception
             downloadProcess.execute(getLayerId(MockData.USA_WORLDIMG), // layerName
                     null, // filter
                     "image/tiff", // outputFormat
@@ -600,31 +605,30 @@ public class DownloadProcessTest extends WPSTestSupport {
     }
 
     /**
-     * Test download estimator write limits raster.
+     * Test download estimator write limits raster. The result should exceed the limits
      * 
      * @throws Exception the exception
      */
     @Test
     public void testDownloadEstimatorWriteLimitsRaster() throws Exception {
-
-    	DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
-    			new StaticDownloadServiceConfiguration(
-    					new DownloadServiceConfiguration(
-    							DownloadServiceConfiguration.NO_LIMIT,
-    							DownloadServiceConfiguration.NO_LIMIT,
-    							10,   
-    							10,   
-    							DownloadServiceConfiguration.DEFAULT_COMPRESSION_LEVEL)
-    				),getGeoServer());        
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(new DownloadServiceConfiguration(
+                        DownloadServiceConfiguration.NO_LIMIT,
+                        DownloadServiceConfiguration.NO_LIMIT, 10, 10,
+                        DownloadServiceConfiguration.DEFAULT_COMPRESSION_LEVEL)), getGeoServer());
 
         final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,  resourceManager);
-
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
+        // ROI
         Polygon roi = (Polygon) new WKTReader2()
                 .read("POLYGON (( -127.57473954542964 54.06575021619523, -130.88669845369998 52.00807146727025, -129.50812897394974 49.85372324691927, -130.5300633861675 49.20465679591609, -129.25955033314003 48.60392508062591, -128.00975216684665 50.986137055052474, -125.8623089087404 48.63154492960477, -123.984159178178 50.68231871628503, -126.91186316993704 52.15307567440926, -125.3444367403868 53.54787804784162, -127.57473954542964 54.06575021619523 ))");
         roi.setSRID(4326);
 
         try {
+            // Download the data with ROI. It should throw an exception
             downloadProcess.execute(getLayerId(MockData.USA_WORLDIMG), // layerName
                     null, // filter
                     "image/tiff", // outputFormat
@@ -644,24 +648,25 @@ public class DownloadProcessTest extends WPSTestSupport {
     }
 
     /**
-     * Test download estimator for vectorial data.
+     * Test download estimator for vectorial data. The result should be exceed the hard output limits
      * 
      * @throws Exception the exception
      */
     @Test
     public void testDownloadEstimatorHardOutputLimit() throws Exception {
-    	DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
-    			new StaticDownloadServiceConfiguration(
-    					new DownloadServiceConfiguration(
-    							DownloadServiceConfiguration.NO_LIMIT,
-    							DownloadServiceConfiguration.NO_LIMIT, 
-    							DownloadServiceConfiguration.NO_LIMIT, 
-    							10, 
-    							DownloadServiceConfiguration.DEFAULT_COMPRESSION_LEVEL)
-    				),getGeoServer());
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(new DownloadServiceConfiguration(
+                        DownloadServiceConfiguration.NO_LIMIT,
+                        DownloadServiceConfiguration.NO_LIMIT,
+                        DownloadServiceConfiguration.NO_LIMIT, 10,
+                        DownloadServiceConfiguration.DEFAULT_COMPRESSION_LEVEL)), getGeoServer());
         final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits, resourceManager);
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
         try {
+            // Download the features. It should throw an exception
             downloadProcess.execute(getLayerId(MockData.POLYGONS), // layerName
                     null, // filter
                     "application/zip", // outputFormat
@@ -674,13 +679,15 @@ public class DownloadProcessTest extends WPSTestSupport {
 
             Assert.assertFalse(true);
         } catch (ProcessException e) {
-            Assert.assertEquals("java.io.IOException: Download Exceeded the maximum HARD allowed size!: Download Exceeded the maximum HARD allowed size!", e.getMessage()
-                    + (e.getCause() != null ? ": " + e.getCause().getMessage() : ""));
-        };
+            Assert.assertEquals(
+                    "java.io.IOException: Download Exceeded the maximum HARD allowed size!: Download Exceeded the maximum HARD allowed size!",
+                    e.getMessage() + (e.getCause() != null ? ": " + e.getCause().getMessage() : ""));
+        }
+        ;
     }
 
     /**
-     * Test download physical limit for raster data.
+     * Test download physical limit for raster data. It should throw an exception
      * 
      * @throws Exception the exception
      */
@@ -688,25 +695,30 @@ public class DownloadProcessTest extends WPSTestSupport {
     public void testDownloadPhysicalLimitsRaster() throws Exception {
         ProcessListener listener = new ProcessListener(new ExecutionStatus(null, "0",
                 ProcessState.RUNNING, 0, null));
-        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(new StaticDownloadServiceConfiguration(),getGeoServer());
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(), getGeoServer());
         final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,  resourceManager);
-
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
+        // ROI data
         Polygon roi = (Polygon) new WKTReader2()
                 .read("POLYGON (( -127.57473954542964 54.06575021619523, -130.88669845369998 52.00807146727025, -129.50812897394974 49.85372324691927, -130.5300633861675 49.20465679591609, -129.25955033314003 48.60392508062591, -128.00975216684665 50.986137055052474, -125.8623089087404 48.63154492960477, -123.984159178178 50.68231871628503, -126.91186316993704 52.15307567440926, -125.3444367403868 53.54787804784162, -127.57473954542964 54.06575021619523 ))");
         roi.setSRID(4326);
 
-        try{
-        downloadProcess.execute(getLayerId(MockData.USA_WORLDIMG), // layerName
-                null, // filter
-                "image/tiff", // outputFormat
-                null, // targetCRS
-                CRS.decode("EPSG:4326", true), // roiCRS
-                roi, // roi
-                true, // cropToGeometry
-                listener // progressListener
-                );
-        }catch (Exception e) {
+        try {
+            // Download the data. It should throw an exception
+            downloadProcess.execute(getLayerId(MockData.USA_WORLDIMG), // layerName
+                    null, // filter
+                    "image/tiff", // outputFormat
+                    null, // targetCRS
+                    CRS.decode("EPSG:4326", true), // roiCRS
+                    roi, // roi
+                    true, // cropToGeometry
+                    listener // progressListener
+                    );
+        } catch (Exception e) {
             Throwable e1 = listener.exception;
             Assert.assertNotNull(e1);
             Assert.assertEquals(
@@ -717,7 +729,7 @@ public class DownloadProcessTest extends WPSTestSupport {
     }
 
     /**
-     * Test download physical limit for vectorial data.
+     * Test download physical limit for vectorial data. It should throw an exception
      * 
      * @throws Exception the exception
      */
@@ -725,21 +737,21 @@ public class DownloadProcessTest extends WPSTestSupport {
     public void testDownloadPhysicalLimitsVector() throws Exception {
         ProcessListener listener = new ProcessListener(new ExecutionStatus(null, "0",
                 ProcessState.RUNNING, 0, null));
-
-    	DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
-    			new StaticDownloadServiceConfiguration(
-    					new DownloadServiceConfiguration(
-    							DownloadServiceConfiguration.NO_LIMIT,
-    							DownloadServiceConfiguration.NO_LIMIT,
-    							DownloadServiceConfiguration.NO_LIMIT,
-    							1,   
-    							DownloadServiceConfiguration.DEFAULT_COMPRESSION_LEVEL)
-    				),getGeoServer());   
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(new DownloadServiceConfiguration(
+                        DownloadServiceConfiguration.NO_LIMIT,
+                        DownloadServiceConfiguration.NO_LIMIT,
+                        DownloadServiceConfiguration.NO_LIMIT, 1,
+                        DownloadServiceConfiguration.DEFAULT_COMPRESSION_LEVEL)), getGeoServer());
 
         final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,  resourceManager);
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
 
         try {
+            // Download the features. It should throw an exception
             downloadProcess.execute(getLayerId(MockData.POLYGONS), // layerName
                     null, // filter
                     "application/zip", // outputFormat
@@ -765,6 +777,43 @@ public class DownloadProcessTest extends WPSTestSupport {
         }
 
         Assert.assertFalse(true);
+    }
+
+    /**
+     * Test with a wrong output format. It should thrown an exception.
+     * 
+     * @throws Exception the exception
+     */
+    @Test
+    public void testWrongOutputFormat() throws Exception {
+        // Estimator process for checking limits
+        DownloadEstimatorProcess limits = new DownloadEstimatorProcess(
+                new StaticDownloadServiceConfiguration(), getGeoServer());
+        final WPSResourceManager resourceManager = new WPSResourceManager();
+        // Creates the new process for the download
+        DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,
+                resourceManager);
+
+        FeatureTypeInfo ti = getCatalog().getFeatureTypeByName(getLayerId(MockData.POLYGONS));
+        SimpleFeatureCollection rawSource = (SimpleFeatureCollection) ti.getFeatureSource(null,
+                null).getFeatures();
+
+        final DefaultProgressListener progressListener = new DefaultProgressListener();
+        try {
+            // Download the features. It should throw an exception.
+            downloadProcess.execute(getLayerId(MockData.POLYGONS), // layerName
+                    null, // filter
+                    "IAmWrong!!!", // outputFormat
+                    null, // targetCRS
+                    CRS.decode("EPSG:32615"), // roiCRS
+                    roi, // roi
+                    false, // cropToGeometry
+                    progressListener // progressListener
+                    );
+            Assert.assertTrue("We did not get an exception", false);
+        } catch (Exception e) {
+            Assert.assertTrue("Everything as expected", true);
+        }
     }
 
     /**
@@ -923,10 +972,10 @@ public class DownloadProcessTest extends WPSTestSupport {
     }
 
     /**
-     * Decode shape.
+     * Private method for decoding a Shapefile
      * 
-     * @param input the input
-     * @return the object
+     * @param input the input shp
+     * @return the object a {@link SimpleFeatureCollection} object related to the shp file.
      * @throws Exception the exception
      */
     private Object decodeShape(InputStream input) throws Exception {
@@ -944,6 +993,7 @@ public class DownloadProcessTest extends WPSTestSupport {
             zis = new ZipInputStream(input);
             ZipEntry entry = null;
 
+            // Cycle on all the entries and copies the input shape in the target directory
             while ((entry = zis.getNextEntry()) != null) {
                 String name = entry.getName();
                 File file = new File(tempDir, entry.getName());
@@ -982,6 +1032,7 @@ public class DownloadProcessTest extends WPSTestSupport {
             }
         }
 
+        // Read the shapefile
         if (shapeFile == null) {
             if (zipFile != null)
                 return decodeShape(new FileInputStream(zipFile));
@@ -994,39 +1045,4 @@ public class DownloadProcessTest extends WPSTestSupport {
             return store.getFeatureSource().getFeatures();
         }
     }
-
-    /**
-     * Test get features as gml.
-     * 
-     * @throws Exception the exception
-     */
-    @Test
-    public void testWrongOutputFormat() throws Exception {
-    	DownloadEstimatorProcess limits = new DownloadEstimatorProcess(new StaticDownloadServiceConfiguration(),getGeoServer());
-        final WPSResourceManager resourceManager = new WPSResourceManager();
-		DownloadProcess downloadProcess = new DownloadProcess(getGeoServer(), limits,  resourceManager);
-
-        FeatureTypeInfo ti = getCatalog().getFeatureTypeByName(getLayerId(MockData.POLYGONS));
-        SimpleFeatureCollection rawSource = (SimpleFeatureCollection) ti.getFeatureSource(null,
-                null).getFeatures();
-
-        // GML 2
-        final DefaultProgressListener progressListener = new DefaultProgressListener();
-        try {
-            downloadProcess.execute(getLayerId(MockData.POLYGONS), // layerName
-                    null, // filter
-                    "IAmWrong!!!", // outputFormat
-                    null, // targetCRS
-                    CRS.decode("EPSG:32615"), // roiCRS
-                    roi, // roi
-                    false, // cropToGeometry
-                    progressListener // progressListener
-                    );
-            Assert.assertTrue("We did not get an exception", false);
-        } catch (Exception e) {
-            Assert.assertTrue("Everything as expected", true);
-        }
-
-    }
-
 }
