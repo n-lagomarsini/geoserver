@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -42,13 +43,6 @@ public class WPSInitializer implements GeoServerInitializer {
         initWPS(geoServer.getService(WPSInfo.class), geoServer);
 
         geoServer.addListener(new ConfigurationListenerAdapter() {
-
-            public void handleGlobalChange(GeoServerInfo global, List<String> propertyNames,
-                    List<Object> oldValues, List<Object> newValues) {
-
-                initWPS(geoServer.getService(WPSInfo.class), geoServer);
-            }
-
             @Override
             public void handlePostGlobalChange(GeoServerInfo global) {
                 initWPS(geoServer.getService(WPSInfo.class), geoServer);
@@ -98,6 +92,8 @@ public class WPSInitializer implements GeoServerInitializer {
     }
 
     static void lookupNewProcessGroups(WPSInfo info, GeoServer geoServer) {
+        List<ProcessGroupInfo> newGroups = new ArrayList();
+
         for (ProcessGroupInfo available : lookupProcessGroups()) {
             boolean found = false;
             for (ProcessGroupInfo configured : info.getProcessGroups()) {
@@ -108,10 +104,15 @@ public class WPSInitializer implements GeoServerInitializer {
             }
             if (!found) {
                 //add it
-                info.getProcessGroups().add(available);
+                newGroups.add(available);
             }
         }
-        geoServer.save(info);
+
+        //only save if we have anything new to add
+        if (!newGroups.isEmpty()) {
+            info.getProcessGroups().addAll(newGroups);
+            geoServer.save(info);
+        }
     }
 
     static List<ProcessGroupInfo> lookupProcessGroups() {

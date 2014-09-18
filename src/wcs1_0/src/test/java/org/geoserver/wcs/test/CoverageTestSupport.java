@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -27,6 +28,8 @@ public abstract class CoverageTestSupport extends GeoServerSystemTestSupport {
     protected static final boolean SpatioTemporalRasterTests = false;
 
     public static QName WATTEMP = new QName(MockData.WCS_URI, "watertemp", MockData.WCS_PREFIX);
+    
+    protected static QName TIMERANGES = new QName(MockData.SF_URI, "timeranges", MockData.SF_PREFIX);
 
     /**
      * @return The global wcs instance from the application context.

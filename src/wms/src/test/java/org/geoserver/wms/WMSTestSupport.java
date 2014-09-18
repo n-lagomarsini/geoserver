@@ -1,13 +1,11 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
 package org.geoserver.wms;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.awt.Color;
 import java.awt.Frame;
@@ -21,7 +19,6 @@ import java.awt.image.Raster;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,14 +34,19 @@ import org.custommonkey.xmlunit.SimpleNamespaceContext;
 import org.custommonkey.xmlunit.XMLUnit;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogBuilder;
+import org.geoserver.catalog.CoverageInfo;
+import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.catalog.LayerGroupInfo;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.data.test.MockData;
 import org.geoserver.data.test.SystemTestData;
 import org.geoserver.test.GeoServerSystemTestSupport;
+import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.data.FeatureSource;
 import org.geotools.map.FeatureLayer;
+import org.geotools.map.GridCoverageLayer;
+import org.geotools.map.Layer;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.styling.Style;
 import org.geotools.xml.transform.TransformerBase;
@@ -89,6 +91,13 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
         // WMS wms = new WMS(getGeoServer());
         // wms.setApplicationContext(applicationContext);
         return wms;
+    }
+
+    /**
+     * @return The global web map service singleton from the application context.
+     */
+    protected WebMapService getWebMapService() {
+        return (WebMapService) applicationContext.getBean("webMapService");
     }
 
     @Override
@@ -150,7 +159,7 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
      * 
      * @return A new map layer.
      */
-    protected FeatureLayer createMapLayer(QName layerName) throws IOException {
+    protected Layer createMapLayer(QName layerName) throws IOException {
         return createMapLayer(layerName, null);
     }
 
@@ -167,23 +176,38 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
      * 
      * @return A new map layer.
      */
-    protected FeatureLayer createMapLayer(QName layerName, String styleName) throws IOException {
-        // TODO: support coverages
+    protected Layer createMapLayer(QName layerName, String styleName) throws IOException {
         Catalog catalog = getCatalog();
-        org.geoserver.catalog.FeatureTypeInfo info = catalog.getFeatureTypeByName(
-                layerName.getNamespaceURI(), layerName.getLocalPart());
+
         LayerInfo layerInfo = catalog.getLayerByName(layerName.getLocalPart());
         Style style = layerInfo.getDefaultStyle().getStyle();
         if (styleName != null) {
             style = catalog.getStyleByName(styleName).getStyle();
         }
 
-        FeatureSource<? extends FeatureType, ? extends Feature> featureSource;
-        featureSource = info.getFeatureSource(null, null);
+        FeatureTypeInfo info = catalog.getFeatureTypeByName(
+                layerName.getNamespaceURI(), layerName.getLocalPart());
+        Layer layer = null;
+        if (info != null) {
+            FeatureSource<? extends FeatureType, ? extends Feature> featureSource;
+            featureSource = info.getFeatureSource(null, null);
 
-        FeatureLayer layer = new FeatureLayer(featureSource, style);
-        layer.setTitle(layer.getTitle());
+            layer = new FeatureLayer(featureSource, style);
+        }
+        else {
+            //try a coverage
+            CoverageInfo cinfo = 
+                catalog.getCoverageByName(layerName.getNamespaceURI(), layerName.getLocalPart());
+            GridCoverage2D cov = (GridCoverage2D) cinfo.getGridCoverage(null, null);
+        
+            layer = new GridCoverageLayer(cov, style);
+        }
 
+        if (layer == null) {
+            throw new IllegalArgumentException("Could not find layer for " + layerName);
+        }
+
+        layer.setTitle(layerInfo.getTitle());
         return layer;
     }
 
@@ -252,6 +276,19 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
     protected void assertNotBlank(String testName, BufferedImage image, Color bgColor) {
         int pixelsDiffer = countNonBlankPixels(testName, image, bgColor);
         assertTrue(testName + " image is comlpetely blank", 0 < pixelsDiffer);
+    }
+
+    /**
+     * Asserts that the image is blank, in the sense that all pixels will be equal to the bakground
+     * color
+     * 
+     * @param testName the name of the test to throw meaningfull messages if something goes wrong
+     * @param image the imgage to check it is not "blank"
+     * @param bgColor the background color for which differing pixels are looked for
+     */
+    protected void assertBlank(String testName, BufferedImage image, Color bgColor) {
+        int pixelsDiffer = countNonBlankPixels(testName, image, bgColor);
+        assertEquals(testName + " image is comlpetely blank", 0, pixelsDiffer);
     }
 
     /**
@@ -353,6 +390,17 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
         showImage(testName, image);
     }
 
+    /**
+     * Checks that the image generated by the map producer is not blank.
+     * 
+     * @param testName
+     * @param producer
+     */
+    protected void assertBlank(String testName, BufferedImage image) {
+        assertBlank(testName, image, BG_COLOR);
+        showImage(testName, image);
+    }
+
     public static void showImage(String frameName, final BufferedImage image) {
         showImage(frameName, SHOW_TIMEOUT, image);
     }
@@ -405,7 +453,7 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
      * @see #checkImage(MockHttpServletResponse, String)
      */
     protected void checkImage(MockHttpServletResponse response) {
-        checkImage(response, "image/png");
+        checkImage(response, "image/png", -1, -1);
     }
     
     /**
@@ -413,31 +461,21 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
      * actual image into a buffered image.
      * 
      */
-    protected void checkImage(MockHttpServletResponse response, String mimeType) {
+    protected void checkImage(MockHttpServletResponse response, String mimeType, int width, int height) {
         assertEquals(mimeType, response.getContentType());
         try {
             BufferedImage image = ImageIO.read(getBinaryInputStream(response));
             assertNotNull(image);
-            assertEquals(image.getWidth(), 550);
-            assertEquals(image.getHeight(), 250);
+            if(width > 0) {
+                assertEquals(width, image.getWidth());
+            }
+            if(height > 0) {
+                assertEquals(height, image.getHeight());
+            }
         } catch (Throwable t) {
             t.printStackTrace();
             fail("Could not read image returned from GetMap:" + t.getLocalizedMessage());
         }
-    }
-    
-    /**
-     * Retries the request result as a BufferedImage, checking the mime type is the expected one
-     * @param path
-     * @param mime
-     * @return
-     * @throws Exception
-     */
-    protected BufferedImage getAsImage(String path, String mime) throws Exception {
-        MockHttpServletResponse resp = getAsServletResponse(path);
-        assertEquals(mime, resp.getContentType());
-        InputStream is = getBinaryInputStream(resp);
-        return ImageIO.read(is);
     }
     
     /**
@@ -452,6 +490,17 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
         
 
         assertEquals(color, actual);
+    }
+    
+    /**
+     * Checks the pixel i/j is fully transparent
+     * @param image
+     * @param i
+     * @param j
+     */
+    protected void assertPixelIsTransparent(BufferedImage image, int i, int j) {
+  	    int pixel = image.getRGB(i,j);
+        assertEquals(true, (pixel>>24) == 0x00);
     }
 
     /**

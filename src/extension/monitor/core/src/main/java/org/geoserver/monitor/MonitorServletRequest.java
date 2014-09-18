@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -63,7 +64,9 @@ public class MonitorServletRequest extends HttpServletRequestWrapper {
         public MonitorInputStream(ServletInputStream delegate, long maxSize) {
             this.delegate = delegate;
             this.maxSize = maxSize;
-            buffer = new ByteArrayOutputStream();
+            if (maxSize > 0) {
+                buffer = new ByteArrayOutputStream();
+            }
         }
 
         public int available() throws IOException {
@@ -143,11 +146,11 @@ public class MonitorServletRequest extends HttpServletRequestWrapper {
         }
 
         boolean bufferIsFull() {
-            return buffer.size() >= maxSize && maxSize > 0;
+            return maxSize == 0 || (buffer.size() >= maxSize && maxSize > 0);
         }
 
         public byte[] getData() {
-            return buffer.toByteArray();
+            return buffer == null ? new byte[0] : buffer.toByteArray();
         }
 
         public long getBytesRead() {

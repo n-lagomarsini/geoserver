@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -19,7 +20,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.geoserver.wms.WMSMapContent;
-import org.geotools.renderer.lite.RendererUtilities;
 
 public class ScaleLineDecoration implements MapDecoration {
     /** A logger for this class. */
@@ -49,6 +49,8 @@ public class ScaleLineDecoration implements MapDecoration {
 
     private Color bgcolor = Color.WHITE;
     private Color fgcolor = Color.BLACK;
+    
+    private Boolean transparent = Boolean.FALSE;
     
     public void loadOptions(Map<String, String> options) {
     	if (options.get("fontsize") != null) {
@@ -80,12 +82,21 @@ public class ScaleLineDecoration implements MapDecoration {
 
         tmp = MapDecorationLayout.parseColor(options.get("fgcolor"));
         if (tmp != null) fgcolor = tmp;
+
+    	// Creates a rectangle only if is defined, if not is "transparent" like Google Maps
+    	if (options.get("transparent") != null) {
+    		try {
+    			this.transparent = Boolean.parseBoolean(options.get("transparent"));
+    		} catch (Exception e) {
+    			this.LOGGER.log(Level.WARNING, "'transparent' must be a boolean.", e);
+    		}
+    	}
     }
 
     public Dimension findOptimalSize(Graphics2D g2d, WMSMapContent mapContent){
     	FontMetrics metrics = g2d.getFontMetrics(g2d.getFont());
     	return new Dimension(
-            suggestedWidth, 8 + (int)((metrics.getHeight() + metrics.getDescent()) * 2)
+            suggestedWidth, 8 + (metrics.getHeight() + metrics.getDescent()) * 2
         );
     }
     
@@ -118,11 +129,7 @@ public class ScaleLineDecoration implements MapDecoration {
     	// Set the font size.
     	g2d.setFont(oldFont.deriveFont(this.fontSize));
     	
-    	double scaleDenominator = RendererUtilities.calculateOGCScale(
-            mapContent.getRenderingArea(),
-            mapContent.getRequest().getWidth(),
-            new HashMap()
-        );
+        double scaleDenominator = mapContent.getScaleDenominator(true);
     	
     	String curMapUnits = "m";
     	
@@ -169,24 +176,31 @@ public class ScaleLineDecoration implements MapDecoration {
     	int leftX = (int)paintArea.getMinX() + ((int)paintArea.getWidth() - Math.max(topPx, bottomPx)) / 2;
     	
     	FontMetrics metrics = g2d.getFontMetrics(g2d.getFont());
-    	int prongHeight = (int)metrics.getHeight() + metrics.getDescent();
+    	int prongHeight = metrics.getHeight() + metrics.getDescent();
     	
     	g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
-        Rectangle frame = new Rectangle(
-            leftX - 4, centerY - prongHeight - 4, 
-            Math.max(topPx, bottomPx) + 8, 8 + prongHeight * 2
-        );
+    	// Creates a rectangle only if is defined, if not is "transparent" like Google Maps
+    	if (!this.transparent) {
+    		Rectangle frame = new Rectangle(
+    			leftX - 4, centerY - prongHeight - 4, 
+    			Math.max(topPx, bottomPx) + 8, 8 + prongHeight * 2
+    		);
 
-        g2d.setColor(bgcolor);
-        g2d.fill(frame);;
-        
-        frame.height -= 1;
-        frame.width -= 1;
-    	g2d.setColor(fgcolor);
-        g2d.setStroke(new BasicStroke(1));
-        g2d.draw(frame);
-    	
+    		// fill the rectangle
+    		g2d.setColor(bgcolor);
+    		g2d.fill(frame);
+
+    		// draw the border
+    		frame.height -= 1;
+    		frame.width -= 1;
+    		g2d.setColor(fgcolor);
+    		g2d.setStroke(new BasicStroke(1));
+    		g2d.draw(frame);
+    	} else {
+    		g2d.setColor(fgcolor);
+    	}
+
     	g2d.setStroke(new BasicStroke(2));
     	
     	// Draw scale lines
@@ -205,12 +219,12 @@ public class ScaleLineDecoration implements MapDecoration {
     	g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, oldAntialias);
 
         g2d.drawString(topText, 
-            leftX + (int)((topPx - metrics.stringWidth(topText)) / 2), 
+            leftX + (topPx - metrics.stringWidth(topText)) / 2, 
             centerY - prongHeight + metrics.getAscent()
         );
     	
         g2d.drawString(bottomText, 
-            leftX + (int)((bottomPx - metrics.stringWidth(bottomText)) / 2), 
+            leftX + (bottomPx - metrics.stringWidth(bottomText)) / 2, 
             centerY + metrics.getHeight()
         );
         

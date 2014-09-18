@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -97,7 +98,8 @@ public class EMFKvpRequestReader extends KvpRequestReader {
                 } catch(Exception ex) {
                     throw new ServiceException("Failed to set property " + property 
                             + " in request object using value " + value 
-                            + (value != null ? " of type " + value.getClass() : ""), ex);
+                            + (value != null ? " of type " + value.getClass() : ""), ex, 
+                            ServiceException.INVALID_PARAMETER_VALUE, property);
                 }
             }
         }

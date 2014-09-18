@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -75,7 +76,7 @@ public class WFSBindingUtils {
         set(object, "outputFormat", outputFormat);
     }
 
-    static void set(EObject object, String featureName, Object value) {
+    public static void set(EObject object, String featureName, Object value) {
         EStructuralFeature feature = object.eClass().getEStructuralFeature(featureName);
 
         if (feature != null) {

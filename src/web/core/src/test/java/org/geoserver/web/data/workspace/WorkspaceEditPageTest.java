@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -42,7 +43,6 @@ public class WorkspaceEditPageTest extends GeoServerWicketTestSupport {
 
         tester.startPage(new WorkspaceEditPage(citeWorkspace));
     }
-
 
     @Test
     public void testURIRequired() {
@@ -139,6 +139,25 @@ public class WorkspaceEditPageTest extends GeoServerWicketTestSupport {
 
         tester.assertNoErrorMessage();
         assertNotNull(gs.getSettings(citeWorkspace));
+    }
+    
+    @Test
+    public void testLocalworkspaceRemovePrefix() throws Exception {
+        GeoServer gs = getGeoServer();
+        SettingsInfo settings = gs.getFactory().createSettings();
+        settings.setLocalWorkspaceIncludesPrefix(true);
+        settings.setWorkspace(citeWorkspace);
+        gs.add(settings);
+
+        assertNotNull(gs.getSettings(citeWorkspace));
+        tester.startPage(new WorkspaceEditPage(citeWorkspace));
+        tester.assertRenderedPage(WorkspaceEditPage.class);
+
+        FormTester form = tester.newFormTester("form");
+        form.setValue("settings:settingsContainer:otherSettings:localWorkspaceIncludesPrefix", false);
+        form.submit();
+
+        assertEquals(false, settings.isLocalWorkspaceIncludesPrefix());
     }
 
     @Test

@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -24,6 +25,9 @@ import org.apache.wicket.markup.html.list.ListView;
 import org.apache.wicket.model.CompoundPropertyModel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.util.ListModel;
+import org.apache.wicket.validation.IValidationError;
+import org.apache.wicket.validation.ValidationError;
+import org.springframework.util.StringUtils;
 
 /**
  * Form component panel for editing {@link Properties} property.
@@ -33,6 +37,7 @@ import org.apache.wicket.model.util.ListModel;
 public class PropertyEditorFormComponent extends FormComponentPanel<Properties> {
 
     ListView<Tuple> listView;
+    List<Tuple> invalidTuples=null;
 
     public PropertyEditorFormComponent(String id) {
         super(id);
@@ -86,6 +91,10 @@ public class PropertyEditorFormComponent extends FormComponentPanel<Properties> 
     }
 
     List<Tuple> tuples() {
+        
+        if (invalidTuples!=null)
+            return invalidTuples;
+        
         Properties props = getModelObject();
         if (props == null) {
             props = new Properties();
@@ -125,6 +134,25 @@ public class PropertyEditorFormComponent extends FormComponentPanel<Properties> 
         }
 
         setConvertedInput(props);
+    }
+    
+    @Override
+    public void validate() {
+        invalidTuples=null;
+        for (Tuple t : listView.getModelObject()) {
+            if (StringUtils.hasLength(t.getKey())== false) {
+                invalidTuples=listView.getModelObject();
+                error((IValidationError)new ValidationError().addMessageKey("KeyRequired"));                
+                return;
+            }
+            if (StringUtils.hasLength(t.getValue())== false) {
+                invalidTuples=listView.getModelObject();
+                error((IValidationError)new ValidationError().addMessageKey("ValueRequired"));
+                return;
+            }            
+        }
+
+        super.validate();
     }
 
     static class Tuple implements Serializable, Comparable<Tuple> {

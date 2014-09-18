@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -778,7 +779,7 @@ public class ShapeZipOutputFormat extends WFSGetFeatureOutputFormat implements A
         // handle shapefile encoding
         // and dump the charset into a .cst file, for debugging and control purposes
         // (.cst is not a standard extension)
-        sfds.setStringCharset(charset);
+        sfds.setCharset(charset);
         File charsetFile = new File(tempDir, schema.getTypeName()+ ".cst");
         PrintWriter pw = null;
         try {

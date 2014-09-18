@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -9,9 +10,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.Vector;
+import java.util.Arrays;
 
 import org.springframework.security.access.ConfigAttribute;
 import org.springframework.security.web.FilterInvocation;
+import org.springframework.util.StringUtils;
 import org.springframework.security.web.access.intercept.FilterInvocationSecurityMetadataSource;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -46,11 +49,7 @@ public class RESTfulPathBasedFilterInvocationDefinitionMap
         requestMap.add( new EntryHolder(antPath, httpMethods, attrs) );
 
         if (log.isDebugEnabled()) {
-            log.debug("Added Ant path: " + antPath + "; attributes: " + attrs + ", httpMethods: " +  httpMethods);
-            if ( httpMethods != null ) {
-                for( int ii=0; ii <  httpMethods.length; ii++ ) 
-                    log.debug("httpMethods[" + ii + "]: " +  httpMethods[ii] );   
-            }
+            log.debug("Added Ant path: " + antPath + "; attributes: " + attrs + ", httpMethods: " + Arrays.toString(httpMethods));
         }
     }
 
@@ -121,11 +120,7 @@ public class RESTfulPathBasedFilterInvocationDefinitionMap
             String antPath = entryHolder.getAntPath();
             String[] methodList = entryHolder.getHttpMethodList();
             if (log.isDebugEnabled()) {
-                log.debug( "~~~~~~~~~~ antPath= " + antPath + " methodList= " + methodList );
-                if ( methodList != null ) {
-                    for( int ii=0; ii <  methodList.length; ii++ ) 
-                        log.debug("method[" + ii + "]: " +  methodList[ii] );   
-                }
+                log.debug( "~~~~~~~~~~ antPath= " + antPath + " methodList= " + Arrays.toString(methodList) );
             }
 
             boolean matchedPath = pathMatcher.match( antPath, url );
@@ -144,6 +139,7 @@ public class RESTfulPathBasedFilterInvocationDefinitionMap
                           + "; matchedPath=" + matchedPath  + "; matchedMethods=" + matchedMethods );
 
             if ( matchedPath && matchedMethods ) {
+                log.debug("returning " + StringUtils.collectionToCommaDelimitedString(entryHolder.getConfigAttributes()));
                 return entryHolder.getConfigAttributes();
             }
         }

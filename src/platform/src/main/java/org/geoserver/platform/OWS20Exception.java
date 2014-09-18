@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -17,6 +18,7 @@ import java.util.logging.Logger;
  * @author Emanuele Tajariol - GeoSolutions
  */
 public class OWS20Exception extends ServiceException {
+    
     private static final Logger LOGGER = org.geotools.util.logging.Logging.getLogger(OWS20Exception.class);
 
     /**
@@ -79,7 +81,13 @@ public class OWS20Exception extends ServiceException {
 
         @Override
         public String toString() {
-            return getClass().getSimpleName() + "[exCode:"+ exceptionCode + " httpCode=" + httpCode + " httpMessage=" + httpMessage + ']';
+            final StringBuilder builder = new StringBuilder();
+            builder.append(getClass().getSimpleName()).append("[exCode:").append(exceptionCode).append(" httpCode=").append(httpCode);
+            if(httpMessage!=null){
+                builder.append(" httpMessage=").append(httpMessage);
+            }
+            builder.append(']');
+            return builder.toString() ;
         }
     }
     /**

@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  *           (c) 2002-2011 Open Source Geospatial Foundation (LGPL)
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
@@ -7,37 +8,12 @@
  */
 package org.geoserver.wms.decoration;
 
-import java.util.HashMap;
-
 import junit.framework.Assert;
 
-import org.geoserver.wms.GetMapRequest;
-import org.geoserver.wms.WMSMapContent;
-import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.junit.Test;
 
-import com.vividsolutions.jts.geom.Envelope;
 
-
-public class ScaleRatioDecorationTest {
-
-    public WMSMapContent createMapContent(double dpi) {
-        GetMapRequest request = new GetMapRequest();
-        request.setWidth(1000);
-        request.setHeight(1000);
-        request.setRawKvp(new HashMap<String, String>());
-    
-        if (dpi > 0) {
-            request.getFormatOptions().put("dpi", dpi);
-        }
-    
-        WMSMapContent map = new WMSMapContent(request);
-        map.getViewport().setBounds(
-                new ReferencedEnvelope(new Envelope(0, 0.01, 0, 0.01),
-                        DefaultGeographicCRS.WGS84));
-        return map;
-    }
+public class ScaleRatioDecorationTest extends DecorationTestSupport {
     
     @Test
     public void testRatio() throws Exception {
@@ -51,4 +27,5 @@ public class ScaleRatioDecorationTest {
         Assert.assertEquals(26295, d.getScale(createMapContent(600)), 1);
         Assert.assertEquals(78887, d.getScale(createMapContent(1800)), 1);
     }
+    
 }

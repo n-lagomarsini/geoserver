@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -7,9 +8,9 @@ package org.geoserver.wfs.json;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.junit.Test;
-
 import junit.framework.TestCase;
+
+import org.junit.Test;
 
 public class JSONTypeTest extends TestCase {
 
@@ -20,7 +21,7 @@ public class JSONTypeTest extends TestCase {
         assertNotSame(JSONType.json, JSONType.jsonp);
         assertTrue(JSONType.isJsonMimeType(JSONType.json));
 
-        // disable JsonP
+        // enable JsonP programmatically
         JSONType.setJsonpEnabled(true);
         // check jsonp is enabled
         assertTrue(JSONType.useJsonp(JSONType.jsonp));
@@ -28,6 +29,7 @@ public class JSONTypeTest extends TestCase {
         // disable JsonP
         JSONType.setJsonpEnabled(false);
         assertFalse(JSONType.useJsonp(JSONType.jsonp));
+
     }
 
     @Test

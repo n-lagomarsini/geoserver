@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -183,7 +184,7 @@ public class RSSGeoRSSTransformerTest extends WMSTestSupport {
         WMSMapContent map = new WMSMapContent(createGetMapRequest(MockData.BUILDINGS));
         Document document;
         try {
-        	FeatureLayer layer = createMapLayer(MockData.BUILDINGS);
+            FeatureLayer layer = (FeatureLayer) createMapLayer(MockData.BUILDINGS);
             Filter f = ff.equals(ff.property("ADDRESS"), ff.literal("215 Main Street"));
             layer.setQuery(new Query(MockData.BUILDINGS.getLocalPart(), f));
             map.addLayer(layer);

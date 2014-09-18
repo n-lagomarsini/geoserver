@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -19,6 +20,7 @@ import org.custommonkey.xmlunit.XMLAssert;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.DataStoreInfo;
 import org.geoserver.catalog.FeatureTypeInfo;
+import org.geoserver.catalog.NamespaceInfo;
 import org.geoserver.config.GeoServer;
 import org.geoserver.data.test.CiteTestData;
 import org.geoserver.data.test.SystemTestData;
@@ -35,6 +37,11 @@ import com.mockrunner.mock.web.MockHttpServletResponse;
 
 public class DescribeFeatureTypeTest extends WFS20TestSupport {
 	
+    @Override
+    protected String getLogConfiguration() {
+        return "/DEFAULT_LOGGING.properties";
+    }
+    
 	@Override
     protected void setUpInternal(SystemTestData dataDirectory) throws Exception {
     	DataStoreInfo di = getCatalog().getDataStoreByName(CiteTestData.CITE_PREFIX);
@@ -204,38 +211,46 @@ public class DescribeFeatureTypeTest extends WFS20TestSupport {
     @Test
     public void testCiteCompliance() throws Exception {
         final QName typeName = CiteTestData.STREAMS;
-
         // make sure typeName _is_ in the default namespace
         Catalog catalog = getCatalog();
-        catalog.setDefaultNamespace(catalog.getNamespaceByURI(typeName.getNamespaceURI()));
-        FeatureTypeInfo typeInfo = catalog.getFeatureTypeByName(typeName.getNamespaceURI(), typeName.getLocalPart());
-        typeInfo.setEnabled(true);
-        catalog.save(typeInfo);
-        DataStoreInfo store = typeInfo.getStore();
-        store.setEnabled(true);
-        catalog.save(store);
+        NamespaceInfo defaultNs = catalog.getDefaultNamespace();
         
-        // and request typeName without prefix
-        String path = "ows?service=WFS&version=2.0.0&request=DescribeFeatureType&typeName="
-            + typeName.getLocalPart();
-        Document doc;
-    
-        //first, non cite compliant mode should find the type even if namespace is not specified
         GeoServer geoServer = getGeoServer();
         WFSInfo service = geoServer.getService(WFSInfo.class);
-        service.setCiteCompliant(false);
-        geoServer.save(service);
-        doc = getAsDOM(path);
-        print(doc);
-        assertSchema(doc, typeName);
+        try {
+            // make sure typeName _is_ in the default namespace
+            catalog.setDefaultNamespace(catalog.getNamespaceByURI(typeName.getNamespaceURI()));
+            FeatureTypeInfo typeInfo = catalog.getFeatureTypeByName(typeName.getNamespaceURI(), typeName.getLocalPart());
+            typeInfo.setEnabled(true);
+            catalog.save(typeInfo);
+            DataStoreInfo store = typeInfo.getStore();
+            store.setEnabled(true);
+            catalog.save(store);
+            
+            // and request typeName without prefix
+            String path = "ows?service=WFS&version=2.0.0&request=DescribeFeatureType&typeName="
+                + typeName.getLocalPart();
+            Document doc;
         
-
-        //then, in cite compliance more, it should not find the type name
-        service.setCiteCompliant(true);
-        geoServer.save(service);
-        doc = getAsDOM(path);
-        //print(doc);
-        assertEquals("ows:ExceptionReport", doc.getDocumentElement().getNodeName());
+            //first, non cite compliant mode should find the type even if namespace is not specified
+            service.setCiteCompliant(false);
+            geoServer.save(service);
+            doc = getAsDOM(path);
+            print(doc);
+            assertSchema(doc, typeName);
+            
+    
+            //then, in cite compliance more, it should not find the type name
+            service.setCiteCompliant(true);
+            geoServer.save(service);
+            doc = getAsDOM(path);
+            //print(doc);
+            assertEquals("ows:ExceptionReport", doc.getDocumentElement().getNodeName());
+        } finally {
+            catalog.setDefaultNamespace(defaultNs);
+            service.setCiteCompliant(false);
+            geoServer.save(service);
+        }
     }
     
     /**
@@ -247,14 +262,19 @@ public class DescribeFeatureTypeTest extends WFS20TestSupport {
     public void testPrefixedGetStrictCite() throws Exception {
         GeoServer geoServer = getGeoServer();
         WFSInfo service = geoServer.getService(WFSInfo.class);
-        service.setCiteCompliant(true);
-        geoServer.save(service);
-        
-        final QName typeName = CiteTestData.POLYGONS;
-        String path = "ows?service=WFS&version=2.0.0&request=DescribeFeatureType&typeName="
-                + getLayerId(typeName);
-        Document doc = getAsDOM(path);
-        assertSchema(doc, CiteTestData.POLYGONS);
+        try {
+            service.setCiteCompliant(true);
+            geoServer.save(service);
+            
+            final QName typeName = CiteTestData.POLYGONS;
+            String path = "ows?service=WFS&version=2.0.0&request=DescribeFeatureType&typeName="
+                    + getLayerId(typeName);
+            Document doc = getAsDOM(path);
+            assertSchema(doc, CiteTestData.POLYGONS);
+        } finally {
+            service.setCiteCompliant(false);
+            geoServer.save(service);
+        }
     }
 
     @Test

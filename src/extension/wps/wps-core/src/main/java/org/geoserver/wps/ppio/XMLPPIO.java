@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -37,6 +38,9 @@ public abstract class XMLPPIO extends ComplexPPIO {
      */
     protected XMLPPIO(Class externalType, Class internalType, String mimeType, QName element) {
         super( externalType, internalType, mimeType);
+        if (element == null) {
+            throw new NullPointerException("element must not be null");
+        }
         this.element = element;
     }
 

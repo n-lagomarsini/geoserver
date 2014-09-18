@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -10,12 +11,11 @@ import javax.xml.namespace.QName;
 
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.NamespaceInfo;
-import org.geotools.index.Data;
 import org.geotools.xml.InstanceComponent;
 
 /**
  * Overrides the base class parsing code so that prefix can be resolved
- * to URI's using the GeoServer {@link Data} catalog as well
+ * to URI's using the GeoServer Data catalog as well
  * @author Andrea Aime - TOPP
  */
 public class XSQNameBinding extends org.geotools.xs.bindings.XSQNameBinding {

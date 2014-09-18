@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -31,6 +32,7 @@ import java.util.zip.ZipInputStream;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
 import org.geoserver.monitor.MemoryMonitorDAO;
 import org.geoserver.monitor.Monitor;
 import org.geoserver.monitor.Query;
@@ -132,11 +134,11 @@ public class RequestResourceTest {
         HSSFWorkbook wb = new HSSFWorkbook(new ByteArrayInputStream(out.toByteArray()));
         HSSFSheet sheet = wb.getSheet("requests");
         
-        Iterator<HSSFRow> rows = sheet.iterator();
+        Iterator<Row> rows = sheet.iterator();
         Iterator<RequestData> it = monitor.getDAO().getRequests().iterator();
         
         assertTrue(rows.hasNext());
-        HSSFRow row = rows.next();
+        Row row = rows.next();
         assertEquals("id", row.getCell(0).getStringCellValue());
         assertEquals("path", row.getCell(1).getStringCellValue());
         assertEquals("startTime", row.getCell(2).getStringCellValue());

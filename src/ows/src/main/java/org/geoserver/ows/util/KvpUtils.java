@@ -1,10 +1,12 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
 package org.geoserver.ows.util;
 
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Array;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,6 +14,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -336,7 +339,9 @@ public class KvpUtils {
                 value = trim((String) entry.getValue());
             } else if (entry.getValue() instanceof String[]) {
                 String[] values = (String[]) entry.getValue();
-                List<String> normalized = new ArrayList<String>();
+                // we use a set so that mere value repetition (a common error for which the OWS spec
+                // leaves the server up to decide what to do) does not cause the result to be a String[]
+                LinkedHashSet<String> normalized = new LinkedHashSet<String>();
                 for (String v : values) {
                     v = trim(v);
                     if(v != null) {
@@ -346,7 +351,7 @@ public class KvpUtils {
                 if(normalized.size() == 0) {
                     value = null;
                 } else if(normalized.size() == 1) {
-                    value = normalized.get(0);
+                    value = normalized.iterator().next();
                 } else {
                     value = (String[]) normalized.toArray(new String[normalized.size()]);
                 }
@@ -540,8 +545,8 @@ public class KvpUtils {
     }
     
     /**
-     * Returns a single value for the specified key, or throws an exception if multiple different
-     * values are found
+     * Returns a single value for the specified key from the raw KVP, or throws an exception 
+     * if multiple different values are found
      * 
      * @param kvp
      * @param key
@@ -562,14 +567,15 @@ public class KvpUtils {
             for (int i = 1; i < strings.length; i++) {
                 if(!result.equals(strings[i])) {
                     throw new ServiceException("Single value expected for request parameter " 
-                            + key + " but instead found: " + Arrays.toString(strings));
+                            + key + " but instead found: " + Arrays.toString(strings),
+                            ServiceException.INVALID_PARAMETER_VALUE, key);
                 }
             }
             
             return result;
         }
     }
-
+    
     /**
      * Parses the parameters in the path query string. Normally this is done by the
      * servlet container but in a few cases (testing for example) we need to emulate the container

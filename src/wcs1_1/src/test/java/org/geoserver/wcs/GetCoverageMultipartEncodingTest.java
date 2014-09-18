@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -6,11 +7,9 @@ package org.geoserver.wcs;
 
 import static org.custommonkey.xmlunit.XMLAssert.assertXpathEvaluatesTo;
 import static org.geoserver.data.test.MockData.TASMANIA_BM;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
-import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -21,8 +20,6 @@ import javax.mail.Multipart;
 
 import org.geoserver.wcs.responses.GeoTIFFCoverageResponseDelegate;
 import org.geoserver.wcs.test.WCSTestSupport;
-import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.gce.geotiff.GeoTiffReader;
 import org.junit.Test;
 import org.w3c.dom.Document;
 
@@ -43,7 +40,11 @@ public class GetCoverageMultipartEncodingTest extends WCSTestSupport {
         MockHttpServletResponse response = getAsServletResponse(request);
         // System.out.println(response.getOutputStreamContent());
         // make sure we got a multipart
-        assertTrue(response.getContentType().matches("multipart/related;\\s*boundary=\".*\""));
+        String contentType = response.getContentType();
+        assertTrue(contentType.matches("multipart/related;\\s*boundary=\".*\""));
+        // Tomcat 7 does not like to have newlines in the http headers, and it's right, they are not allowed
+        assertFalse(contentType.contains("\n"));
+        assertFalse(contentType.contains("\r"));
 
         // parse the multipart, check there are two parts
         Multipart multipart = getMultipart(response);

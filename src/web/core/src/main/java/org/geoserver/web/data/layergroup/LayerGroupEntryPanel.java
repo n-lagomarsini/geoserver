@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2014 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -19,21 +20,23 @@ import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.CheckBox;
 import org.apache.wicket.markup.html.panel.Fragment;
 import org.apache.wicket.markup.html.panel.Panel;
+import org.apache.wicket.markup.repeater.DefaultItemReuseStrategy;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.Model;
 import org.geoserver.catalog.LayerGroupInfo;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.PublishedInfo;
 import org.geoserver.catalog.StyleInfo;
-import org.geoserver.web.data.layergroup.AbstractLayerGroupPage.LayerGroupListPanel;
-import org.geoserver.web.data.layergroup.AbstractLayerGroupPage.LayerListPanel;
-import org.geoserver.web.data.layergroup.AbstractLayerGroupPage.StyleListPanel;
-import org.geoserver.web.wicket.GeoServerDataProvider;
 import org.geoserver.web.wicket.GeoServerDataProvider.Property;
+import org.geoserver.web.wicket.GeoServerDataProvider.PropertyPlaceholder;
+import org.geoserver.web.wicket.GeoServerDialog;
 import org.geoserver.web.wicket.GeoServerTablePanel;
+import org.geoserver.web.wicket.HelpLink;
 import org.geoserver.web.wicket.ImageAjaxLink;
 import org.geoserver.web.wicket.ParamResourceModel;
+import org.geoserver.web.wicket.ReorderableTablePanel;
 import org.geoserver.web.wicket.SimpleAjaxLink;
+import org.geoserver.web.wicket.UpDownPanel;
 
 /**
  * Allows to edit the list of layers contained in a layer group
@@ -41,10 +44,24 @@ import org.geoserver.web.wicket.SimpleAjaxLink;
 @SuppressWarnings("serial")
 public class LayerGroupEntryPanel extends Panel {
 
+    public static Property<LayerGroupEntry> LAYER = new PropertyPlaceholder<LayerGroupEntry>(
+            "layer");
+
+    public static Property<LayerGroupEntry> DEFAULT_STYLE = new PropertyPlaceholder<LayerGroupEntry>(
+            "defaultStyle");
+
+    public static Property<LayerGroupEntry> STYLE = new PropertyPlaceholder<LayerGroupEntry>(
+            "style");
+
+    public static Property<LayerGroupEntry> REMOVE = new PropertyPlaceholder<LayerGroupEntry>(
+            "remove");
+
+    static List PROPERTIES = Arrays.asList(LAYER, DEFAULT_STYLE, STYLE, REMOVE);
+
     ModalWindow popupWindow;
-    LayerGroupEntryProvider entryProvider;
     GeoServerTablePanel<LayerGroupEntry> layerTable;
     List<LayerGroupEntry> items;
+    GeoServerDialog dialog;
     
     public LayerGroupEntryPanel( String id, LayerGroupInfo layerGroup ) {
         super( id );
@@ -57,33 +74,33 @@ public class LayerGroupEntryPanel extends Panel {
         }
         
         add( popupWindow = new ModalWindow( "popup" ) );
+        add(dialog = new GeoServerDialog("dialog"));
+        add(new HelpLink("layersHelp").setDialog(dialog));
         
         //layers
-        entryProvider = new LayerGroupEntryProvider( items );
-        add( layerTable = new GeoServerTablePanel<LayerGroupEntry>("layers",entryProvider) {
+        add(layerTable = new ReorderableTablePanel<LayerGroupEntry>("layers", items, PROPERTIES) {
 
             @Override
             protected Component getComponentForProperty(String id, IModel itemModel,
                     Property<LayerGroupEntry> property) {
-                if ( property == LayerGroupEntryProvider.LAYER ) {
+                if (property == LAYER) {
                     return layerLink( id, itemModel );
                 }
-                if ( property == LayerGroupEntryProvider.DEFAULT_STYLE) {
+                if (property == DEFAULT_STYLE) {
                     return defaultStyleCheckbox( id, itemModel );
                 }
-                if ( property == LayerGroupEntryProvider.STYLE ) {
+                if (property == STYLE) {
                     return styleLink( id, itemModel );
                 }
-                if ( property == LayerGroupEntryProvider.REMOVE ) {
+                if (property == REMOVE) {
                     return removeLink( id, itemModel );
-                }
-                if ( property == LayerGroupEntryProvider.POSITION ) {
-                    return positionPanel( id, itemModel ); 
                 }
                 
                 return null;
             }
+            
         }.setFilterable( false ));
+        layerTable.setItemReuseStrategy(new DefaultItemReuseStrategy());
         layerTable.setOutputMarkupId( true );
         
         add( new AjaxLink( "addLayer" ) {
@@ -97,7 +114,7 @@ public class LayerGroupEntryPanel extends Panel {
                     protected void handleLayer(LayerInfo layer, AjaxRequestTarget target) {
                         popupWindow.close( target );
                         
-                        entryProvider.getItems().add(
+                        items.add(
                             new LayerGroupEntry( layer, layer.getDefaultStyle() ) );
                         
                         //getCatalog().save( lg );
@@ -120,7 +137,7 @@ public class LayerGroupEntryPanel extends Panel {
                     protected void handleLayerGroup(LayerGroupInfo layerGroup, AjaxRequestTarget target) {
                         popupWindow.close( target );
                         
-                        entryProvider.getItems().add(
+                        items.add(
                             new LayerGroupEntry( layerGroup, null ) );
                         
                         target.addComponent( layerTable );
@@ -217,99 +234,10 @@ public class LayerGroupEntryPanel extends Panel {
     }
     
     Component positionPanel(String id, IModel itemModel) {
-        return new PositionPanel( id, (LayerGroupEntry) itemModel.getObject() );
-    }
-  
-    static class LayerGroupEntryProvider extends GeoServerDataProvider<LayerGroupEntry> {
-
-        public static Property<LayerGroupEntry> LAYER = 
-            new PropertyPlaceholder<LayerGroupEntry>( "layer" );
-        
-        public static Property<LayerGroupEntry> DEFAULT_STYLE = 
-            new PropertyPlaceholder<LayerGroupEntry>( "defaultStyle" );
-
-        public static Property<LayerGroupEntry> STYLE = 
-            new PropertyPlaceholder<LayerGroupEntry>( "style" );
-        
-        public static Property<LayerGroupEntry> REMOVE = 
-            new PropertyPlaceholder<LayerGroupEntry>( "remove" );
-        
-        public static Property<LayerGroupEntry> POSITION = 
-            new PropertyPlaceholder<LayerGroupEntry>( "position" );
-
-        static List PROPERTIES = Arrays.asList( POSITION, LAYER, DEFAULT_STYLE, STYLE, REMOVE );
-        
-        List<LayerGroupEntry> items;
-        
-        public LayerGroupEntryProvider( List<LayerGroupEntry> items ) {
-            this.items = items;
-        }
-        
-        @Override
-        protected List<LayerGroupEntry> getItems() {
-            return items; 
-        }
-
-        @Override
-        protected List<Property<LayerGroupEntry>> getProperties() {
-            return PROPERTIES;
-        }
-
+        ParamResourceModel upTitle = new ParamResourceModel("moveToBottom", this);
+        ParamResourceModel downTitle = new ParamResourceModel("moveToBottom", this);
+        return new UpDownPanel<LayerGroupEntry>(id, (LayerGroupEntry) itemModel.getObject(), items,
+                layerTable, upTitle, downTitle);
     }
 
-    class PositionPanel extends Panel {
-        
-        LayerGroupEntry entry;
-        public PositionPanel( String id, LayerGroupEntry entry ) {
-            super( id );
-            this.entry = entry;
-            
-            if ( items.indexOf( entry ) > 0 ) {
-                ImageAjaxLink upLink = new ImageAjaxLink( "up", new ResourceReference( getClass(), "../../img/icons/silk/arrow_up.png") ) {
-                    @Override
-                    protected void onClick(AjaxRequestTarget target) {
-                        int index = items.indexOf( PositionPanel.this.entry );
-                        items.remove( index );
-                        items.add( index-1, PositionPanel.this.entry );
-                        target.addComponent( layerTable );
-                    }
-                };
-                upLink.getImage().add(new AttributeModifier("alt", true, new ParamResourceModel("up", upLink)));
-                add( upLink);
-            }
-            else {
-                ImageAjaxLink blankLink = new ImageAjaxLink( "up", new ResourceReference( getClass(), "../../img/icons/blank.png") ) {
-                    @Override
-                    protected void onClick(AjaxRequestTarget target) {
-                    }
-                };
-                blankLink.getImage().add(new AttributeModifier("alt", true, new Model("")));
-                add(blankLink);
-            }
-            
-            if ( items.indexOf( entry ) < items.size() - 1 ) {
-                ImageAjaxLink downLink = new ImageAjaxLink( "down", new ResourceReference( getClass(), "../../img/icons/silk/arrow_down.png") ) {
-                    @Override
-                    protected void onClick(AjaxRequestTarget target) {
-                        int index = items.indexOf( PositionPanel.this.entry );
-                        items.remove( index );
-                        items.add( index+1, PositionPanel.this.entry );
-                        target.addComponent( layerTable );
-                    }
-                };
-                downLink.getImage().add(new AttributeModifier("alt", true, new ParamResourceModel("down", downLink)));
-                add( downLink);
-            }
-            else {
-                ImageAjaxLink blankLink = new ImageAjaxLink( "down", new ResourceReference( getClass(), "../../img/icons/blank.png") ) {
-                    @Override
-                    protected void onClick(AjaxRequestTarget target) {
-                        
-                    }
-                };
-                blankLink.getImage().add(new AttributeModifier("alt", true, new Model("")));
-                add( blankLink);
-            }
-        }
-    }
 }

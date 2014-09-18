@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -101,6 +102,8 @@ public abstract class SQLViewAbstractPage extends GeoServerSecuredPage {
     boolean guessGeometrySrid = false;
 
     private CheckBox guessCheckbox;
+    
+    private boolean escapeSql = true;
 
     private static final List GEOMETRY_TYPES = Arrays.asList(Geometry.class,
             GeometryCollection.class, Point.class, MultiPoint.class, LineString.class,
@@ -155,6 +158,7 @@ public abstract class SQLViewAbstractPage extends GeoServerSecuredPage {
 
             name = virtualTable.getName();
             sql = virtualTable.getSql();
+            escapeSql = virtualTable.isEscapeSql();
 
             paramProvider.init(virtualTable);
             try {
@@ -227,7 +231,8 @@ public abstract class SQLViewAbstractPage extends GeoServerSecuredPage {
         // the "refresh attributes" link
         form.add(refreshLink());
         form.add(guessCheckbox = new CheckBox("guessGeometrySrid", new PropertyModel(this, "guessGeometrySrid")));
-
+        form.add(new CheckBox("escapeSql"));
+ 
         // the editable attribute table
         attributes = new GeoServerTablePanel<SQLViewAttribute>("attributes", attProvider) {
 
@@ -378,6 +383,7 @@ public abstract class SQLViewAbstractPage extends GeoServerSecuredPage {
             VirtualTable vt = new VirtualTable(vtName, virtualTable);
             // hide the primary key definitions or we'll loose some columns
             vt.setPrimaryKeyColumns(Collections.EMPTY_LIST);
+            vt.setEscapeSql(escapeSql);
             ds.addVirtualTable(vt);
             return guessFeatureType(ds, vt.getName(), guessGeometrySrid);
         } finally {

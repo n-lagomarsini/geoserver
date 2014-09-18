@@ -1,20 +1,23 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
 package org.geoserver.wms.map;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertTrue;
-import static org.custommonkey.xmlunit.XMLAssert.assertXpathEvaluatesTo;
+import static junit.framework.Assert.*;
+import static org.custommonkey.xmlunit.XMLAssert.*;
 
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.awt.image.RenderedImage;
 import java.io.File;
+import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 import javax.imageio.ImageIO;
 import javax.xml.namespace.QName;
@@ -23,7 +26,9 @@ import org.custommonkey.xmlunit.NamespaceContext;
 import org.custommonkey.xmlunit.SimpleNamespaceContext;
 import org.custommonkey.xmlunit.XMLUnit;
 import org.geoserver.catalog.Catalog;
+import org.geoserver.catalog.PropertyStyleHandler;
 import org.geoserver.config.GeoServerInfo;
+import org.geoserver.data.test.CiteTestData;
 import org.geoserver.data.test.MockData;
 import org.geoserver.data.test.SystemTestData;
 import org.geoserver.data.test.SystemTestData.LayerProperty;
@@ -48,6 +53,8 @@ public class GetMapIntegrationTest extends WMSTestSupport {
         super.onSetUp(testData);
         Catalog catalog=getCatalog();
         testData.addStyle("indexed","indexed.sld",getClass(),catalog);
+        testData.addStyle("crop_raster","CropTransform.sld",getClass(),catalog);
+        testData.addStyle("lakeScale", "lakeScale.sld", getClass(), catalog);
  
         Map props = new HashMap();
         props.put(LayerProperty.STYLE, "indexed");
@@ -67,29 +74,6 @@ public class GetMapIntegrationTest extends WMSTestSupport {
                 "fourbits.zip", null, props,SystemTestData.class,catalog);
         
     }
-    
-//    @Override
-//    protected void populateDataDirectory(MockData dataDirectory) throws Exception {
-//        super.populateDataDirectory(dataDirectory);
-//        
-//        // this also adds the raster style
-//        dataDirectory.addWcs10Coverages();
-//
-//        
-//        dataDirectory.addStyle("indexed",
-//                GetMapIntegrationTest.class.getResource("indexed.sld"));
-//        dataDirectory.addCoverage(new QName(MockData.SF_URI, "indexed", MockData.SF_PREFIX),
-//                GetMapIntegrationTest.class.getResource("indexed.tif"), "tif", "indexed");
-//        dataDirectory.addCoverage(new QName(MockData.SF_URI, "paletted", MockData.SF_PREFIX),
-//                GetMapIntegrationTest.class.getResource("paletted.tif"), "tif", "raster");
-//        // a filterable mosaic
-//        dataDirectory.addCoverageFromZip(new QName(MockData.SF_URI, "mosaic", MockData.SF_PREFIX), 
-//                MockData.class.getResource("raster-filter-test.zip"), null, "raster");
-//        // a 4 bits world image
-//        dataDirectory.addCoverageFromZip(new QName(MockData.SF_URI, "fourbits", MockData.SF_PREFIX),
-//                MockData.class.getResource("fourbits.zip"), null, "raster");
-//    }
-    
     
     @Test
     public void testIndexed() throws Exception {
@@ -175,10 +159,10 @@ public class GetMapIntegrationTest extends WMSTestSupport {
         int[] rgba = new int[4];
         // transparent pixel in the top left corner
         image.getData().getPixel(0, 0, rgba);
-        assertEquals(0, (int) rgba[3]);
+        assertEquals(0, rgba[3]);
         // solid pixel in the lower right corner
         image.getData().getPixel(255, 255, rgba);
-        assertEquals(255, (int) rgba[3]);
+        assertEquals(255, rgba[3]);
     }
     
     @Test
@@ -244,5 +228,63 @@ public class GetMapIntegrationTest extends WMSTestSupport {
         } finally {
             XMLUnit.setXpathNamespaceContext(oldContext);
         }
+    }
+    
+    @Test
+    public void testRasterRenderingTx() throws Exception {
+        System.out.println(getCatalog().getCoverages());
+        
+        String layer = getLayerId(MockData.USA_WORLDIMG);
+        String url = "wms?service=WMS&VERSION=1.1.1&request=GetMap&styles="
+                + "&format=image/png&layers="  + layer + "&WIDTH=100&HEIGHT=100"
+                + "&srs=epsg:4326&BBOX=-130,49,-125,54";
+        
+        BufferedImage image = getAsImage(url, "image/png");
+        Color color = getPixelColor(image, 25, 25);
+        // the color is not white, nor white-ish
+        assertTrue(color.getRed() + color.getGreen() + color.getBlue() < (250 * 3));
+        
+        // now crop and check the image is cut
+        url = "wms?service=WMS&VERSION=1.1.1&request=GetMap&styles=crop_raster"
+                + "&format=image/png&layers="  + layer + "&WIDTH=100&HEIGHT=100"
+                + "&srs=epsg:4326&BBOX=-130,49,-125,54";
+        image = getAsImage(url, "image/png");
+        color = getPixelColor(image, 25, 25);
+        // the color is white, or white-ish
+        assertTrue(color.getRed() + color.getGreen() + color.getBlue() > (250 * 3));
+    }
+
+    @Test
+    public void testGetMapWithPropertyStyle() throws Exception {
+        Properties props = new Properties();
+        props.put("type", "point");
+        props.put("color", "00ffff");
+        StringWriter w = new StringWriter();
+        props.store(w, null);
+
+        String bbox = "-180,-90,180,90";
+        String layer = getLayerId(CiteTestData.POINTS);
+
+        MockHttpServletResponse response = getAsServletResponse("wms?bbox=" + bbox +
+            "&layers=" + layer +
+            "&sld_body=" + w.toString() +
+            "&style_format=" + PropertyStyleHandler.FORMAT +
+            "&Format=image/png" + "&request=GetMap" +
+            "&width=550" + "&height=250" + "&srs=EPSG:4326");
+        checkImage(response);
+    }
+
+    @Test
+    public void testScaleMethod() throws Exception {
+        // first request, no scale method, scale is roughly 1:20k
+        String request = "wms?&LAYERS=" + getLayerId(MockData.LAKES)
+                + "&STYLES=lakeScale&FORMAT=image%2Fpng"
+                + "&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&SRS=EPSG%3A4326"
+                + "&BBOX=0,-0.002,0.00451,0&WIDTH=88&HEIGHT=44";
+        BufferedImage bi = getAsImage(request, "image/png");
+        assertNotBlank("Image should contain the polygon,  scale denominator 20k", bi);
+
+        bi = getAsImage(request + "&scaleMethod=Accurate", "image/png");
+        assertBlank("Image should not contain the polygon, scale is just below 1:20", bi);
     }
 }

@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -104,7 +105,7 @@ public class DefaultWebFeatureService20 implements WebFeatureService20, Applicat
 
     @Override
     public ValueCollectionType getPropertyValue(GetPropertyValueType request) throws WFSException {
-        return new GetPropertyValue(getServiceInfo(), getCatalog()).run(request);
+    	return new GetPropertyValue(getServiceInfo(), getCatalog(), filterFactory).run(request);
     }
 
     public LockFeatureResponseType lockFeature(LockFeatureType request) throws WFSException {

@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -27,10 +28,13 @@ import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.orm.hibernate3.HibernateCallback;
 import org.springframework.orm.hibernate3.HibernateTemplate;
 
-public class HibernateMonitorDAO2 implements MonitorDAO {
+import com.google.common.base.FinalizableReference;
+
+public class HibernateMonitorDAO2 implements MonitorDAO , DisposableBean {
 
     public static enum Sync {
         SYNC, ASYNC, ASYNC_UPDATE;
@@ -675,4 +679,9 @@ public class HibernateMonitorDAO2 implements MonitorDAO {
         }
         
     }
+
+	@Override
+	public void destroy() throws Exception {
+		getSessionFactory().close();
+	}
 }

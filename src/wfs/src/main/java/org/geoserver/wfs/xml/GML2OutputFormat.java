@@ -1,10 +1,14 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
 package org.geoserver.wfs.xml;
 
-import static org.geoserver.ows.util.ResponseUtils.*;
+import static org.geoserver.ows.util.ResponseUtils.buildSchemaURL;
+import static org.geoserver.ows.util.ResponseUtils.buildURL;
+import static org.geoserver.ows.util.ResponseUtils.params;
+import static org.geoserver.ows.util.ResponseUtils.urlEncode;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -35,8 +39,6 @@ import org.geoserver.wfs.WFSInfo;
 import org.geoserver.wfs.request.FeatureCollectionResponse;
 import org.geoserver.wfs.request.GetFeatureRequest;
 import org.geoserver.wfs.request.Query;
-import org.geotools.GML.Version;
-import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.gml.producer.FeatureTransformer;
 import org.geotools.gml.producer.FeatureTransformer.FeatureTypeNamespaces;
@@ -63,7 +65,6 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
     private static final int NO_FORMATTING = -1;
     private static final int INDENT_SIZE = 2;
     public static final String formatName = "GML2";
-    public static final String formatNameCompressed = "GML2-GZIP";
     public static final String MIME_TYPE = "text/xml; subtype=gml/2.1.2";
 
     /**
@@ -83,9 +84,6 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
      */
     private FeatureTransformer transformer;
 
-    /** will be true if GML2-GZIP output format was requested */
-    private boolean compressOutput = false;
-
     /**
      * GeoServer configuration
      */
@@ -101,7 +99,7 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
      * using it.
      */
     public GML2OutputFormat(GeoServer geoServer) {
-        super(geoServer, new HashSet(Arrays.asList(new String[] { "GML2", MIME_TYPE, "GML2-GZIP" })));
+        super(geoServer, new HashSet(Arrays.asList(new String[] { "GML2", MIME_TYPE })));
 
         this.geoServer = geoServer;
         this.catalog = geoServer.getCatalog();
@@ -117,8 +115,7 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
     }
 
     /**
-    * prepares for encoding into GML2 format, optionally compressing its
-    * output in gzip, if outputFormat is equal to GML2-GZIP
+    * prepares for encoding into GML2 format
     *
     * @param outputFormat DOCUMENT ME!
     * @param results DOCUMENT ME!
@@ -128,8 +125,6 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
     @SuppressWarnings("unchecked")
     public void prepare(String outputFormat, FeatureCollectionResponse results, GetFeatureRequest request)
         throws IOException {
-        this.compressOutput = formatNameCompressed.equalsIgnoreCase(outputFormat);
-
         transformer = createTransformer();
 
         FeatureTypeNamespaces ftNames = transformer.getFeatureTypeNamespaces();
@@ -233,15 +228,6 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
     }
 
     /**
-      * DOCUMENT ME!
-      *
-      * @return DOCUMENT ME!
-      */
-    public String getContentEncoding() {
-        return compressOutput ? "gzip" : null;
-    }
-
-    /**
      * DOCUMENT ME!
      *
      * @param output DOCUMENT ME!
@@ -258,11 +244,6 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
         }
 
         GZIPOutputStream gzipOut = null;
-
-        if (compressOutput) {
-            gzipOut = new GZIPOutputStream(output);
-            output = gzipOut;
-        }
 
         // execute should of set all the header information
         // including the lockID

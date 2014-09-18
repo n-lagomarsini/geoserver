@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -9,7 +10,6 @@ import javax.xml.namespace.QName;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.config.GeoServer;
-import org.geoserver.wfs.WFSException;
 import org.geoserver.wfs.WFSInfo;
 import org.opengis.feature.type.Name;
 
@@ -42,7 +42,7 @@ public class TypeNameKvpParser extends QNameKvpParser {
             // mind, this is lenient behavior so we use it only if the server is not runnig in cite mode
             FeatureTypeInfo ftInfo = catalog.getFeatureTypeByName(token);
             if(ftInfo == null) {
-                throw new WFSException("Could not find type name " + token, "InvalidParameterValue", "typeName");
+                return new QName(null, token);
             } else {
                 final Name name = ftInfo.getFeatureType().getName();
                 return new QName(name.getNamespaceURI(), name.getLocalPart());

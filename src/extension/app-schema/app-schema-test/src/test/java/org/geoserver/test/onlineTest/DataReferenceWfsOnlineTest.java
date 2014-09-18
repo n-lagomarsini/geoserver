@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -19,6 +20,7 @@ import org.geotools.data.FeatureSource;
 import org.geotools.data.complex.AppSchemaDataAccessRegistry;
 import org.geotools.data.complex.MappingFeatureCollection;
 import org.geotools.data.complex.MappingFeatureSource;
+import org.geotools.data.complex.config.AppSchemaDataAccessConfigurator;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.Types;
@@ -31,12 +33,15 @@ import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory2;
 import org.opengis.filter.expression.Expression;
 import org.w3c.dom.Document;
-
+/**
+ * 
+ * @author Victor Tey(CSIRO Earth Science and Resource Engineering)
+ *
+ */
 public abstract class DataReferenceWfsOnlineTest extends AbstractDataReferenceWfsTest {
     private boolean printDoc=false;
     public DataReferenceWfsOnlineTest() throws Exception {
         super();
-        // TODO Auto-generated constructor stub
     }
 
     /**
@@ -1621,13 +1626,13 @@ public abstract class DataReferenceWfsOnlineTest extends AbstractDataReferenceWf
 
         String expected = "-38.410785700000325 143.86545265833303 -38.40925703333365 143.86857949166634";
         String actual = evaluate(
-                "//gsml:MappedFeature[@gml:id='gsml.mappedfeature.179239']/gsml:shape/gml:Curve/gml:segments/gml:LineStringSegment/gml:posList",
+                "//gsml:MappedFeature[@gml:id='gsml.mappedfeature.179239']/gsml:shape/gml:MultiCurve/gml:curveMember/gml:LineString/gml:posList",
                 doc);
         assertTrue(this.isEqualGeometry(actual, expected, 5));
 
         expected = "-38.139133550000324 144.2364237333331 -38.13991570000029 144.2415325499997";
         actual = evaluate(
-                "//gsml:MappedFeature[@gml:id='gsml.mappedfeature.185969']/gsml:shape/gml:Curve/gml:segments/gml:LineStringSegment/gml:posList",
+                "//gsml:MappedFeature[@gml:id='gsml.mappedfeature.185969']/gsml:shape/gml:MultiCurve/gml:curveMember/gml:LineString/gml:posList",
                 doc);
         assertTrue(this.isEqualGeometry(actual, expected, 5));
         assertXpathEvaluatesTo(
@@ -1673,7 +1678,7 @@ public abstract class DataReferenceWfsOnlineTest extends AbstractDataReferenceWf
     @Test
     public void testPredicates() {
         //predicates currently only works with complex post-filters used in joining
-        if (AppSchemaDataAccessRegistry.getAppSchemaProperties().getProperty ("app-schema.joining") == "true") {
+        if (AppSchemaDataAccessConfigurator.isJoining()) {
                 
             //test with slash in predicate
             String xml = //
@@ -1849,11 +1854,14 @@ public abstract class DataReferenceWfsOnlineTest extends AbstractDataReferenceWf
                 doc);
         assertTrue(isEqualGeometry(orig, expected, 5));
         
-    }
-    
+    }    
     
     @Test
     public void testFilteringSplit() throws Exception {
+    	if (AppSchemaDataAccessConfigurator.isJoining()) {
+    		// this is non joining test
+    		return;
+    	}
         FeatureSource<FeatureType, Feature> featureSource;
         try {
             Name gu = Types.typeName("urn:cgi:xmlns:CGI:GeoSciML:2.0", "GeologicUnit");

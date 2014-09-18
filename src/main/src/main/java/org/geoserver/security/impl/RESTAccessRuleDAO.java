@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -9,6 +10,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeSet;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import org.geoserver.config.GeoServerDataDirectory;
@@ -21,10 +23,7 @@ import org.geotools.util.logging.Logging;
  *
  */
 public class RESTAccessRuleDAO extends AbstractAccessRuleDAO<String> {
-
-    static {
-       LOGGER = Logging.getLogger(RESTAccessRuleDAO.class);
-    }
+    private final static Logger LOGGER = Logging.getLogger(RESTAccessRuleDAO.class);
     
     /**
      * rule pattern

@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -13,6 +14,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.logging.Logger;
 
 import org.geoserver.catalog.Catalog;
 import org.geoserver.config.GeoServerDataDirectory;
@@ -25,11 +27,8 @@ import org.geotools.util.logging.Logging;
  * and in memory one, and a file system one (this class is so marginal that
  * I did not do so right away, in memory access is mostly handy for testing)
  */
-public class ServiceAccessRuleDAO extends AbstractAccessRuleDAO<ServiceAccessRule> { 
-
-    static {
-        LOGGER = Logging.getLogger(ServiceAccessRuleDAO.class);
-    }
+public class ServiceAccessRuleDAO extends AbstractAccessRuleDAO<ServiceAccessRule> {
+    private final static Logger LOGGER = Logging.getLogger(ServiceAccessRuleDAO.class);
 
     /**
      * property file name
@@ -60,7 +59,7 @@ public class ServiceAccessRuleDAO extends AbstractAccessRuleDAO<ServiceAccessRul
      * @param rawCatalog
      */
     public ServiceAccessRuleDAO() throws IOException {
-        super(org.vfny.geoserver.global.GeoserverDataDirectory.accessor(), SERVICES);
+        super(GeoServerExtensions.bean(GeoServerDataDirectory.class), SERVICES);
     }
     
     /**

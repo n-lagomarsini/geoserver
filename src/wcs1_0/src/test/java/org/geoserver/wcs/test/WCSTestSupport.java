@@ -1,11 +1,12 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
 package org.geoserver.wcs.test;
 
-import static org.custommonkey.xmlunit.XMLAssert.assertXpathEvaluatesTo;
 import static junit.framework.Assert.*;
+import static org.custommonkey.xmlunit.XMLAssert.assertXpathEvaluatesTo;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -13,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.xml.XMLConstants;
+import javax.xml.namespace.QName;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
@@ -85,6 +87,8 @@ public abstract class WCSTestSupport extends CoverageTestSupport {
 
         // add a raster mosaic with time and elevation
         testData.setUpRasterLayer(WATTEMP, "watertemp.zip", null, null, TestData.class);
+        // a raster layer with time, elevation and custom dimensions as ranges
+        testData.setUpRasterLayer(TIMERANGES, "timeranges.zip", null, null, TestData.class);
     }
 
     @Override
@@ -117,8 +121,8 @@ public abstract class WCSTestSupport extends CoverageTestSupport {
         assertNotNull(root);
     }
     
-    protected void setupRasterDimension(String metadata, DimensionPresentation presentation, Double resolution) {
-        CoverageInfo info = getCatalog().getCoverageByName(WATTEMP.getLocalPart());
+    protected void setupRasterDimension(QName layer, String metadata, DimensionPresentation presentation, Double resolution) {
+        CoverageInfo info = getCatalog().getCoverageByName(layer.getLocalPart());
         DimensionInfo di = new DimensionInfoImpl();
         di.setEnabled(true);
         di.setPresentation(presentation);

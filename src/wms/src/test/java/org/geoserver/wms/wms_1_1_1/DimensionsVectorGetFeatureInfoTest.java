@@ -1,4 +1,5 @@
-/* Copyright (c) 2001 - 2013 OpenPlans - www.openplans.org. All rights reserved.
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -191,7 +192,7 @@ public class DimensionsVectorGetFeatureInfoTest extends WMSDimensionsTestSupport
     @Test
     public void testTimeListMulti() throws Exception {
         setupVectorDimension(ResourceInfo.TIME, "time", DimensionPresentation.LIST, null, null, null);
-        String base = baseFeatureInfo + "&time=&time=2011-05-02,2011-05-04";
+        String base = baseFeatureInfo + "&time=2011-05-02,2011-05-04";
 
         // we should get the second and fourth
         assertNull(getFeatureAt(base, 20, 10));
@@ -204,7 +205,7 @@ public class DimensionsVectorGetFeatureInfoTest extends WMSDimensionsTestSupport
     public void testTimeListExtra() throws Exception {
         setupVectorDimension(ResourceInfo.TIME, "time", DimensionPresentation.LIST, null, null, null);
         // adding a extra elevation that is simply not there, should not break
-        String base = baseFeatureInfo + "&time=&time=2011-05-02,2011-05-04,2011-05-10";
+        String base = baseFeatureInfo + "&time=2011-05-02,2011-05-04,2011-05-10";
 
         // we should get the second and fourth
         assertNull(getFeatureAt(base, 20, 10));
