@@ -8,9 +8,13 @@ package org.geoserver.gwc.web.layer;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.geoserver.gwc.GWC.tileLayerName;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.Component;
@@ -37,17 +41,21 @@ import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.impl.ModificationProxy;
+import org.geoserver.gwc.ConfigurableBlobStore;
 import org.geoserver.gwc.GWC;
 import org.geoserver.gwc.layer.CatalogLayerEventListener;
 import org.geoserver.gwc.layer.GeoServerTileLayer;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
+import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.web.wicket.GeoServerDialog;
 import org.geoserver.web.wicket.ParamResourceModel;
+import org.geotools.util.logging.Logging;
 import org.geowebcache.config.XMLGridSubset;
 import org.geowebcache.diskquota.storage.Quota;
 import org.geowebcache.filter.parameters.ParameterFilter;
 import org.geowebcache.grid.GridSetBroker;
 import org.geowebcache.layer.TileLayer;
+import org.geowebcache.storage.blobstore.memory.CacheProvider;
 
 import com.google.common.base.Preconditions;
 
@@ -71,6 +79,8 @@ import com.google.common.base.Preconditions;
 class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo> {
 
     private static final long serialVersionUID = 7870938096047218989L;
+
+    private static final Logger LOGGER = Logging.getLogger(GeoServerTileLayerEditor.class);
 
     /**
      * Flag to indicate whether a cached layer initially existed for the given layer/group info so
@@ -121,6 +131,8 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
     private final String originalLayerName;
 
     private IModel<? extends CatalogInfo> layerModel;
+
+    private CheckBox disableInMemoryCaching;
 
     /**
      * @param id
@@ -197,6 +209,16 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
         add(enabled = new CheckBox("enabled", new PropertyModel<Boolean>(getModel(), "enabled")));
         enabled.add(new AttributeModifier("title", true, new ResourceModel("enabled.title")));
         configs.add(enabled);
+
+        // CheckBox for enabling/disabling inner caching for the layer
+        disableInMemoryCaching = new CheckBox("inMemoryUncached", new PropertyModel<Boolean>(getModel(), "inMemoryUncached"));
+        ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
+        if(store != null && store.getCache() != null){
+            disableInMemoryCaching.setEnabled(mediator.getConfig().isInnerCachingEnabled()
+                    && !store.getCache().isImmutable());
+        }
+
+        configs.add(disableInMemoryCaching);
 
         List<Integer> metaTilingChoices = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
                 14, 15, 16, 17, 18, 19, 20);
@@ -403,6 +425,19 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
             cacheFormats.processInput();
             parameterFilters.processInput();
             gridSubsets.processInput();
+            
+            // Remove add the Layer to the cache if it is present
+            ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
+            if(store != null){
+                CacheProvider cache = store.getCache();
+                if (cache != null) {
+                    if (disableInMemoryCaching.getModelObject()) {
+                        cache.removeUncachedLayer(getModel().getObject().getName());
+                    } else {
+                        cache.addUncachedLayer(getModel().getObject().getName());
+                    }
+                } 
+            }
 
             tileLayerInfo.setId(layerModel.getObject().getId());
             setConvertedInput(tileLayerInfo);
