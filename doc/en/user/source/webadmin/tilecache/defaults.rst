@@ -121,7 +121,55 @@ These defaults can be overwritten on a per-layer basis when :ref:`editing the la
    *Default image formats*
 
 
+In Memory BlobStore Options
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+These options are used for enabling/disabling In Memory Caching for GeoWebCache. This feature can be used for saving GWC tiles directly in memory, for a fast data retrieval.
+
+Enable
+`````````````
+This parameter allows to enable or disable in memory caching.
+
+Avoid Persistence
+```````````````````
+This parameter can be used in order to avoid to save any file in the file system, keeping all the GWC tiles only in memory.
+
+Cache Hard Memory limit (Mb)
+```````````````````````````````````````
+Parameter for configuring in memory cache size in MB.
+
+Cache Eviction Policy
+```````````````````````````````````````
+Paramter for configuring in memory cache eviction policy, it may be: LRU, LFU, EXPIRE_AFTER_WRITE, EXPIRE_AFTER_ACCESS, NULL
+	
+
+Cache Eviction Time (in Seconds)
+```````````````````````````````````````
+Paramter for configuring in memory cache eviction time. It is in Seconds.
+
+Cache Concurrency Level
+```````````````````````````````````````
+Paramter for configuring in memory cache concurrency.
+
+Clear In Memory Cache
+```````````````````````````````````````
+Button for clearing all the memory cache.
+
+Cache Statistics
+```````````````````````````````````````
+Various statistics parameters associated to the in memory cache.
+
+Update Cache Statistics
+```````````````````````````````````````
+Button for updating cache statistics seen above.
+
+.. figure:: img/blobstoreoptions.png
+   :align: center
+
+   *In Memory BlobStore Options* 
+
+.. note:: Note that in the *TileCaching* tab for each Layer, you may decide to disable in memory caching for the selected Layer by clicking on the **Disable In Memory Caching for this Layer** checkbox.   
+   
 Default Cached Gridsets
 ~~~~~~~~~~~~~~~~~~~~~~~
 
