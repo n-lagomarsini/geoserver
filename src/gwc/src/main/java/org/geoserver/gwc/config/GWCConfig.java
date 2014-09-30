@@ -15,6 +15,7 @@ import java.util.Set;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.geowebcache.locks.LockProvider;
+import org.geowebcache.storage.blobstore.cache.CacheConfiguration;
 
 public class GWCConfig implements Cloneable, Serializable {
 
@@ -31,6 +32,12 @@ public class GWCConfig implements Cloneable, Serializable {
     private boolean TMSEnabled;
     
     private boolean securityEnabled;
+    
+    private boolean innerCachingEnabled;
+    
+    private boolean avoidPersistence;
+    
+    private CacheConfiguration cacheConfiguration;
 
     /**
      * Whether to automatically cache GeoServer layers or they should be enabled explicitly
@@ -85,6 +92,7 @@ public class GWCConfig implements Cloneable, Serializable {
         setDefaultCoverageCacheFormats(Collections.singleton(jpeg));
         setDefaultOtherCacheFormats(new HashSet<String>(Arrays.asList(png, jpeg)));
         setDefaultVectorCacheFormats(Collections.singleton(png));
+        setCacheConfiguration(new CacheConfiguration());
 
         readResolve();
     }
@@ -278,6 +286,9 @@ public class GWCConfig implements Cloneable, Serializable {
         setWMSCEnabled(true);
         setWMTSEnabled(true);
         setTMSEnabled(true);
+        setAvoidPersistence(false);
+        setInnerCachingEnabled(false);
+        setCacheConfiguration(new CacheConfiguration());
     }
 
     public int getMetaTilingX() {
@@ -317,6 +328,7 @@ public class GWCConfig implements Cloneable, Serializable {
         clone.setDefaultCoverageCacheFormats(getDefaultCoverageCacheFormats());
         clone.setDefaultVectorCacheFormats(getDefaultVectorCacheFormats());
         clone.setDefaultOtherCacheFormats(getDefaultOtherCacheFormats());
+        clone.setCacheConfiguration(getCacheConfiguration());
 
         return clone;
     }
@@ -352,5 +364,29 @@ public class GWCConfig implements Cloneable, Serializable {
      */
     public void setLockProviderName(String lockProviderName) {
         this.lockProviderName = lockProviderName;
+    }
+
+    public boolean isInnerCachingEnabled() {
+        return innerCachingEnabled;
+    }
+
+    public void setInnerCachingEnabled(boolean innerCachingEnabled) {
+        this.innerCachingEnabled = innerCachingEnabled;
+    }
+
+    public boolean isAvoidPersistence() {
+        return avoidPersistence;
+    }
+
+    public void setAvoidPersistence(boolean avoidPersistence) {
+        this.avoidPersistence = avoidPersistence;
+    }
+
+    public CacheConfiguration getCacheConfiguration() {
+        return cacheConfiguration;
+    }
+
+    public void setCacheConfiguration(CacheConfiguration cacheConfiguration) {
+        this.cacheConfiguration = new CacheConfiguration(cacheConfiguration);
     }
 }

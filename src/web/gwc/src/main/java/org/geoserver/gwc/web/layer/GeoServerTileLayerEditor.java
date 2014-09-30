@@ -8,9 +8,13 @@ package org.geoserver.gwc.web.layer;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.geoserver.gwc.GWC.tileLayerName;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.Component;
@@ -38,11 +42,13 @@ import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.impl.ModificationProxy;
 import org.geoserver.gwc.GWC;
+import org.geoserver.gwc.config.GWCConfig;
 import org.geoserver.gwc.layer.CatalogLayerEventListener;
 import org.geoserver.gwc.layer.GeoServerTileLayer;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
 import org.geoserver.web.wicket.GeoServerDialog;
 import org.geoserver.web.wicket.ParamResourceModel;
+import org.geotools.util.logging.Logging;
 import org.geowebcache.config.XMLGridSubset;
 import org.geowebcache.diskquota.storage.Quota;
 import org.geowebcache.filter.parameters.ParameterFilter;
@@ -71,6 +77,8 @@ import com.google.common.base.Preconditions;
 class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo> {
 
     private static final long serialVersionUID = 7870938096047218989L;
+
+    private static final Logger LOGGER = Logging.getLogger(GeoServerTileLayerEditor.class);
 
     /**
      * Flag to indicate whether a cached layer initially existed for the given layer/group info so
@@ -121,6 +129,8 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
     private final String originalLayerName;
 
     private IModel<? extends CatalogInfo> layerModel;
+
+    private CheckBox enableInMemoryCaching;
 
     /**
      * @param id
@@ -197,6 +207,47 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
         add(enabled = new CheckBox("enabled", new PropertyModel<Boolean>(getModel(), "enabled")));
         enabled.add(new AttributeModifier("title", true, new ResourceModel("enabled.title")));
         configs.add(enabled);
+
+        // CheckBox for enabling/disabling inner caching for the layer
+        enableInMemoryCaching = new CheckBox("inMemoryCaching");
+        Set<String> layers = mediator.getConfig().getCacheConfiguration().getLayers();
+        enableInMemoryCaching.setModel(new Model<Boolean>((layers == null || !layers
+                .contains(tileLayerModel.getObject().getName()))));
+        enableInMemoryCaching.setEnabled(mediator.getConfig().isInnerCachingEnabled()
+                && !mediator.getConfig().isAvoidPersistence());
+        enableInMemoryCaching.add(new OnChangeAjaxBehavior() {
+
+            @Override
+            protected void onUpdate(AjaxRequestTarget target) {
+                GWC gwc = GWC.get();
+                // Add the Layer to the cache configuration
+                GWCConfig config = gwc.getConfig();
+                Set<String> layers = config.getCacheConfiguration().getLayers();
+                String name = getModel().getObject().getName();
+                if (!enableInMemoryCaching.getModelObject()) {
+                    if (layers == null) {
+                        Set<String> layerSet = new TreeSet<String>();
+                        layerSet.add(name);
+                        config.getCacheConfiguration().setLayers(layerSet);
+                    } else {
+                        layers.add(name);
+                    }
+                } else if (layers != null) {
+                    layers.remove(name);
+                }
+
+                // Update configuration
+                try {
+                    gwc.saveConfig(config);
+                } catch (IOException e) {
+                    if (LOGGER.isLoggable(Level.SEVERE)) {
+                        LOGGER.log(Level.SEVERE, e.getMessage(), e);
+                    }
+                }
+                target.addComponent(configs);
+            }
+        });
+        configs.add(enableInMemoryCaching);
 
         List<Integer> metaTilingChoices = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
                 14, 15, 16, 17, 18, 19, 20);

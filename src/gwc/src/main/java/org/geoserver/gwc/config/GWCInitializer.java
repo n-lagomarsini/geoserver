@@ -20,6 +20,7 @@ import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.config.GeoServer;
 import org.geoserver.config.GeoServerInitializer;
+import org.geoserver.gwc.ConfigurableBlobStore;
 import org.geoserver.gwc.layer.CatalogConfiguration;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfoImpl;
@@ -29,6 +30,7 @@ import org.geoserver.gwc.layer.TileLayerInfoUtil;
 import org.geoserver.wms.WMSInfo;
 import org.geotools.util.Version;
 import org.geotools.util.logging.Logging;
+import org.geowebcache.storage.blobstore.cache.CacheConfiguration;
 
 /**
  * GeoSever initialization hook that preserves backwards compatible GWC configuration at start up.
@@ -66,6 +68,8 @@ public class GWCInitializer implements GeoServerInitializer {
     private final Catalog rawCatalog;
 
     private final TileLayerCatalog tileLayerCatalog;
+    
+    private ConfigurableBlobStore blobStore;
 
     public GWCInitializer(GWCConfigPersister configPersister, Catalog rawCatalog,
             TileLayerCatalog tileLayerCatalog) {
@@ -105,6 +109,17 @@ public class GWCInitializer implements GeoServerInitializer {
 
         final GWCConfig gwcConfig = configPersister.getConfig();
         checkNotNull(gwcConfig);
+        
+        // Setting Cache Configuration
+        if(gwcConfig.getCacheConfiguration() == null){
+            gwcConfig.setCacheConfiguration(new CacheConfiguration());
+            configPersister.save(gwcConfig);
+        }
+        
+        // Change ConfigurableBlobStore behavior
+        if(blobStore != null){
+            blobStore.setChanged(gwcConfig);
+        }
     }
 
     /**
@@ -219,6 +234,10 @@ public class GWCInitializer implements GeoServerInitializer {
                 }
             }
         }
+    }
+
+    public void setBlobStore(ConfigurableBlobStore blobStore) {
+        this.blobStore = blobStore;
     }
 
 }

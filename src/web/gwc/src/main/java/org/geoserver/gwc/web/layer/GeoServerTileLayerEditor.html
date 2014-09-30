@@ -19,6 +19,10 @@
                 <label for="tileCacheEnabled" class="choice"><wicket:message key="enabled">Enable tile caching</wicket:message></label>
               </li>
               <li>
+                <input id="inMemoryCaching" wicket:id="inMemoryCaching" class="field checkbox" type="checkbox"/>
+                <label for="inMemoryCaching" class="choice"><wicket:message key="inMemoryCaching">Enable in memory caching</wicket:message></label>
+              </li>              
+              <li>
                 <label><wicket:message key="metaTiling">Meta tiling factors</wicket:message></label>
                 <select class="select" id="metaTilingX" wicket:id="metaTilingX"></select>
                 <wicket:message key="metaTilingX">Tiles wide by </wicket:message>

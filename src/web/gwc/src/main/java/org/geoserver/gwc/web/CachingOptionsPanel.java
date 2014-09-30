@@ -166,6 +166,9 @@ public class CachingOptionsPanel extends Panel {
             otherFormatsGroup.add(formatsList);
         }
 
+        BlobStorePanel storePanel = new BlobStorePanel("blobstores", gwcConfigModel);
+        configs.add(storePanel.setOutputMarkupId(true));
+        
         IModel<Set<String>> cachedGridsetsModel = new PropertyModel<Set<String>>(gwcConfigModel,
                 "defaultCachingGridSetIds");
         DefaultGridsetsEditor cachedGridsets = new DefaultGridsetsEditor("cachedGridsets",
