@@ -29,6 +29,7 @@ import org.apache.wicket.model.ResourceModel;
 import org.apache.wicket.validation.IValidatable;
 import org.apache.wicket.validation.IValidator;
 import org.apache.wicket.validation.ValidationError;
+import org.geoserver.gwc.ConfigurableBlobStore;
 import org.geoserver.gwc.config.GWCConfig;
 import org.geoserver.web.GeoServerApplication;
 import org.geoserver.web.wicket.LocalizedChoiceRenderer;

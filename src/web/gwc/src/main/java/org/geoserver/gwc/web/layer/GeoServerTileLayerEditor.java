@@ -41,11 +41,12 @@ import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.impl.ModificationProxy;
+import org.geoserver.gwc.ConfigurableBlobStore;
 import org.geoserver.gwc.GWC;
-import org.geoserver.gwc.config.GWCConfig;
 import org.geoserver.gwc.layer.CatalogLayerEventListener;
 import org.geoserver.gwc.layer.GeoServerTileLayer;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
+import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.web.wicket.GeoServerDialog;
 import org.geoserver.web.wicket.ParamResourceModel;
 import org.geotools.util.logging.Logging;
@@ -54,6 +55,7 @@ import org.geowebcache.diskquota.storage.Quota;
 import org.geowebcache.filter.parameters.ParameterFilter;
 import org.geowebcache.grid.GridSetBroker;
 import org.geowebcache.layer.TileLayer;
+import org.geowebcache.storage.blobstore.cache.CacheProvider;
 
 import com.google.common.base.Preconditions;
 
@@ -130,7 +132,7 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
 
     private IModel<? extends CatalogInfo> layerModel;
 
-    private CheckBox enableInMemoryCaching;
+    private CheckBox disableInMemoryCaching;
 
     /**
      * @param id
@@ -209,45 +211,11 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
         configs.add(enabled);
 
         // CheckBox for enabling/disabling inner caching for the layer
-        enableInMemoryCaching = new CheckBox("inMemoryCaching");
-        Set<String> layers = mediator.getConfig().getCacheConfiguration().getLayers();
-        enableInMemoryCaching.setModel(new Model<Boolean>((layers == null || !layers
-                .contains(tileLayerModel.getObject().getName()))));
-        enableInMemoryCaching.setEnabled(mediator.getConfig().isInnerCachingEnabled()
+        disableInMemoryCaching = new CheckBox("inMemoryUncached", new PropertyModel<Boolean>(getModel(), "inMemoryUncached"));
+        disableInMemoryCaching.setEnabled(mediator.getConfig().isInnerCachingEnabled()
                 && !mediator.getConfig().isAvoidPersistence());
-        enableInMemoryCaching.add(new OnChangeAjaxBehavior() {
 
-            @Override
-            protected void onUpdate(AjaxRequestTarget target) {
-                GWC gwc = GWC.get();
-                // Add the Layer to the cache configuration
-                GWCConfig config = gwc.getConfig();
-                Set<String> layers = config.getCacheConfiguration().getLayers();
-                String name = getModel().getObject().getName();
-                if (!enableInMemoryCaching.getModelObject()) {
-                    if (layers == null) {
-                        Set<String> layerSet = new TreeSet<String>();
-                        layerSet.add(name);
-                        config.getCacheConfiguration().setLayers(layerSet);
-                    } else {
-                        layers.add(name);
-                    }
-                } else if (layers != null) {
-                    layers.remove(name);
-                }
-
-                // Update configuration
-                try {
-                    gwc.saveConfig(config);
-                } catch (IOException e) {
-                    if (LOGGER.isLoggable(Level.SEVERE)) {
-                        LOGGER.log(Level.SEVERE, e.getMessage(), e);
-                    }
-                }
-                target.addComponent(configs);
-            }
-        });
-        configs.add(enableInMemoryCaching);
+        configs.add(disableInMemoryCaching);
 
         List<Integer> metaTilingChoices = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
                 14, 15, 16, 17, 18, 19, 20);
@@ -454,6 +422,16 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
             cacheFormats.processInput();
             parameterFilters.processInput();
             gridSubsets.processInput();
+            
+          ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
+          CacheProvider cache = store.getCache();
+          if (cache != null) {
+              if (disableInMemoryCaching.getModelObject()) {
+                  cache.removeUncachedLayer(getModel().getObject().getName());
+              } else {
+                  cache.addUncachedLayer(getModel().getObject().getName());
+              }
+          }
 
             tileLayerInfo.setId(layerModel.getObject().getId());
             setConvertedInput(tileLayerInfo);

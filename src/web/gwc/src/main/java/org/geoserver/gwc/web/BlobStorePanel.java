@@ -5,6 +5,7 @@
  */
 package org.geoserver.gwc.web;
 
+import java.util.Arrays;
 import java.util.HashMap;
 
 import org.apache.wicket.ajax.AjaxRequestTarget;
@@ -14,6 +15,7 @@ import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.Button;
 import org.apache.wicket.markup.html.form.CheckBox;
+import org.apache.wicket.markup.html.form.DropDownChoice;
 import org.apache.wicket.markup.html.form.Form;
 import org.apache.wicket.markup.html.form.TextField;
 import org.apache.wicket.markup.html.panel.Panel;
@@ -22,12 +24,13 @@ import org.apache.wicket.model.PropertyModel;
 import org.apache.wicket.validation.IValidatable;
 import org.apache.wicket.validation.ValidationError;
 import org.apache.wicket.validation.validator.AbstractValidator;
+import org.geoserver.gwc.ConfigurableBlobStore;
 import org.geoserver.gwc.config.GWCConfig;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.web.util.MapModel;
 import org.geoserver.web.wicket.ParamResourceModel;
 import org.geowebcache.storage.blobstore.cache.CacheConfiguration;
-import org.geowebcache.storage.blobstore.cache.CacheProvider;
+import org.geowebcache.storage.blobstore.cache.CacheConfiguration.EvictionPolicy;
 import org.geowebcache.storage.blobstore.cache.CacheStatistics;
 
 public class BlobStorePanel extends Panel {
@@ -37,6 +40,12 @@ public class BlobStorePanel extends Panel {
     public static final String KEY_HIT_RATE = "hitRate";
 
     public static final String KEY_EVICTED = "evicted";
+    
+    public static final String KEY_MISS_COUNT = "missCount";
+
+    public static final String KEY_HIT_COUNT = "hitCount";
+
+    public static final String KEY_TOTAL_COUNT = "totalCount";
 
     private HashMap<String, String> values;
 
@@ -67,8 +76,11 @@ public class BlobStorePanel extends Panel {
 
         IModel<Long> hardMemoryLimit = new PropertyModel<Long>(cacheConfiguration,
                 "hardMemoryLimit");
+        
+        IModel<Long> evictionTimeValue = new PropertyModel<Long>(cacheConfiguration,
+                "evictionTime");
 
-        IModel<String> policy = new PropertyModel<String>(cacheConfiguration, "policy");
+        IModel<EvictionPolicy> policy = new PropertyModel<EvictionPolicy>(cacheConfiguration, "policy");
 
         IModel<Integer> concurrencyLevel = new PropertyModel<Integer>(cacheConfiguration,
                 "concurrencyLevel");
@@ -76,10 +88,13 @@ public class BlobStorePanel extends Panel {
         // Add text entry widget
         final TextField<Long> hardMemory = new TextField<Long>("hardMemoryLimit", hardMemoryLimit);
         hardMemory.setType(Long.class).setOutputMarkupId(true).setEnabled(true);
-        hardMemory.add(new MinimumMemoryValidator());
+        hardMemory.add(new MinimumLongValidator("BlobStorePanel.invalidHardMemory"));
+        
+        final TextField<Long> evictionTime = new TextField<Long>("evictionTime", evictionTimeValue);
+        evictionTime.setType(Long.class).setOutputMarkupId(true).setEnabled(true);
 
-        final TextField<String> textPolicy = new TextField<String>("policy", policy);
-        textPolicy.setType(String.class).setOutputMarkupId(true).setEnabled(true);
+        final DropDownChoice<EvictionPolicy> policyDropDown = new DropDownChoice<>("policy", policy, Arrays.asList(EvictionPolicy.values()));
+        policyDropDown.setOutputMarkupId(true).setEnabled(true);
 
         final TextField<Integer> textConcurrency = new TextField<Integer>("concurrencyLevel",
                 concurrencyLevel);
@@ -87,8 +102,9 @@ public class BlobStorePanel extends Panel {
         textConcurrency.add(new MinimumConcurrencyValidator());
 
         container.add(hardMemory);
-        container.add(textPolicy);
+        container.add(policyDropDown);
         container.add(textConcurrency);
+        container.add(evictionTime);
 
         innerCachingEnabledChoice.add(new AjaxFormComponentUpdatingBehavior("onChange") {
 
@@ -109,9 +125,10 @@ public class BlobStorePanel extends Panel {
         Button clearCache = new Button("cacheClear") {
             @Override
             public void onSubmit() {
-                CacheProvider cacheProvider = GeoServerExtensions.extensions(CacheProvider.class)
-                        .get(0);
-                cacheProvider.clearCache();
+                ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
+                if(store != null){
+                    store.clearCache();
+                }
             }
         };
         container.add(clearCache);
@@ -121,6 +138,9 @@ public class BlobStorePanel extends Panel {
         statsContainer.setOutputMarkupId(true);
 
         statsContainer.add(new Label("title"));
+        statsContainer.add(new Label("totalCount", new MapModel(values, KEY_TOTAL_COUNT)));
+        statsContainer.add(new Label("hitCount", new MapModel(values, KEY_HIT_COUNT)));
+        statsContainer.add(new Label("missCount", new MapModel(values, KEY_MISS_COUNT)));
         statsContainer.add(new Label("missRate", new MapModel(values, KEY_MISS_RATE)));
         statsContainer.add(new Label("hitRate", new MapModel(values, KEY_HIT_RATE)));
         statsContainer.add(new Label("evicted", new MapModel(values, KEY_EVICTED)));
@@ -130,28 +150,24 @@ public class BlobStorePanel extends Panel {
             @Override
             protected void onSubmit(AjaxRequestTarget target, Form<?> form) {
                 try {
-                    CacheProvider cacheProvider = GeoServerExtensions.extensions(
-                            CacheProvider.class).get(0);
-                    CacheStatistics stats = cacheProvider.getStats();
+                    ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
+                    if(store != null){
+                        CacheStatistics stats = store.getCacheStatistics();
 
-                    long hitCount = stats.getHitCount();
-                    long missCount = stats.getMissCount();
-                    long total = hitCount + missCount;
-                    double hitRate = (hitCount * 1.0d) / total * 100.0;
-                    double missRate = (missCount * 1.0d) / total * 100.0;
-                    long evicted = stats.getEvictionCount();
+                        long hitCount = stats.getHitCount();
+                        long missCount = stats.getMissCount();
+                        long total = stats.getRequestCount();
+                        double hitRate = stats.getHitRate();
+                        double missRate = stats.getMissRate();
+                        long evicted = stats.getEvictionCount();
 
-                    String hit = hitRate + " %";
-                    String miss = missRate + " %";
-
-                    if (hitCount == 0 && missCount == 0) {
-                        hit = "No Data";
-                        miss = "No Data";
+                        values.put(KEY_MISS_RATE, missRate + " %");
+                        values.put(KEY_HIT_RATE, hitRate + " %");
+                        values.put(KEY_EVICTED, evicted + "");
+                        values.put(KEY_TOTAL_COUNT, total + "");
+                        values.put(KEY_MISS_COUNT, missCount + "");
+                        values.put(KEY_HIT_COUNT, hitCount + "");
                     }
-
-                    values.put(KEY_MISS_RATE, miss);
-                    values.put(KEY_HIT_RATE, hit);
-                    values.put(KEY_EVICTED, evicted + "");
                 } catch (Throwable t) {
                     error(t);
                 }
@@ -163,8 +179,14 @@ public class BlobStorePanel extends Panel {
         container.add(statistics);
     }
 
-    static class MinimumMemoryValidator extends AbstractValidator<Long> {
+    static class MinimumLongValidator extends AbstractValidator<Long> {
 
+        private String errorKey;
+        
+        public MinimumLongValidator(String error) {
+            this.errorKey = error;
+        }
+        
         @Override
         public boolean validateOnNullValue() {
             return true;
@@ -174,7 +196,7 @@ public class BlobStorePanel extends Panel {
         protected void onValidate(IValidatable<Long> validatable) {
             if (validatable == null || validatable.getValue() <= 0) {
                 ValidationError error = new ValidationError();
-                error.setMessage(new ParamResourceModel("BlobStorePanel.invalidHardMemory", null,
+                error.setMessage(new ParamResourceModel(errorKey, null,
                         "").getObject());
                 validatable.error(error);
             }

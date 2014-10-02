@@ -387,6 +387,10 @@ public class GWCConfig implements Cloneable, Serializable {
     }
 
     public void setCacheConfiguration(CacheConfiguration cacheConfiguration) {
-        this.cacheConfiguration = new CacheConfiguration(cacheConfiguration);
+        this.cacheConfiguration = new CacheConfiguration();
+        this.cacheConfiguration.setConcurrencyLevel(cacheConfiguration.getConcurrencyLevel());
+        this.cacheConfiguration.setEvictionTime(cacheConfiguration.getEvictionTime());
+        this.cacheConfiguration.setHardMemoryLimit(cacheConfiguration.getHardMemoryLimit());
+        this.cacheConfiguration.setPolicy(cacheConfiguration.getPolicy());
     }
 }

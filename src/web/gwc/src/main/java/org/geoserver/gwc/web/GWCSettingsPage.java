@@ -69,8 +69,10 @@ public class GWCSettingsPage extends GeoServerSecuredPage {
                     return;
                 }
                 // Update ConfigurableBlobStore and CacheProvider
-                ConfigurableBlobStore blobstore = GeoServerExtensions.extensions(ConfigurableBlobStore.class).get(0);
-                blobstore.setChanged(gwcConfig);
+                ConfigurableBlobStore blobstore = GeoServerExtensions.bean(ConfigurableBlobStore.class);
+                if(blobstore != null){
+                    blobstore.setChanged(gwcConfig);
+                }
                 // Do return
                 doReturn();
             }

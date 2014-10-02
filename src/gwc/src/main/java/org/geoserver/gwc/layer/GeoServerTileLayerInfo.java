@@ -109,4 +109,8 @@ public interface GeoServerTileLayerInfo extends Serializable, Cloneable {
      */
     public abstract ParameterFilter getParameterFilter(String key);
 
+    public abstract boolean isInMemoryUncached();
+    
+    public abstract void setInMemoryUncached(boolean inMemoryUncached);
+
 }

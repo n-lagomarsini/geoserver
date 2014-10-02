@@ -18,9 +18,13 @@
 		    <input id="hardMemoryLimit" class="field text" type = "text" wicket:id="hardMemoryLimit" />
 		  </li>
 	      <li>
-	        <label for="policy" class="text"><wicket:message key="policy">Eviction Policy</wicket:message></label>      
-	        <input id="policy" class="field text" type = "text" wicket:id="policy" />
+	        <label for="policy" class="select"><wicket:message key="policy">Eviction Policy</wicket:message></label>      
+	        <select id="policy" wicket:id="policy" />
 	      </li>
+	      <li>
+		    <label for="evictionTime" class="text"><wicket:message key="evictionTime">Eviction Time</wicket:message></label>      
+		    <input id="evictionTime" class="field text" type = "text" wicket:id="evictionTime" />
+		  </li>
 	      <li>
 	        <label for="concurrencyLevel" class="text"><wicket:message key="concurrencyLevel">Concurrency Level</wicket:message></label>      
 	        <input id="concurrencyLevel" class="field text" type = "text" wicket:id="concurrencyLevel" />
@@ -31,6 +35,18 @@
 	      <li wicket:id="statsContainer">
 		      <table>
 				  <tbody>
+				    <tr>				    
+				    	<th scope="row"><wicket:message key="totalCount">totalCount</wicket:message></th>
+				    	<td wicket:id="totalCount">hitRate</td>
+				    </tr>
+				    <tr>				    
+				    	<th scope="row"><wicket:message key="hitCount">hitCount</wicket:message></th>
+				    	<td wicket:id="hitCount">hitRate</td>
+				    </tr>
+				    <tr>				    
+				    	<th scope="row"><wicket:message key="missCount">missCount</wicket:message></th>
+				    	<td wicket:id="missCount">hitRate</td>
+				    </tr>				    				    				  
 				    <tr>				    
 				    	<th scope="row"><wicket:message key="hitRate">hitRate</wicket:message></th>
 				    	<td wicket:id="hitRate">hitRate</td>

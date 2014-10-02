@@ -31,6 +31,9 @@ import org.geoserver.wms.WMSInfo;
 import org.geotools.util.Version;
 import org.geotools.util.logging.Logging;
 import org.geowebcache.storage.blobstore.cache.CacheConfiguration;
+import org.geowebcache.storage.blobstore.cache.CacheProvider;
+
+import com.google.common.collect.Iterables;
 
 /**
  * GeoSever initialization hook that preserves backwards compatible GWC configuration at start up.
@@ -119,6 +122,9 @@ public class GWCInitializer implements GeoServerInitializer {
         // Change ConfigurableBlobStore behavior
         if(blobStore != null){
             blobStore.setChanged(gwcConfig);
+            CacheProvider cache = blobStore.getCache();
+            // Add all the various Layers to avoid caching
+            addLayersToUncache(cache, gwcConfig);
         }
     }
 
@@ -235,9 +241,40 @@ public class GWCInitializer implements GeoServerInitializer {
             }
         }
     }
+    
+    private void addLayersToUncache(CacheProvider cache, GWCConfig defaultSettings) {
+        for (LayerInfo layer : rawCatalog.getLayers()) {
+            if (!CatalogConfiguration.isLayerExposable(layer)) {
+                continue;
+            }
+            try {
+                GeoServerTileLayerInfo tileLayerInfo = tileLayerCatalog.getLayerById(layer.getId());
+                if(tileLayerInfo != null && tileLayerInfo.isEnabled() && tileLayerInfo.isInMemoryUncached()){
+                    cache.addUncachedLayer(tileLayerInfo.getName());
+                }
+            } catch (RuntimeException e) {
+                LOGGER.log(
+                        Level.WARNING,
+                        "Error occurred retrieving Layer '"
+                                + layer.getName() + "'", e);
+            }
+        }
+
+        for (LayerGroupInfo layer : rawCatalog.getLayerGroups()) {
+            try {
+                GeoServerTileLayerInfo tileLayerInfo = tileLayerCatalog.getLayerById(layer.getId());
+                if(tileLayerInfo != null && tileLayerInfo.isEnabled() && tileLayerInfo.isInMemoryUncached()){
+                    cache.addUncachedLayer(tileLayerInfo.getName());
+                }
+            } catch (RuntimeException e) {
+                LOGGER.log(Level.WARNING,
+                        "Error occurred retrieving LayerGroup '"
+                                + tileLayerName(layer) + "'", e);
+            }
+        }
+    }
 
     public void setBlobStore(ConfigurableBlobStore blobStore) {
         this.blobStore = blobStore;
     }
-
 }
