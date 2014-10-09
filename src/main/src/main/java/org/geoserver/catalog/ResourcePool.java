@@ -154,6 +154,11 @@ public class ResourcePool {
      */
     public static Hints.Key JOINS = new Hints.Key(List.class);
 
+    /**
+     * Hint to specify if we need to skip the Coverage extensions lookup
+     */
+    public static Hints.Key SKIP_COVERAGE_EXTENSIONS_LOOKUP = new Hints.Key( Boolean.class );
+    
     /** logging */
     static Logger LOGGER = Logging.getLogger( "org.geoserver.catalog");
     
@@ -1338,8 +1343,7 @@ public class ResourcePool {
     public GridCoverageReader getGridCoverageReader(CoverageStoreInfo storeInfo, String coverageName, Hints hints) throws IOException {
         return getGridCoverageReader(storeInfo, (CoverageInfo) null, coverageName, hints);
     }
-    
-    
+
     /**
      * Returns a coverage reader, caching the result.
      *  
@@ -1352,11 +1356,19 @@ public class ResourcePool {
     private GridCoverageReader getGridCoverageReader(CoverageStoreInfo info, CoverageInfo coverageInfo, String coverageName, Hints hints) 
         throws IOException {
         
+        if (!(hints != null && hints.containsKey(SKIP_COVERAGE_EXTENSIONS_LOOKUP) 
+                && (Boolean) hints.get(SKIP_COVERAGE_EXTENSIONS_LOOKUP))) {
+            GridCoverageReaderCallback callBack = getGridCoverageReader(coverageInfo);
+            if (callBack != null) {
+                return callBack.getGridCoverageReader();
+            }
+        }
+
         final AbstractGridFormat gridFormat = info.getFormat();
         if(gridFormat == null) {
             throw new IOException("Could not find the raster plugin for format " + info.getType());
         }
-        
+
         // look into the cache
         GridCoverageReader reader = null;
         Object key;
@@ -1571,7 +1583,6 @@ public class ResourcePool {
         // Reading the coverage
         //
         // /////////////////////////////////////////////////////////
-        
         GridCoverage gc  = reader.read(CoverageUtils.getParameters(
                     reader.getFormat().getReadParameters(), info.getParameters()));
         
@@ -2214,6 +2225,15 @@ public class ResourcePool {
         void disposed(FeatureTypeInfo featureType, FeatureType ft);
     }
 
-    
-    
+    GridCoverageReaderCallback getGridCoverageReader(CoverageInfo info) {
+        List<GridCoverageReaderCallback> gridCoverageReaders = GeoServerExtensions
+                .extensions(GridCoverageReaderCallback.class);
+        GridCoverageReaderCallback initializer = null;
+        for (GridCoverageReaderCallback gcc : gridCoverageReaders) {
+            if (gcc.canHandle(info)) {
+                initializer = gcc;
+            }
+        }
+        return initializer;
+    }
 }
