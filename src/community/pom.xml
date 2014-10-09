@@ -388,5 +388,11 @@
           <module>geofence</module>
         </modules>
     </profile>    
+     <profile>
+      <id>gc-cache</id>
+      <modules>
+        <module>gridcoveragecache</module>
+      </modules>
+    </profile>
   </profiles>
 </project>
