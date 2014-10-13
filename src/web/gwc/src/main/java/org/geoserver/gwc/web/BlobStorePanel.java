@@ -29,9 +29,9 @@ import org.geoserver.gwc.config.GWCConfig;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.web.util.MapModel;
 import org.geoserver.web.wicket.ParamResourceModel;
-import org.geowebcache.storage.blobstore.cache.CacheConfiguration;
-import org.geowebcache.storage.blobstore.cache.CacheConfiguration.EvictionPolicy;
-import org.geowebcache.storage.blobstore.cache.CacheStatistics;
+import org.geowebcache.storage.blobstore.memory.CacheConfiguration;
+import org.geowebcache.storage.blobstore.memory.CacheConfiguration.EvictionPolicy;
+import org.geowebcache.storage.blobstore.memory.CacheStatistics;
 
 /**
  * This class is a new Panel for configuring In Memory Caching for GWC. The user can enable/disable In Memory caching, enable/disable file

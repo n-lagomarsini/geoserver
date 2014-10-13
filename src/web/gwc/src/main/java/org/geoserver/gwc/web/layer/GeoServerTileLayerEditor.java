@@ -55,7 +55,7 @@ import org.geowebcache.diskquota.storage.Quota;
 import org.geowebcache.filter.parameters.ParameterFilter;
 import org.geowebcache.grid.GridSetBroker;
 import org.geowebcache.layer.TileLayer;
-import org.geowebcache.storage.blobstore.cache.CacheProvider;
+import org.geowebcache.storage.blobstore.memory.CacheProvider;
 
 import com.google.common.base.Preconditions;
 

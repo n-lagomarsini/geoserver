@@ -22,7 +22,7 @@ import org.geoserver.config.util.XStreamPersisterFactory;
 import org.geoserver.data.util.IOUtils;
 import org.geoserver.platform.GeoServerResourceLoader;
 import org.geotools.util.logging.Logging;
-import org.geowebcache.storage.blobstore.cache.CacheConfiguration;
+import org.geowebcache.storage.blobstore.memory.CacheConfiguration;
 
 import com.thoughtworks.xstream.XStream;
 

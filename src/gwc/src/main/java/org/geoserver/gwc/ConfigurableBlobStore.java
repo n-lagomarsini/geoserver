@@ -15,11 +15,11 @@ import org.geowebcache.storage.BlobStoreListener;
 import org.geowebcache.storage.StorageException;
 import org.geowebcache.storage.TileObject;
 import org.geowebcache.storage.TileRange;
-import org.geowebcache.storage.blobstore.cache.CacheConfiguration;
-import org.geowebcache.storage.blobstore.cache.CacheProvider;
-import org.geowebcache.storage.blobstore.cache.CacheStatistics;
-import org.geowebcache.storage.blobstore.cache.MemoryBlobStore;
-import org.geowebcache.storage.blobstore.cache.NullBlobStore;
+import org.geowebcache.storage.blobstore.memory.CacheConfiguration;
+import org.geowebcache.storage.blobstore.memory.CacheProvider;
+import org.geowebcache.storage.blobstore.memory.CacheStatistics;
+import org.geowebcache.storage.blobstore.memory.MemoryBlobStore;
+import org.geowebcache.storage.blobstore.memory.NullBlobStore;
 import org.geowebcache.storage.blobstore.file.FileBlobStore;
 
 /**
@@ -217,7 +217,7 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
             // Destroy all
             super.destroy();
             delegate.destroy();
-            cache.resetCache();
+            cache.reset();
         }
     }
 
@@ -330,7 +330,7 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
             actualOperations.incrementAndGet();
             try {
                 // Get Cache Statistics
-                return cache.getStats();
+                return cache.getStatistics();
             } finally {
                 // Decrement the number of current operations.
                 actualOperations.decrementAndGet();
@@ -350,7 +350,7 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
             actualOperations.incrementAndGet();
             try {
                 // Clear the cache
-                cache.clearCache();
+                cache.clear();
             } finally {
                 // Decrement the number of current operations.
                 actualOperations.decrementAndGet();
@@ -413,7 +413,7 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
             internalCacheConfig.setEvictionTime(cacheConfiguration.getEvictionTime());
             internalCacheConfig.setHardMemoryLimit(cacheConfiguration.getHardMemoryLimit());
             internalCacheConfig.setPolicy(cacheConfiguration.getPolicy());
-            cache.resetCache();
+            cache.reset();
             cache.setConfiguration(cacheConfiguration);
             // It is not the first time so we must cycle on all the layers in order to check
             // which must not be cached
@@ -428,7 +428,7 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
 
         // BlobStore configuration
         if (gwcConfig.isInnerCachingEnabled()) {
-            memoryStore.setCache(cache);
+            memoryStore.setCacheProvider(cache);
             if (gwcConfig.isAvoidPersistence()) {
                 memoryStore.setStore(nullStore);
             } else {

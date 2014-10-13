@@ -15,7 +15,7 @@ import java.util.Set;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.geowebcache.locks.LockProvider;
-import org.geowebcache.storage.blobstore.cache.CacheConfiguration;
+import org.geowebcache.storage.blobstore.memory.CacheConfiguration;
 
 public class GWCConfig implements Cloneable, Serializable {
 

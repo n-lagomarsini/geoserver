@@ -30,8 +30,8 @@ import org.geoserver.gwc.layer.TileLayerInfoUtil;
 import org.geoserver.wms.WMSInfo;
 import org.geotools.util.Version;
 import org.geotools.util.logging.Logging;
-import org.geowebcache.storage.blobstore.cache.CacheConfiguration;
-import org.geowebcache.storage.blobstore.cache.CacheProvider;
+import org.geowebcache.storage.blobstore.memory.CacheConfiguration;
+import org.geowebcache.storage.blobstore.memory.CacheProvider;
 
 /**
  * GeoSever initialization hook that preserves backwards compatible GWC configuration at start up.
