@@ -113,8 +113,15 @@ public class GWCInitializer implements GeoServerInitializer {
 
         // Setting default Cache Configuration
         if (gwcConfig.getCacheConfiguration() == null) {
+            if(LOGGER.isLoggable(Level.FINEST)){
+                LOGGER.finest("Setting default CacheConfiguration");
+            }
             gwcConfig.setCacheConfiguration(new CacheConfiguration());
             configPersister.save(gwcConfig);
+        } else {
+            if(LOGGER.isLoggable(Level.FINEST)){
+                LOGGER.finest("CacheConfiguration loaded");
+            }
         }
 
         // Change ConfigurableBlobStore behavior
@@ -122,7 +129,7 @@ public class GWCInitializer implements GeoServerInitializer {
             blobStore.setChanged(gwcConfig);
             CacheProvider cache = blobStore.getCache();
             // Add all the various Layers to avoid caching
-            addLayersToUncache(cache, gwcConfig);
+            addLayersToNotCache(cache, gwcConfig);
         }
     }
 
@@ -246,7 +253,10 @@ public class GWCInitializer implements GeoServerInitializer {
      * @param cache
      * @param defaultSettings
      */
-    private void addLayersToUncache(CacheProvider cache, GWCConfig defaultSettings) {
+    private void addLayersToNotCache(CacheProvider cache, GWCConfig defaultSettings) {
+        if(LOGGER.isLoggable(Level.FINEST)){
+            LOGGER.finest("Adding Layers to avoid In Memory Caching");
+        }
         // Cycle on the Layers
         for (LayerInfo layer : rawCatalog.getLayers()) {
             if (!CatalogConfiguration.isLayerExposable(layer)) {

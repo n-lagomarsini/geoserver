@@ -7,6 +7,7 @@ package org.geoserver.gwc.web;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.form.AjaxFormComponentUpdatingBehavior;
@@ -22,6 +23,7 @@ import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.PropertyModel;
 import org.apache.wicket.validation.IValidatable;
+import org.apache.wicket.validation.IValidator;
 import org.apache.wicket.validation.ValidationError;
 import org.apache.wicket.validation.validator.AbstractValidator;
 import org.geoserver.gwc.ConfigurableBlobStore;
@@ -31,6 +33,7 @@ import org.geoserver.web.util.MapModel;
 import org.geoserver.web.wicket.ParamResourceModel;
 import org.geowebcache.storage.blobstore.memory.CacheConfiguration;
 import org.geowebcache.storage.blobstore.memory.CacheConfiguration.EvictionPolicy;
+import org.geowebcache.storage.blobstore.memory.CacheProvider;
 import org.geowebcache.storage.blobstore.memory.CacheStatistics;
 
 /**
@@ -58,6 +61,12 @@ public class BlobStorePanel extends Panel {
 
     /** Key for the total elements count */
     public static final String KEY_TOTAL_COUNT = "totalCount";
+
+    /** Key for the cache current memory occupation */
+    public static final String KEY_CURRENT_MEM = "currentMemory";
+    
+    /** Key for the cache current/total size */
+    public static final String KEY_SIZE = "cacheSize";
 
     /** HashMap containing the values for all the statistics values */
     private HashMap<String, String> values;
@@ -110,9 +119,32 @@ public class BlobStorePanel extends Panel {
         final TextField<Long> evictionTime = new TextField<Long>("evictionTime", evictionTimeValue);
         evictionTime.setType(Long.class).setOutputMarkupId(true).setEnabled(true);
 
-        final DropDownChoice<EvictionPolicy> policyDropDown = new DropDownChoice<>("policy",
-                policy, Arrays.asList(EvictionPolicy.values()));
+        final DropDownChoice<EvictionPolicy> policyDropDown = new DropDownChoice<EvictionPolicy>(
+                "policy", policy, Arrays.asList(EvictionPolicy.values()));
         policyDropDown.setOutputMarkupId(true).setEnabled(true);
+        policyDropDown.add(new IValidator<EvictionPolicy>() {
+            
+            @Override
+            public void validate(IValidatable<EvictionPolicy> validatable) {
+                EvictionPolicy value = validatable.getValue();
+                if(value != EvictionPolicy.NULL){
+                    // Ensure that the defined Eviction policy can be accepted by the cache used
+                    ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
+                    if(store != null){
+                        CacheProvider cache = store.getCache();
+                        if (cache != null) {
+                            List<EvictionPolicy> policies = cache.getSupportedPolicies();
+                            if(!policies.contains(value)){
+                                ValidationError error = new ValidationError();
+                                error.setMessage(new ParamResourceModel("BlobStorePanel.invalidPolicy", null,
+                                        "").getObject());
+                                validatable.error(error);
+                            }
+                        }
+                    }
+                }
+            }
+        });
 
         final TextField<Integer> textConcurrency = new TextField<Integer>("concurrencyLevel",
                 concurrencyLevel);
@@ -166,6 +198,8 @@ public class BlobStorePanel extends Panel {
         statsContainer.add(new Label("missRate", new MapModel(values, KEY_MISS_RATE)));
         statsContainer.add(new Label("hitRate", new MapModel(values, KEY_HIT_RATE)));
         statsContainer.add(new Label("evicted", new MapModel(values, KEY_EVICTED)));
+        statsContainer.add(new Label("currentMemory", new MapModel(values, KEY_CURRENT_MEM)));
+        statsContainer.add(new Label("cacheSize", new MapModel(values, KEY_SIZE)));
 
         AjaxButton statistics = new AjaxButton("statistics") {
 
@@ -184,6 +218,10 @@ public class BlobStorePanel extends Panel {
                         double hitRate = stats.getHitRate();
                         double missRate = stats.getMissRate();
                         long evicted = stats.getEvictionCount();
+                        double currentMem = stats.getCurrentMemoryOccupation();
+                        long byteToMb = 1024 * 1024;
+                        double actualSize = ((long) (100 * (stats.getActualSize() * 1.0d) / byteToMb)) / 100d;
+                        double totalSize = ((long) (100 * (stats.getTotalSize() * 1.0d) / byteToMb)) / 100d;
 
                         values.put(KEY_MISS_RATE, missRate + " %");
                         values.put(KEY_HIT_RATE, hitRate + " %");
@@ -191,6 +229,8 @@ public class BlobStorePanel extends Panel {
                         values.put(KEY_TOTAL_COUNT, total + "");
                         values.put(KEY_MISS_COUNT, missCount + "");
                         values.put(KEY_HIT_COUNT, hitCount + "");
+                        values.put(KEY_CURRENT_MEM, currentMem + " %");
+                        values.put(KEY_SIZE, actualSize + " / " + totalSize + " Mb");
                     }
                 } catch (Throwable t) {
                     error(t);

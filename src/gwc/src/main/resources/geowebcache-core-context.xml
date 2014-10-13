@@ -167,14 +167,14 @@
   
     <!-- New beans created -->
   
-    <bean id="guavaCacheProvider" class="org.geowebcache.storage.blobstore.cache.GuavaCacheProvider"/>
+    <bean id="guavaCacheProvider" class="org.geowebcache.storage.blobstore.memory.guava.GuavaCacheProvider"/>
   
-    <bean id="gwcMemoryBlobStore" class="org.geowebcache.storage.blobstore.cache.MemoryBlobStore" destroy-method="destroy">
+    <bean id="gwcMemoryBlobStore" class="org.geowebcache.storage.blobstore.memory.MemoryBlobStore" destroy-method="destroy">
     <property name="store" ref="gwcBlobStore" />
-    <property name="cache" ref="guavaCacheProvider" />
+    <property name="cacheProvider" ref="guavaCacheProvider" />
   </bean>
   
- <bean id="gwcNullBlobStore" class="org.geowebcache.storage.blobstore.cache.NullBlobStore" destroy-method="destroy"/>
+ <bean id="gwcNullBlobStore" class="org.geowebcache.storage.blobstore.memory.NullBlobStore" destroy-method="destroy"/>
  
   <bean id="gwcConfigBlobStore" class="org.geoserver.gwc.ConfigurableBlobStore" destroy-method="destroy">
       <constructor-arg ref="gwcBlobStore" />

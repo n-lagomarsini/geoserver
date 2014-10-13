@@ -145,7 +145,9 @@ Paramter for configuring in memory cache eviction policy, it may be: LRU, LFU, E
 
 Cache Eviction Time (in Seconds)
 ```````````````````````````````````````
-Paramter for configuring in memory cache eviction time. It is in Seconds.
+Paramter for configuring in memory cache eviction time. It is in Seconds. 
+
+.. note:: Note that this parameter is also used for configuring an internal thread which performs a periodical cache cleanup.
 
 Cache Concurrency Level
 ```````````````````````````````````````

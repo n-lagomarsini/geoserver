@@ -7,9 +7,12 @@ package org.geoserver.gwc;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.geoserver.gwc.config.GWCConfig;
 import org.geoserver.gwc.layer.GeoServerTileLayer;
+import org.geotools.util.logging.Logging;
 import org.geowebcache.storage.BlobStore;
 import org.geowebcache.storage.BlobStoreListener;
 import org.geowebcache.storage.StorageException;
@@ -29,6 +32,9 @@ import org.geowebcache.storage.blobstore.file.FileBlobStore;
  * @author Nicola Lagomarsini Geosolutions
  */
 public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore {
+    
+    /**Logger instance for the class*/
+    private final static Logger LOGGER = Logging.getLogger(ConfigurableBlobStore.class);
 
     /** Delegate Object to use for executing the operations */
     private BlobStore delegate;
@@ -388,6 +394,9 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
     }
 
     private void configureBlobStore(GWCConfig gwcConfig) {
+        if(LOGGER.isLoggable(Level.FINEST)){
+            LOGGER.finest("Configuring BlobStore");
+        }
         // reset the configuration
         configured.getAndSet(false);
 
@@ -400,6 +409,9 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
 
         CacheConfiguration cacheConfiguration = gwcConfig.getCacheConfiguration();
         // Add the internal Cache configuration for the first time
+        if(LOGGER.isLoggable(Level.FINEST)){
+            LOGGER.finest("Configuring cache");
+        }
         if (internalCacheConfig == null) {
             internalCacheConfig = new CacheConfiguration();
             internalCacheConfig.setConcurrencyLevel(cacheConfiguration.getConcurrencyLevel());
@@ -426,6 +438,9 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
             }
         }
 
+        if(LOGGER.isLoggable(Level.FINEST)){
+            LOGGER.finest("Configuring BlobStore delegate");
+        }
         // BlobStore configuration
         if (gwcConfig.isInnerCachingEnabled()) {
             memoryStore.setCacheProvider(cache);
