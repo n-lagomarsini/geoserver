@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (c) 2014 OpenPlans - www.openplans.org. All rights reserved.
+This code is licensed under the GPL 2.0 license, available at the root application directory.
+ -->
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
+
+<beans>
+    <bean id="cacheCoverageReaderCallback" class="org.geoserver.coverage.CachingGridCoverageReaderCallback">
+        <!-- <property name="service" ref="wcs20ServiceTarget" /> -->
+        <!-- <property name="service" ref="geoServer" /> -->
+    </bean>
+
+    <bean id="gridCoveragesCache" class="org.geoserver.coverage.GridCoveragesCache">
+        <!-- <property name="storageBroker" ref="coverageCacheStorageBroker" /> -->
+        <constructor-arg ref="gwcStorageBroker" />
+        <!-- <property name="storageBroker" ref="gwcStorageBroker" /> -->
+    </bean>
+
+<!-- 
+    <bean id="coverageCacheStorageBroker" class="org.geowebcache.storage.DefaultStorageBroker" destroy-method="destroy">
+        <constructor-arg ref="coverageCacheBlobStore" />
+    </bean>
+    <bean id="coverageCacheDefaultStorageFinder" class="org.geowebcache.storage.DefaultStorageFinder">
+        <constructor-arg ref="gwcAppCtx" />
+    </bean>
+
+    <bean id="coverageCacheBlobStore" class="org.geowebcache.storage.blobstore.file.FileBlobStore" destroy-method="destroy">
+        <constructor-arg ref="coverageCacheDefaultStorageFinder" />
+    </bean>
+    -->
+</beans>

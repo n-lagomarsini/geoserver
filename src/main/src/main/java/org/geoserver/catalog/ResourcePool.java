@@ -1356,11 +1356,12 @@ public class ResourcePool {
     private GridCoverageReader getGridCoverageReader(CoverageStoreInfo info, CoverageInfo coverageInfo, String coverageName, Hints hints) 
         throws IOException {
         
+        //TODO: DR: We need to cache the wrappers. The current code always wrap to a new wrapper 
         if (!(hints != null && hints.containsKey(SKIP_COVERAGE_EXTENSIONS_LOOKUP) 
                 && (Boolean) hints.get(SKIP_COVERAGE_EXTENSIONS_LOOKUP))) {
             GridCoverageReaderCallback callBack = getGridCoverageReader(coverageInfo);
             if (callBack != null) {
-                return callBack.getGridCoverageReader();
+                return callBack.wrapGridCoverageReader(this, coverageInfo, coverageName, hints);
             }
         }
 
