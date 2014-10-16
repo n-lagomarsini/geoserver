@@ -1,9 +1,17 @@
 package org.geoserver.coverage;
 
+import it.geosolutions.imageio.utilities.ImageIOUtilities;
+import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
+import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReaderSpi;
+
+import java.awt.image.RenderedImage;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Set;
 
+import javax.imageio.stream.FileCacheImageInputStream;
 import javax.media.jai.ImageLayout;
 
 import org.geoserver.catalog.CoverageInfo;
@@ -17,6 +25,7 @@ import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.BoundingBox;
 import org.geowebcache.grid.GridSet;
+import org.geowebcache.grid.GridSetBroker;
 import org.geowebcache.grid.GridSetFactory;
 import org.geowebcache.grid.GridSubset;
 import org.geowebcache.grid.GridSubsetFactory;
@@ -61,11 +70,11 @@ public class CachingGridCoverageReader implements GridCoverage2DReader{
         delegate = (GridCoverage2DReader) pool.getGridCoverageReader(info, coverageName, localHints);
         GridSubset gridSubSet = buildGridSubSet();
         wcsLayer = new WCSLayer(pool, info, gridSubSet);
+        
     } catch (IOException e) {
         throw new IllegalArgumentException(e);
     }
     }
-    
     
     private GridSubset buildGridSubSet() throws IOException {
         GridSet gridSet = buildGridSet();
@@ -76,19 +85,25 @@ public class CachingGridCoverageReader implements GridCoverage2DReader{
 
 
     GridSet buildGridSet () throws IOException{
-        int epsgCode = 4326;
-        String name = info.getName() + "_" + epsgCode + "_" + 1;
-        SRS srs = SRS.getSRS(epsgCode);
-        GeneralEnvelope envelope = delegate.getOriginalEnvelope();
-        BoundingBox extent = new BoundingBox(envelope.getMinimum(0), envelope.getMinimum(1), 
-                envelope.getMaximum(0), envelope.getMaximum(1));
-        double[][] resolution = delegate.getResolutionLevels();
-        return GridSetFactory.createGridSet(name, srs, extent, true /*CHECKTHAT*/, 3 /*CHECKTHAT_LEVELS*/, 
-                1d /*CHECKTHAT_METERS_PER_UNIT*/, 
-                resolution[0][0] /*CHECKTHAT_PIXELSIZE*/, 
-                512/*CHECKTHAT_TILEWIDTH*/ , 512/*CHECKTHAT_TILEHEIGHT*/ , 
-                false /*CHECKTHAT_yCoordinateFirst*/);
-        
+        // TODO: Replace that using global GridSet
+        GridSetBroker broker = GridCoveragesCache.getGridSetBroker();
+        GridSet set = broker.get(broker.WORLD_EPSG4326.getName());
+
+        return set;
+//        
+//        int epsgCode = 4326;
+//        String name = info.getName() + "_" + epsgCode + "_" + 1;
+//        SRS srs = SRS.getSRS(epsgCode);
+//        GeneralEnvelope envelope = delegate.getOriginalEnvelope();
+//        BoundingBox extent = new BoundingBox(envelope.getMinimum(0), envelope.getMinimum(1), 
+//                envelope.getMaximum(0), envelope.getMaximum(1));
+//        double[][] resolution = delegate.getResolutionLevels();
+//        return GridSetFactory.createGridSet(name, srs, extent, true /*CHECKTHAT*/, 3 /*CHECKTHAT_LEVELS*/, 
+//                1d /*CHECKTHAT_METERS_PER_UNIT*/, 
+//                resolution[0][0] /*CHECKTHAT_PIXELSIZE*/, 
+//                512/*CHECKTHAT_TILEWIDTH*/ , 512/*CHECKTHAT_TILEHEIGHT*/ , 
+//                false /*CHECKTHAT_yCoordinateFirst*/);
+//        
     }
 
     @Override
@@ -282,6 +297,16 @@ public class CachingGridCoverageReader implements GridCoverage2DReader{
             throw new IOException(e);
         }
         Resource blob = tile.getBlob();
+        InputStream stream = blob.getInputStream();
+        TIFFImageReader reader = new TIFFImageReader(new TIFFImageReaderSpi());
+        FileCacheImageInputStream fciis = new FileCacheImageInputStream(stream, new File("C:\\"));
+        reader.setInput(fciis);
+        RenderedImage ri = reader.read(0);
+        fciis.close();
+        reader.dispose();
+//        ImageIOUtilities.visualize(ri,"title", true);
+//        System.in.read();
+        
         
         
         return null;

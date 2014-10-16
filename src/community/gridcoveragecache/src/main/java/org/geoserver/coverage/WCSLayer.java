@@ -17,6 +17,7 @@
 package org.geoserver.coverage;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import it.geosolutions.imageio.stream.output.ImageOutputStreamAdapter;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -104,6 +105,7 @@ public class WCSLayer extends AbstractTileLayer {
             this.info = info;
             expireCacheList = new ArrayList<ExpirationRule>(1);
             expireCacheList.add(new ExpirationRule(0, GWCVars.CACHE_NEVER_EXPIRE));
+            name = info.getName();
         } catch (MimeException e) {
             //TODO: CLEANUP
         }
@@ -710,6 +712,7 @@ public class WCSLayer extends AbstractTileLayer {
 
         Resource resource;
         boolean encode;
+        
         for (int i = 0; i < gridPositions.length; i++) {
             final long[] gridPos = gridPositions[i];
             if (Arrays.equals(gridLoc, gridPos)) {

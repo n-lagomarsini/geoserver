@@ -25,10 +25,12 @@ import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
 import java.awt.image.WritableRaster;
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
 import javax.imageio.spi.ImageWriterSpi;
+import javax.imageio.stream.FileCacheImageOutputStream;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.RenderedOp;
 
@@ -97,9 +99,11 @@ public class WCSMetaTile extends MetaTile {
 
         TIFFImageWriter writer = (TIFFImageWriter) SPI.createWriterInstance();
         // TODO: ADD try catch block
-        writer.setOutput(target.getOutputStream());
-        RenderedImage image = null;
-        writer.write(image);
+        FileCacheImageOutputStream iios = new FileCacheImageOutputStream(target.getOutputStream(), new File("c:\\"));
+        writer.setOutput(iios);
+        writer.write(metaTileImage);
+        iios.flush();
+        iios.close();
         writer.dispose();
 
 //        RenderedImage tile = metaTileMap.getImage();
