@@ -105,35 +105,6 @@ public class WCSMetaTile extends MetaTile {
         iios.flush();
         iios.close();
         writer.dispose();
-
-//        RenderedImage tile = metaTileMap.getImage();
-//        WMSMapContent tileContext = metaTileMap.getMapContext();
-//
-//        if (this.tiles.length > 1 || (this.tiles.length == 1 && metaHasGutter())) {
-//            final Rectangle tileDim = this.tiles[tileIdx];
-//            tile = createTile(tileDim.x, tileDim.y, tileDim.width, tileDim.height);
-//            disposeLater(tile);
-//            {
-//                long[][] tileIndexes = getTilesGridPositions();
-//                BoundingBox tileBounds = gridSubset.boundsFromIndex(tileIndexes[tileIdx]);
-//                ReferencedEnvelope tilebbox = new ReferencedEnvelope(
-//                        metaTileContext.getCoordinateReferenceSystem());
-//                tilebbox.init(tileBounds.getMinX(), tileBounds.getMaxX(), tileBounds.getMinY(),
-//                        tileBounds.getMaxY());
-//                tileContext.getViewport().setBounds(tilebbox);
-//            }
-//        }
-//
-//        OutputStream outStream = target.getOutputStream();
-//        try {
-//            // call formatImageOuputStream instead of write to avoid disposition of rendered images
-//            // when processing a tile from a metatile and instead defer it to this class' dispose()
-//            // method
-//            mapEncoder.formatImageOutputStream(tile, outStream, tileContext);
-//            return true;
-//        } finally {
-//            outStream.close();
-//        }
         return true;
     }
 

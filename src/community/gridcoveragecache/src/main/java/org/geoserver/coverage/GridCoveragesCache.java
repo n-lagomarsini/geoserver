@@ -5,18 +5,18 @@ import org.geowebcache.storage.StorageBroker;
 
 public class GridCoveragesCache {
 
-    private static GridSetBroker gridSetBroker;
+    private GridSetBroker gridSetBroker;
 
-    public static GridSetBroker getGridSetBroker() {
+    public GridSetBroker getGridSetBroker() {
         return gridSetBroker;
     }
 
     private GridCoveragesCache() {
     }
 
-    private static StorageBroker storageBroker;
+    private StorageBroker storageBroker;
 
-    public static StorageBroker getStorageBroker() {
+    public StorageBroker getStorageBroker() {
         return storageBroker;
     }
 

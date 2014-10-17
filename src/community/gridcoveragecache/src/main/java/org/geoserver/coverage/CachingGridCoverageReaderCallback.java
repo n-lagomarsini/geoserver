@@ -22,6 +22,16 @@ import org.opengis.coverage.grid.GridCoverageReader;
  */
 public class CachingGridCoverageReaderCallback implements GridCoverageReaderCallback{
 
+    GridCoveragesCache gridCoveragesCache;
+
+    public GridCoveragesCache getGridCoveragesCache() {
+        return gridCoveragesCache;
+    }
+
+    public void setGridCoveragesCache(GridCoveragesCache gridCoveragesCache) {
+        this.gridCoveragesCache = gridCoveragesCache;
+    }
+
     @Override
     public boolean canHandle(CoverageInfo info) {
         return true;
@@ -54,7 +64,7 @@ public class CachingGridCoverageReaderCallback implements GridCoverageReaderCall
             CoverageInfo info,
             String coverageName,
             Hints hints) {
-        return new CachingGridCoverageReader(pool, info, coverageName, hints);
+        return new CachingGridCoverageReader(pool, gridCoveragesCache, info, coverageName, hints);
     }
 
 }

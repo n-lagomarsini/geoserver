@@ -1,6 +1,5 @@
 package org.geoserver.coverage;
 
-import it.geosolutions.imageio.utilities.ImageIOUtilities;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReaderSpi;
 
@@ -26,11 +25,9 @@ import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.BoundingBox;
 import org.geowebcache.grid.GridSet;
 import org.geowebcache.grid.GridSetBroker;
-import org.geowebcache.grid.GridSetFactory;
 import org.geowebcache.grid.GridSubset;
 import org.geowebcache.grid.GridSubsetFactory;
 import org.geowebcache.grid.OutsideCoverageException;
-import org.geowebcache.grid.SRS;
 import org.geowebcache.io.Resource;
 import org.geowebcache.mime.MimeException;
 import org.geowebcache.mime.MimeType;
@@ -50,13 +47,16 @@ public class CachingGridCoverageReader implements GridCoverage2DReader{
     
     WCSLayer wcsLayer;
     
+    GridCoveragesCache cache;
+    
     public CachingGridCoverageReader (
             ResourcePool pool,
-            CoverageInfo info,
+            GridCoveragesCache cache, CoverageInfo info,
             String coverageName,
             Hints hints
             ) {
        this.info = info;
+       this.cache = cache;
        Hints localHints = null;
        Hints newHints = new Hints(ResourcePool.SKIP_COVERAGE_EXTENSIONS_LOOKUP, true);
        if (hints != null) {
@@ -86,7 +86,7 @@ public class CachingGridCoverageReader implements GridCoverage2DReader{
 
     GridSet buildGridSet () throws IOException{
         // TODO: Replace that using global GridSet
-        GridSetBroker broker = GridCoveragesCache.getGridSetBroker();
+        GridSetBroker broker = cache.getGridSetBroker();
         GridSet set = broker.get(broker.WORLD_EPSG4326.getName());
 
         return set;
@@ -274,12 +274,11 @@ public class CachingGridCoverageReader implements GridCoverage2DReader{
     @Override
     public GridCoverage2D read(String coverageName, GeneralParameterValue[] parameters)
             throws IOException {
-        // TODO Auto-generated method stub
 
         ConveyorTile ct;
         ConveyorTile tile;
         try {
-            ct = new ConveyorTile(GridCoveragesCache.getStorageBroker(), 
+            ct = new ConveyorTile(cache.getStorageBroker(), 
                     //TODO restore layerId
 //                layerId, 
                     info.getId(),

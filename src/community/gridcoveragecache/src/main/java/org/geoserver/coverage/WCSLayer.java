@@ -17,7 +17,6 @@
 package org.geoserver.coverage;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import it.geosolutions.imageio.stream.output.ImageOutputStreamAdapter;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -29,6 +28,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import net.opengis.wcs20.DimensionSubsetType;
+import net.opengis.wcs20.DimensionTrimType;
 import net.opengis.wcs20.GetCoverageType;
 import net.opengis.wcs20.Wcs20Factory;
 
@@ -38,7 +38,6 @@ import org.geoserver.catalog.ResourcePool;
 import org.geoserver.gwc.GWC;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.wcs2_0.DefaultWebCoverageService20;
-import org.geoserver.wms.map.RenderedImageMap;
 import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.filter.request.RequestFilter;
@@ -69,6 +68,8 @@ import org.opengis.coverage.grid.GridCoverage;
 public class WCSLayer extends AbstractTileLayer {
 
     
+    private static final String DIMENSION_LONG = "http://www.opengis.net/def/axis/OGC/0/Long";
+    private static final String DIMENSION_LAT = "http://www.opengis.net/def/axis/OGC/0/Lat";
     private static final Wcs20Factory WCS20_FACTORY = Wcs20Factory.eINSTANCE;
     private final static Logger LOGGER = org.geotools.util.logging.Logging.getLogger(WCSLayer.class);
     protected Integer gutter;
@@ -557,7 +558,6 @@ public class WCSLayer extends AbstractTileLayer {
     public String getStyles() {
         return null;
         //TODO: update that
-//        return wmsStyles;
     }
 
     public void setLockProvider(LockProvider lockProvider) {
@@ -681,7 +681,7 @@ public class WCSLayer extends AbstractTileLayer {
 
         Map<String, String> wcsParams = new HashMap<String,String>();
 
-        GetCoverageType request = setupGetCoverageRequest();
+        GetCoverageType request = setupGetCoverageRequest(tile, gridSubset);
         
         BoundingBox bbox = gridSubset.boundsFromIndex(tile.getTileIndex());
         wcsParams.put("BBOX", bbox.toString());
@@ -692,77 +692,32 @@ public class WCSLayer extends AbstractTileLayer {
         
     }
 
-    private GetCoverageType setupGetCoverageRequest() {
+    private GetCoverageType setupGetCoverageRequest(ConveyorTile tile, GridSubset gridSubset) {
         GetCoverageType getCoverage = WCS20_FACTORY.createGetCoverageType();
         getCoverage.setVersion("2.0.1");
         getCoverage.setService("WCS");
         getCoverage.setCoverageId(info.getNamespace().getName() +"__" + info.getName());
-        EList<DimensionSubsetType> dimensionSubset = getCoverage.getDimensionSubset();
+        final EList<DimensionSubsetType> dimensionSubset = getCoverage.getDimensionSubset();
+
+        final BoundingBox bbox = gridSubset.boundsFromIndex(tile.getTileIndex());
+
+        DimensionTrimType trimLon = WCS20_FACTORY.createDimensionTrimType();
+        trimLon.setDimension(DIMENSION_LONG);
+        trimLon.setTrimLow(Double.toString(bbox.getMinX()));
+        trimLon.setTrimHigh(Double.toString(bbox.getMaxX()));
+        dimensionSubset.add(trimLon);
+        
+        DimensionTrimType trimLat = WCS20_FACTORY.createDimensionTrimType();
+        trimLat.setDimension(DIMENSION_LAT);
+        trimLat.setTrimLow(Double.toString(bbox.getMinY()));
+        trimLat.setTrimHigh(Double.toString(bbox.getMaxY()));
+        dimensionSubset.add(trimLat);
+        
+        //TODO: Deal with other dimensions
+        
+//      
+        
         return getCoverage;
 }
-    
-    protected void saveTiles(MetaTile metaTile, ConveyorTile tileProto, long requestTime) throws GeoWebCacheException {
-
-        final long[][] gridPositions = metaTile.getTilesGridPositions();
-        final long[] gridLoc = tileProto.getTileIndex();
-        final GridSubset gridSubset = getGridSubset(tileProto.getGridSetId());
-
-        final int zoomLevel = (int) gridLoc[2];
-        final boolean store = this.getExpireCache(zoomLevel) != GWCVars.CACHE_DISABLE_CACHE;
-
-        Resource resource;
-        boolean encode;
-        
-        for (int i = 0; i < gridPositions.length; i++) {
-            final long[] gridPos = gridPositions[i];
-            if (Arrays.equals(gridLoc, gridPos)) {
-                // Is this the one we need to save? then don't use the buffer or it'll be overridden
-                // by the next tile
-                resource = getImageBuffer(WMS_BUFFER2);
-                tileProto.setBlob(resource);
-                encode = true;
-            } else {
-                resource = getImageBuffer(WMS_BUFFER);
-                encode = store;
-            }
-
-            if (encode) {
-                if (!gridSubset.covers(gridPos)) {
-                    // edge tile outside coverage, do not store it
-                    continue;
-                }
-
-                try {
-                    boolean completed = metaTile.writeTileToStream(i, resource);
-                    if (!completed) {
-//                        log.error("metaTile.writeTileToStream returned false, no tiles saved");
-                    }
-                    if (store) {
-                        long[] idx = { gridPos[0], gridPos[1], gridPos[2] };
-
-                        TileObject tile = TileObject.createCompleteTileObject(this.getName(), idx,
-                                tileProto.getGridSetId(), tileProto.getMimeType().getFormat(),
-                                tileProto.getParameters(), resource);
-                        tile.setCreated(requestTime);
-
-                        try {
-                            if (tileProto.isMetaTileCacheOnly()) {
-                                tileProto.getStorageBroker().putTransient(tile);
-                            } else {
-                                tileProto.getStorageBroker().put(tile);
-                            }
-                            tileProto.getStorageObject().setCreated(tile.getCreated());
-                        } catch (StorageException e) {
-                            throw new GeoWebCacheException(e);
-                        }
-                    }
-                } catch (IOException ioe) {
-//                    log.error("Unable to write image tile to " + "ByteArrayOutputStream: "
-//                            + ioe.getMessage());
-                    ioe.printStackTrace();
-                }
-            }
-        }
-    }
 
 }
