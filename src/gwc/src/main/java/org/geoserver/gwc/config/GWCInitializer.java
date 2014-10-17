@@ -32,6 +32,7 @@ import org.geotools.util.Version;
 import org.geotools.util.logging.Logging;
 import org.geowebcache.storage.blobstore.memory.CacheConfiguration;
 import org.geowebcache.storage.blobstore.memory.CacheProvider;
+import org.geowebcache.storage.blobstore.memory.guava.GuavaCacheProvider;
 
 /**
  * GeoSever initialization hook that preserves backwards compatible GWC configuration at start up.
@@ -111,6 +112,12 @@ public class GWCInitializer implements GeoServerInitializer {
         final GWCConfig gwcConfig = configPersister.getConfig();
         checkNotNull(gwcConfig);
 
+        // Setting default CacheProvider class if not present
+        if(gwcConfig.getCacheProviderClass() == null || gwcConfig.getCacheProviderClass().isEmpty()){
+            gwcConfig.setCacheProviderClass(GuavaCacheProvider.class.toString());
+            configPersister.save(gwcConfig);
+        }
+        
         // Setting default Cache Configuration
         if (gwcConfig.getCacheConfiguration() == null) {
             if(LOGGER.isLoggable(Level.FINEST)){

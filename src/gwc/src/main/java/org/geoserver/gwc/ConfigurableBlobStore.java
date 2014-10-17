@@ -5,6 +5,10 @@
  */
 package org.geoserver.gwc;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -12,18 +16,19 @@ import java.util.logging.Logger;
 
 import org.geoserver.gwc.config.GWCConfig;
 import org.geoserver.gwc.layer.GeoServerTileLayer;
+import org.geoserver.platform.GeoServerExtensions;
 import org.geotools.util.logging.Logging;
 import org.geowebcache.storage.BlobStore;
 import org.geowebcache.storage.BlobStoreListener;
 import org.geowebcache.storage.StorageException;
 import org.geowebcache.storage.TileObject;
 import org.geowebcache.storage.TileRange;
+import org.geowebcache.storage.blobstore.file.FileBlobStore;
 import org.geowebcache.storage.blobstore.memory.CacheConfiguration;
 import org.geowebcache.storage.blobstore.memory.CacheProvider;
 import org.geowebcache.storage.blobstore.memory.CacheStatistics;
 import org.geowebcache.storage.blobstore.memory.MemoryBlobStore;
 import org.geowebcache.storage.blobstore.memory.NullBlobStore;
-import org.geowebcache.storage.blobstore.file.FileBlobStore;
 
 /**
  * {@link MemoryBlobStore} implementation used for changing {@link CacheProvider} and wrapped {@link BlobStore} at runtime. An instance of this class
@@ -32,8 +37,8 @@ import org.geowebcache.storage.blobstore.file.FileBlobStore;
  * @author Nicola Lagomarsini Geosolutions
  */
 public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore {
-    
-    /**Logger instance for the class*/
+
+    /** Logger instance for the class */
     private final static Logger LOGGER = Logging.getLogger(ConfigurableBlobStore.class);
 
     /** Delegate Object to use for executing the operations */
@@ -60,8 +65,10 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
     /** Internal {@link CacheConfiguration} instance */
     private CacheConfiguration internalCacheConfig;
 
+    private Map<String, CacheProvider> cacheProviders;
+
     public ConfigurableBlobStore(BlobStore defaultStore, MemoryBlobStore memoryStore,
-            NullBlobStore nullStore, CacheProvider cache) {
+            NullBlobStore nullStore) {
         // Initialization
         configured = new AtomicBoolean(false);
         actualOperations = new AtomicLong(0);
@@ -69,7 +76,15 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
         this.defaultStore = defaultStore;
         this.memoryStore = memoryStore;
         this.nullStore = nullStore;
-        this.cache = cache;
+        HashMap<String, CacheProvider> cacheProviders = new HashMap<String, CacheProvider>();
+        List<CacheProvider> extensions = GeoServerExtensions.extensions(CacheProvider.class);
+        for (CacheProvider provider : extensions) {
+            if (provider.isAvailable()) {
+                cacheProviders.put(provider.getClass().toString(), provider);
+            }
+        }
+
+        this.cacheProviders = Collections.unmodifiableMap(cacheProviders);
     }
 
     @Override
@@ -384,6 +399,15 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
     }
 
     /**
+     * Returns a map of all the cache provider instances, where the key is the {@link CacheProvider} class.
+     * 
+     * @return a Map containing all the CacheProvider instances
+     */
+    public Map<String, CacheProvider> getCacheProviders() {
+        return cacheProviders;
+    }
+
+    /**
      * This method changes the {@link ConfigurableBlobStore} configuration. It can be used for changing cache configuration or the blobstore used.
      * 
      * @param gwcConfig
@@ -394,7 +418,7 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
     }
 
     private void configureBlobStore(GWCConfig gwcConfig) {
-        if(LOGGER.isLoggable(Level.FINEST)){
+        if (LOGGER.isLoggable(Level.FINEST)) {
             LOGGER.finest("Configuring BlobStore");
         }
         // reset the configuration
@@ -409,9 +433,19 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
 
         CacheConfiguration cacheConfiguration = gwcConfig.getCacheConfiguration();
         // Add the internal Cache configuration for the first time
-        if(LOGGER.isLoggable(Level.FINEST)){
+        if (LOGGER.isLoggable(Level.FINEST)) {
             LOGGER.finest("Configuring cache");
         }
+
+        String cacheProvider = gwcConfig.getCacheProviderClass();
+
+        if (!getCacheProviders().containsKey(cacheProvider)) {
+            throw new IllegalArgumentException("Wrong CacheProvider defined");
+        }
+
+        // Setting cache
+        cache = getCacheProviders().get(cacheProvider);
+
         if (internalCacheConfig == null) {
             internalCacheConfig = new CacheConfiguration();
             internalCacheConfig.setConcurrencyLevel(cacheConfiguration.getConcurrencyLevel());
@@ -420,7 +454,7 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
             internalCacheConfig.setPolicy(cacheConfiguration.getPolicy());
 
             cache.setConfiguration(cacheConfiguration);
-        } else if (!internalCacheConfig.equals(cacheConfiguration)) {
+        } else if (!internalCacheConfig.equals(cacheConfiguration) && !cache.isImmutable()) {
             internalCacheConfig.setConcurrencyLevel(cacheConfiguration.getConcurrencyLevel());
             internalCacheConfig.setEvictionTime(cacheConfiguration.getEvictionTime());
             internalCacheConfig.setHardMemoryLimit(cacheConfiguration.getHardMemoryLimit());
@@ -436,9 +470,9 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
                     cache.addUncachedLayer(layer.getName());
                 }
             }
-        }
+        } 
 
-        if(LOGGER.isLoggable(Level.FINEST)){
+        if (LOGGER.isLoggable(Level.FINEST)) {
             LOGGER.finest("Configuring BlobStore delegate");
         }
         // BlobStore configuration
@@ -463,5 +497,17 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
      */
     BlobStore getDelegate() {
         return delegate;
+    }
+
+    /**
+     * Setter for the Tests
+     * 
+     * @param cache
+     */
+    void setCache(CacheProvider cache) {
+        Map<String, CacheProvider> provs = new HashMap<String, CacheProvider>(cacheProviders);
+        provs.put(cache.getClass().toString(), cache);
+        cacheProviders = provs;
+        this.cache = cache;
     }
 }

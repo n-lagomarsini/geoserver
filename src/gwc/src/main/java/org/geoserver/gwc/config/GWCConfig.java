@@ -16,6 +16,7 @@ import java.util.Set;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.geowebcache.locks.LockProvider;
 import org.geowebcache.storage.blobstore.memory.CacheConfiguration;
+import org.geowebcache.storage.blobstore.memory.guava.GuavaCacheProvider;
 
 public class GWCConfig implements Cloneable, Serializable {
 
@@ -36,6 +37,8 @@ public class GWCConfig implements Cloneable, Serializable {
     private boolean innerCachingEnabled;
     
     private boolean avoidPersistence;
+    
+    private String cacheProviderClass;
     
     private CacheConfiguration cacheConfiguration;
 
@@ -292,6 +295,7 @@ public class GWCConfig implements Cloneable, Serializable {
         setAvoidPersistence(false);
         setInnerCachingEnabled(false);
         setCacheConfiguration(new CacheConfiguration());
+        setCacheProviderClass(GuavaCacheProvider.class.toString());
     }
 
     public int getMetaTilingX() {
@@ -383,6 +387,14 @@ public class GWCConfig implements Cloneable, Serializable {
 
     public void setAvoidPersistence(boolean avoidPersistence) {
         this.avoidPersistence = avoidPersistence;
+    }
+
+    public String getCacheProviderClass() {
+        return cacheProviderClass;
+    }
+
+    public void setCacheProviderClass(String cacheProviderClass) {
+        this.cacheProviderClass = cacheProviderClass;
     }
 
     public CacheConfiguration getCacheConfiguration() {

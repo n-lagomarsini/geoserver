@@ -575,6 +575,11 @@
     <artifactId>gwc-diskquota-jdbc</artifactId>
     <version>${gwc.version}</version>
    </dependency>
+   <dependency>
+    <groupId>org.geowebcache</groupId>
+    <artifactId>gwc-distributed</artifactId>
+    <version>${gwc.version}</version>
+   </dependency>   
 
    <dependency>
     <groupId>org.wkb4j</groupId>

@@ -90,6 +90,10 @@ public class BlobStorePanel extends Panel {
         // Container containing all the other parameters which can be seen only if In Memory caching is enabled
         final WebMarkupContainer container = new WebMarkupContainer("container");
         container.setOutputMarkupId(true).setEnabled(true);
+        
+        // Container containing all the parameters related to cache configuration
+        final WebMarkupContainer cacheConfigContainer = new WebMarkupContainer("cacheConfContainer");
+        cacheConfigContainer.setOutputMarkupId(true).setEnabled(true);
 
         // Avoid Persistence checkbox
         IModel<Boolean> avoidPersistence = new PropertyModel<Boolean>(gwcConfigModel,
@@ -152,10 +156,12 @@ public class BlobStorePanel extends Panel {
         textConcurrency.add(new MinimumConcurrencyValidator());
 
         // Add all the parameters to the containes
-        container.add(hardMemory);
-        container.add(policyDropDown);
-        container.add(textConcurrency);
-        container.add(evictionTime);
+        cacheConfigContainer.add(hardMemory);
+        cacheConfigContainer.add(policyDropDown);
+        cacheConfigContainer.add(textConcurrency);
+        cacheConfigContainer.add(evictionTime);
+        
+        container.add(cacheConfigContainer);
 
         innerCachingEnabledChoice.add(new AjaxFormComponentUpdatingBehavior("onChange") {
 

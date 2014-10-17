@@ -83,7 +83,8 @@ public class ConfigurableBlobStoreTest extends GeoServerSystemTestSupport {
         directory.mkdirs();
 
         BlobStore defaultStore = new FileBlobStore(directory.getAbsolutePath());
-        blobStore = new ConfigurableBlobStore(defaultStore, mbs, nbs, cache);
+        blobStore = new ConfigurableBlobStore(defaultStore, mbs, nbs);
+        blobStore.setCache(cache);
     }
 
     @After

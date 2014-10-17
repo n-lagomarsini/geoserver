@@ -180,7 +180,6 @@
       <constructor-arg ref="gwcBlobStore" />
       <constructor-arg ref="gwcMemoryBlobStore" />
       <constructor-arg ref="gwcNullBlobStore" />
-      <constructor-arg ref="guavaCacheProvider" />
   </bean>
 
 </beans>
