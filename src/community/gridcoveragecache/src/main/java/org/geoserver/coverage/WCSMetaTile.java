@@ -28,14 +28,13 @@ import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import javax.imageio.spi.ImageWriterSpi;
 import javax.imageio.stream.FileCacheImageOutputStream;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.RenderedOp;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.geoserver.wms.map.RenderedImageMapResponse;
 import org.geotools.image.crop.GTCropDescriptor;
 import org.geotools.resources.i18n.ErrorKeys;
@@ -48,7 +47,7 @@ import org.geowebcache.mime.MimeType;
 
 
 public class WCSMetaTile extends MetaTile {
-    private static Log log = LogFactory.getLog(org.geowebcache.layer.wms.WMSMetaTile.class);
+    private final static Logger LOGGER = org.geotools.util.logging.Logging.getLogger(WCSMetaTile.class);
 
     protected WCSLayer wcsLayer = null;
 
@@ -97,14 +96,31 @@ public class WCSMetaTile extends MetaTile {
     @Override
     public boolean writeTileToStream(final int tileIdx, Resource target) throws IOException {
 
-        TIFFImageWriter writer = (TIFFImageWriter) SPI.createWriterInstance();
-        // TODO: ADD try catch block
-        FileCacheImageOutputStream iios = new FileCacheImageOutputStream(target.getOutputStream(), new File("c:\\"));
+        TIFFImageWriter writer = null;
+        FileCacheImageOutputStream iios = null;
+        try {
+            writer = (TIFFImageWriter) SPI.createWriterInstance();
+        iios = new FileCacheImageOutputStream(target.getOutputStream(), new File("c:\\"));
         writer.setOutput(iios);
         writer.write(metaTileImage);
         iios.flush();
-        iios.close();
-        writer.dispose();
+        } finally {
+            if (iios != null) {
+                try {
+                    iios.close();
+                } catch (Throwable t) {
+                    
+                }
+            }
+            if (writer != null) {
+                try {
+                    writer.dispose();
+                } catch (Throwable t) {
+                    
+                }
+            }
+
+        }
         return true;
     }
 

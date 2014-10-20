@@ -375,5 +375,11 @@
         <module>jms-cluster</module>
       </modules>
     </profile>
+     <profile>
+      <id>gccache</id>
+      <modules>
+        <module>gridcoveragecache</module>
+      </modules>
+    </profile>
   </profiles>
 </project>

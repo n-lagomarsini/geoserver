@@ -20,7 +20,6 @@ public class GridCoveragesCache {
         return storageBroker;
     }
 
-    //TODO review this static assignment
     private GridCoveragesCache(StorageBroker storageBroker, GridSetBroker gridSetBroker) {
         this.storageBroker = storageBroker;
         this.gridSetBroker = gridSetBroker; 

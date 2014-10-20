@@ -2232,7 +2232,7 @@ public class ResourcePool {
         GridCoverageReaderCallback initializer = null;
         for (GridCoverageReaderCallback gcc : gridCoverageReaders) {
             if (gcc.canHandle(info)) {
-                initializer = gcc;
+                return gcc;
             }
         }
         return initializer;
