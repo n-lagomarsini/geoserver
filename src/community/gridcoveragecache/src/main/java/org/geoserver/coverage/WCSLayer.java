@@ -278,7 +278,7 @@ public class WCSLayer extends AbstractTileLayer {
                         + Arrays.toString(metaTile.getMetaGridPos()) + " on " + metaTile);
                 try {
                     long requestTime = System.currentTimeMillis();
-                    
+
                     List<DefaultWebCoverageService20> extensions = GeoServerExtensions.extensions(DefaultWebCoverageService20.class);
                     DefaultWebCoverageService20 service = extensions.get(0); 
                     makeRequest(metaTile, tile, service);
@@ -671,29 +671,26 @@ public class WCSLayer extends AbstractTileLayer {
 
     public void makeRequest(WCSMetaTile metaTile, ConveyorTile tile,
             DefaultWebCoverageService20 service) throws GeoWebCacheException {
-        GridSubset gridSubset = getGridSubset(tile.getGridSetId());
-
-        Map<String, String> wcsParams = new HashMap<String, String>();
+        final GridSubset gridSubset = getGridSubset(tile.getGridSetId());
 
         // Implement real METATILING approach
-        GetCoverageType request = setupGetCoverageRequest(tile, gridSubset);
-
-        BoundingBox bbox = gridSubset.boundsFromIndex(tile.getTileIndex());
-        wcsParams.put("BBOX", bbox.toString());
+        //TODO: read the region covered by MetaTile area and split back to tiles.
+        GetCoverageType request = setupGetCoverageRequest(metaTile, gridSubset);
 
         GridCoverage coverage = service.getCoverage(request);
         metaTile.setImage(coverage.getRenderedImage());
 
     }
 
-    private GetCoverageType setupGetCoverageRequest(ConveyorTile tile, GridSubset gridSubset) {
+    private GetCoverageType setupGetCoverageRequest(WCSMetaTile metaTile, GridSubset gridSubset) {
         GetCoverageType getCoverage = WCS20_FACTORY.createGetCoverageType();
         getCoverage.setVersion(WCS_VERSION);
         getCoverage.setService(WCS_SERVICE_NAME);
         getCoverage.setCoverageId(info.getNamespace().getName() + DOUBLE_UNDERSCORE + info.getName());
         final EList<DimensionSubsetType> dimensionSubset = getCoverage.getDimensionSubset();
 
-        final BoundingBox bbox = gridSubset.boundsFromIndex(tile.getTileIndex());
+        
+        final BoundingBox bbox = metaTile.getMetaTileBounds(); 
 
         DimensionTrimType trimLon = WCS20_FACTORY.createDimensionTrimType();
         trimLon.setDimension(DIMENSION_LONG);

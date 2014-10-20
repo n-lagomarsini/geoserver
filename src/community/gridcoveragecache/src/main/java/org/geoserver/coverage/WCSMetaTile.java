@@ -100,8 +100,12 @@ public class WCSMetaTile extends MetaTile {
         FileCacheImageOutputStream iios = null;
         try {
             writer = (TIFFImageWriter) SPI.createWriterInstance();
-        iios = new FileCacheImageOutputStream(target.getOutputStream(), new File("c:\\"));
+        iios = new FileCacheImageOutputStream(target.getOutputStream(), GridCoveragesCache.tempDir);
         writer.setOutput(iios);
+
+        //TODO: crop subsection of metaTileImage
+        
+        
         writer.write(metaTileImage);
         iios.flush();
         } finally {

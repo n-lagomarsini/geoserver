@@ -7,11 +7,14 @@ import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import javax.imageio.stream.FileCacheImageInputStream;
 import javax.media.jai.ImageLayout;
+import javax.media.jai.operator.MosaicDescriptor;
 
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.ResourcePool;
@@ -50,6 +53,19 @@ import org.opengis.referencing.operation.MathTransform;
 
 public class CachingGridCoverageReader implements GridCoverage2DReader {
 
+    private final static Logger LOGGER = org.geotools.util.logging.Logging.getLogger(CachingGridCoverageReader.class);
+    
+    private static final MimeType TIFF_MIME_TYPE;
+
+    static {
+        try {
+            TIFF_MIME_TYPE = MimeType.createFromExtension("tiff");
+        } catch (MimeException e) {
+            throw new RuntimeException("Exception occurred while getting TIFF mimetype", e);
+        }
+
+    }
+
     GridCoverage2DReader delegate;
 
     private CoverageInfo info;
@@ -58,7 +74,7 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
 
     GridCoveragesCache cache;
     
-    private static final TIFFImageReaderSpi SPI = new TIFFImageReaderSpi();
+    private static final TIFFImageReaderSpi spi = new TIFFImageReaderSpi();
     
     private static final GridCoverageFactory gcf = new GridCoverageFactory();
 
@@ -293,54 +309,57 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
             throws IOException {
 
         ConveyorTile ct;
-//        ConveyorTile tile;
+        // ConveyorTile tile;
         try {
-            StorageBroker storageBroker = cache.getStorageBroker();
-            GridSetBroker gridsetBroker = cache.getGridSetBroker();
-            GridSet gridSet = gridsetBroker.WORLD_EPSG4326;
+            final StorageBroker storageBroker = cache.getStorageBroker();
+            final GridSetBroker gridsetBroker = cache.getGridSetBroker();
+            final GridSet gridSet = gridsetBroker.WORLD_EPSG4326;
             Envelope envelope = extractEnvelope(coverageName, parameters);
             ReferencedEnvelope env = new ReferencedEnvelope(envelope);
-            BoundingBox bbox = new BoundingBox(env.getMinX(), env.getMinY(), env.getMaxX(), env.getMaxY()); 
-            
+            BoundingBox bbox = new BoundingBox(env.getMinX(), env.getMinY(), env.getMaxX(),
+                    env.getMaxY());
+
             long[] tiles = gridSet.closestRectangle(bbox);
-            
+
             int minX = (int) tiles[0];
             int minY = (int) tiles[1];
             int maxX = (int) tiles[2];
             int maxY = (int) tiles[3];
             int level = (int) tiles[4];
-            int wTiles = maxX - minX + 1; 
+            int wTiles = maxX - minX + 1;
             int hTiles = maxY - minY + 1;
             final int numTiles = wTiles * hTiles;
-            ConveyorTile cTiles[] = new ConveyorTile[numTiles];
+            List<ConveyorTile> cTiles = new ArrayList<ConveyorTile>(numTiles);
 
             String id = info.getId();
             String name = gridsetBroker.WORLD_EPSG4326.getName();
             int k = 0;
             for (int i = minX; i <= maxX; i++) {
                 for (int j = minY; j <= maxY; j++) {
-                    ct = new ConveyorTile(
-                            storageBroker,
-                            id, name, new long[] { i, j, level },
-                            MimeType.createFromExtension("tiff"), null, null, null);
-                    cTiles[k++] = wcsLayer.getTile(ct);
+                    ct = new ConveyorTile(storageBroker, id, name, new long[] { i, j, level },
+                            TIFF_MIME_TYPE, null, null, null);
+                    try {
+                        ConveyorTile tile = wcsLayer.getTile(ct);
+                        cTiles.add(tile);
+                    } finally {
+                    }
+
                 }
             }
-            
+
             final RenderedImage[] riTiles = new RenderedImage[numTiles];
             for (k = 0; k < numTiles; k++) {
-                riTiles[k] = getResource(cTiles[k]);
+                riTiles[k] = getResource(cTiles.get(k));
             }
-            
-            //TODO: SET MOSAICKING 
-            RenderedImage mosaicCoverage = riTiles[0];/*MosaicDescriptor.create(riTiles,
-                    MosaicDescriptor.MOSAIC_TYPE_OVERLAY, null, null,
-                    new double[][] { { 1.0 } }, new double[] { 0.0 }, 
-                    //TODO: SET PROPER HINTS
-                    null);*/
+
+            RenderedImage mosaicCoverage = MosaicDescriptor.create(riTiles,
+                    MosaicDescriptor.MOSAIC_TYPE_OVERLAY, null, null, new double[][] { { 1.0 } },
+                    new double[] { 0.0 },
+                    // TODO: SET PROPER HINTS
+                    null);
             // setup tile set to satisfy the request
-            
-            //TODO: NOTE THAT THE ENVELOPE IS NOT THE SAME OF THE TILES.
+
+            // TODO: NOTE THAT THE ENVELOPE IS NOT THE SAME OF THE TILES.
             // THEY ARE A SUPER ENSEMBLE OF THE REAL REQUESTED AREA:
             // WE STILL NEED TO CROP IT.
             return gcf.create(name, mosaicCoverage, envelope);
@@ -354,16 +373,23 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
 
     }
 
+    /** 
+     * Extract the RenderedImage from the underlying tile.
+     * 
+     * @param conveyorTile
+     * @return
+     * @throws IOException
+     */
     private RenderedImage getResource(ConveyorTile conveyorTile) throws IOException {
         Resource blob = conveyorTile.getBlob();
         //
         InputStream stream = null;
         TIFFImageReader reader = null;
         stream = blob.getInputStream();
-        reader = new TIFFImageReader(SPI);
+        reader = new TIFFImageReader(spi);
         FileCacheImageInputStream fciis = null;
         try {
-            fciis = new FileCacheImageInputStream(stream, new File("C:\\"));
+            fciis = new FileCacheImageInputStream(stream, GridCoveragesCache.tempDir);
             reader.setInput(fciis);
             return reader.read(0);
         } finally {
@@ -392,6 +418,12 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
         }
     }
 
+    /**
+     * Extract the reading envelope from the parameter list.
+     * @param coverageName
+     * @param parameters
+     * @return
+     */
     private Envelope extractEnvelope(String coverageName, GeneralParameterValue[] parameters) {
         Envelope envelope = null;
         for (GeneralParameterValue gParam : parameters) {
