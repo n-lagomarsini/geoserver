@@ -190,15 +190,24 @@ public class BlobStorePanel extends Panel {
         statsContainer.setOutputMarkupId(true);
 
         // Container for the statistics
+        final Label totalCountLabel = new Label("totalCount", new MapModel(values, KEY_TOTAL_COUNT));
+        final Label hitCountLabel = new Label("hitCount", new MapModel(values, KEY_HIT_COUNT));
+        final Label missCountLabel = new Label("missCount", new MapModel(values, KEY_MISS_COUNT));
+        final Label missRateLabel = new Label("missRate", new MapModel(values, KEY_MISS_RATE));
+        final Label hitRateLabel = new Label("hitRate", new MapModel(values, KEY_HIT_RATE));
+        final Label evictedLabel = new Label("evicted", new MapModel(values, KEY_EVICTED));
+        final Label currentMemoryLabel = new Label("currentMemory", new MapModel(values, KEY_CURRENT_MEM));
+        final Label cacheSizeLabel = new Label("cacheSize", new MapModel(values, KEY_SIZE));
+        
         statsContainer.add(new Label("title"));
-        statsContainer.add(new Label("totalCount", new MapModel(values, KEY_TOTAL_COUNT)));
-        statsContainer.add(new Label("hitCount", new MapModel(values, KEY_HIT_COUNT)));
-        statsContainer.add(new Label("missCount", new MapModel(values, KEY_MISS_COUNT)));
-        statsContainer.add(new Label("missRate", new MapModel(values, KEY_MISS_RATE)));
-        statsContainer.add(new Label("hitRate", new MapModel(values, KEY_HIT_RATE)));
-        statsContainer.add(new Label("evicted", new MapModel(values, KEY_EVICTED)));
-        statsContainer.add(new Label("currentMemory", new MapModel(values, KEY_CURRENT_MEM)));
-        statsContainer.add(new Label("cacheSize", new MapModel(values, KEY_SIZE)));
+        statsContainer.add(totalCountLabel);
+        statsContainer.add(hitCountLabel);
+        statsContainer.add(missCountLabel);
+        statsContainer.add(missRateLabel);
+        statsContainer.add(hitRateLabel);
+        statsContainer.add(evictedLabel);
+        statsContainer.add(currentMemoryLabel);
+        statsContainer.add(cacheSizeLabel);
 
         AjaxButton statistics = new AjaxButton("statistics") {
 
@@ -222,14 +231,15 @@ public class BlobStorePanel extends Panel {
                         double actualSize = ((long) (100 * (stats.getActualSize() * 1.0d) / byteToMb)) / 100d;
                         double totalSize = ((long) (100 * (stats.getTotalSize() * 1.0d) / byteToMb)) / 100d;
 
-                        values.put(KEY_MISS_RATE, missRate + " %");
-                        values.put(KEY_HIT_RATE, hitRate + " %");
-                        values.put(KEY_EVICTED, evicted + "");
-                        values.put(KEY_TOTAL_COUNT, total + "");
-                        values.put(KEY_MISS_COUNT, missCount + "");
-                        values.put(KEY_HIT_COUNT, hitCount + "");
-                        values.put(KEY_CURRENT_MEM, currentMem + " %");
-                        values.put(KEY_SIZE, actualSize + " / " + totalSize + " Mb");
+                        values.put(KEY_MISS_RATE, missRate >= 0 ? missRate + " %" : "Unavailable");
+                        values.put(KEY_HIT_RATE, hitRate >= 0 ? hitRate + " %" : "Unavailable");
+                        values.put(KEY_EVICTED, evicted >= 0 ?  evicted + "" : "Unavailable");
+                        values.put(KEY_TOTAL_COUNT, total >= 0 ?  total + "" : "Unavailable");
+                        values.put(KEY_MISS_COUNT, missCount >= 0 ? missCount + "" : "Unavailable");
+                        values.put(KEY_HIT_COUNT,hitCount >= 0 ? hitCount + "" : "Unavailable");
+                        values.put(KEY_CURRENT_MEM, currentMem >= 0 ? currentMem + " %" : "Unavailable");
+                        values.put(KEY_SIZE, currentMem >= 0 && actualSize >= 0 ? actualSize + " / " + totalSize + " Mb" : "Unavailable");
+                        
                     }
                 } catch (Throwable t) {
                     error(t);
