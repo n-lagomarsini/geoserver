@@ -5,6 +5,7 @@
  */
 package org.geoserver.gwc;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +30,7 @@ import org.geowebcache.storage.blobstore.memory.CacheProvider;
 import org.geowebcache.storage.blobstore.memory.CacheStatistics;
 import org.geowebcache.storage.blobstore.memory.MemoryBlobStore;
 import org.geowebcache.storage.blobstore.memory.NullBlobStore;
+import org.geowebcache.storage.blobstore.memory.guava.GuavaCacheProvider;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 
@@ -451,7 +453,18 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
         String cacheProvider = gwcConfig.getCacheProviderClass();
 
         if (!getCacheProviders().containsKey(cacheProvider)) {
-            throw new IllegalArgumentException("Wrong CacheProvider defined");
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.warning("Wrong CacheProvider defined, using default one");
+            }
+            cacheProvider = GuavaCacheProvider.class.toString();
+            gwcConfig.setCacheProviderClass(cacheProvider);
+            try {
+                GWC.get().saveConfig(gwcConfig);
+            } catch (IOException e) {
+                if (LOGGER.isLoggable(Level.SEVERE)) {
+                    LOGGER.log(Level.SEVERE,e.getMessage(), e);
+                }
+            }
         }
 
         CacheConfiguration cacheConfiguration = gwcConfig.getCacheConfigurations().get(
