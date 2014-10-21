@@ -24,12 +24,16 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 
 import net.opengis.wcs20.DimensionSubsetType;
 import net.opengis.wcs20.DimensionTrimType;
+import net.opengis.wcs20.ExtensionItemType;
+import net.opengis.wcs20.ExtensionType;
 import net.opengis.wcs20.GetCoverageType;
+import net.opengis.wcs20.ScaleToSizeType;
+import net.opengis.wcs20.ScalingType;
+import net.opengis.wcs20.TargetAxisSizeType;
 import net.opengis.wcs20.Wcs20Factory;
 
 import org.eclipse.emf.common.util.EList;
@@ -65,6 +69,8 @@ import org.opengis.coverage.grid.GridCoverage;
 public class WCSLayer extends AbstractTileLayer {
 
     
+    private static final String AXIS_Y = "http://www.opengis.net/def/axis/OGC/1/j";
+    private static final String AXIS_X = "http://www.opengis.net/def/axis/OGC/1/i";
     private static final String DOUBLE_UNDERSCORE = "__";
     private static final String WCS_SERVICE_NAME = "WCS";
     private static final String WCS_VERSION = "2.0.1";
@@ -683,27 +689,60 @@ public class WCSLayer extends AbstractTileLayer {
     }
 
     private GetCoverageType setupGetCoverageRequest(WCSMetaTile metaTile, GridSubset gridSubset) {
-        GetCoverageType getCoverage = WCS20_FACTORY.createGetCoverageType();
+        final GetCoverageType getCoverage = WCS20_FACTORY.createGetCoverageType();
         getCoverage.setVersion(WCS_VERSION);
         getCoverage.setService(WCS_SERVICE_NAME);
         getCoverage.setCoverageId(info.getNamespace().getName() + DOUBLE_UNDERSCORE + info.getName());
         final EList<DimensionSubsetType> dimensionSubset = getCoverage.getDimensionSubset();
 
-        
+        // Setting BBOX
         final BoundingBox bbox = metaTile.getMetaTileBounds(); 
+        final int width = metaTile.getMetaTileWidth();
+        final int height = metaTile.getMetaTileHeight();
 
-        DimensionTrimType trimLon = WCS20_FACTORY.createDimensionTrimType();
+        final DimensionTrimType trimLon = WCS20_FACTORY.createDimensionTrimType();
         trimLon.setDimension(DIMENSION_LONG);
         trimLon.setTrimLow(Double.toString(bbox.getMinX()));
         trimLon.setTrimHigh(Double.toString(bbox.getMaxX()));
         dimensionSubset.add(trimLon);
-        
-        DimensionTrimType trimLat = WCS20_FACTORY.createDimensionTrimType();
+
+        final DimensionTrimType trimLat = WCS20_FACTORY.createDimensionTrimType();
         trimLat.setDimension(DIMENSION_LAT);
         trimLat.setTrimLow(Double.toString(bbox.getMinY()));
         trimLat.setTrimHigh(Double.toString(bbox.getMaxY()));
         dimensionSubset.add(trimLat);
 
+        // Setting output size
+        final ExtensionType extension = WCS20_FACTORY.createExtensionType();
+        getCoverage.setExtension(extension);
+        
+        final EList<ExtensionItemType> content = extension.getContents();
+        final ExtensionItemType extensionItem = WCS20_FACTORY.createExtensionItemType();
+        final ScalingType scalingType = WCS20_FACTORY.createScalingType();
+        
+        extensionItem.setName("Scaling");
+        extensionItem.setObjectContent(scalingType);
+        content.add(extensionItem);
+
+        // get scaling
+        final ScaleToSizeType scaleToSize = WCS20_FACTORY.createScaleToSizeType();
+        scalingType.setScaleToSize(scaleToSize);
+
+        final TargetAxisSizeType lonScalingValue = WCS20_FACTORY.createTargetAxisSizeType();
+        lonScalingValue.setAxis(AXIS_X);
+        lonScalingValue.setTargetSize(width);
+
+        final TargetAxisSizeType latScalingValue = WCS20_FACTORY.createTargetAxisSizeType();
+        latScalingValue.setAxis(AXIS_Y);
+        latScalingValue.setTargetSize(height);
+
+        final EList<TargetAxisSizeType> targets = scaleToSize.getTargetAxisSize();
+        targets.add(lonScalingValue);
+        targets.add(latScalingValue);
+
+        
+
+        
         // TODO: Deal with other dimensions
         return getCoverage;
     }

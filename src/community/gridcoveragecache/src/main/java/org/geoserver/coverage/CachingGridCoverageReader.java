@@ -1,20 +1,25 @@
 package org.geoserver.coverage;
 
+import it.geosolutions.imageio.utilities.ImageIOUtilities;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReaderSpi;
 
+import java.awt.RenderingHints;
 import java.awt.image.RenderedImage;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.imageio.stream.FileCacheImageInputStream;
 import javax.media.jai.ImageLayout;
+import javax.media.jai.Interpolation;
+import javax.media.jai.JAI;
 import javax.media.jai.operator.MosaicDescriptor;
+import javax.media.jai.operator.TranslateDescriptor;
 
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.ResourcePool;
@@ -27,6 +32,7 @@ import org.geotools.coverage.grid.io.OverviewPolicy;
 import org.geotools.factory.Hints;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.renderer.lite.gridcoverage2d.GridCoverageRenderer;
 import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.BoundingBox;
@@ -39,6 +45,7 @@ import org.geowebcache.io.Resource;
 import org.geowebcache.mime.MimeException;
 import org.geowebcache.mime.MimeType;
 import org.geowebcache.storage.StorageBroker;
+import org.jaitools.imageutils.ImageLayout2;
 import org.opengis.coverage.grid.Format;
 import org.opengis.coverage.grid.GridEnvelope;
 import org.opengis.geometry.Envelope;
@@ -329,6 +336,8 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
             int wTiles = maxX - minX + 1;
             int hTiles = maxY - minY + 1;
             final int numTiles = wTiles * hTiles;
+            int tileHeight = gridSet.getTileHeight();
+            int tileWidth = gridSet.getTileWidth();
             List<ConveyorTile> cTiles = new ArrayList<ConveyorTile>(numTiles);
 
             String id = info.getId();
@@ -341,27 +350,36 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
                     try {
                         ConveyorTile tile = wcsLayer.getTile(ct);
                         cTiles.add(tile);
-                    } finally {
+                    } catch (OutsideCoverageException oce) {
+                        if (LOGGER.isLoggable(Level.FINE)) {
+                            LOGGER.fine("Exception occurred while getting tile (" + i + "," + j
+                                    + ") due to " + oce);
+                        }
                     }
 
                 }
             }
 
-            final RenderedImage[] riTiles = new RenderedImage[numTiles];
-            for (k = 0; k < numTiles; k++) {
-                riTiles[k] = getResource(cTiles.get(k));
+            final int numImages = cTiles.size();
+            final RenderedImage[] riTiles = new RenderedImage[numImages];
+            for (k = 0; k < numImages; k++) {
+                ConveyorTile tile = cTiles.get(k);
+                long[] tileIndex = tile.getTileIndex();
+                riTiles[k] = TranslateDescriptor.create(getResource(tile),Float.valueOf(tileIndex[0]*tileWidth), Float.valueOf(tileIndex[1]*tileHeight), 
+                        Interpolation.getInstance(Interpolation.INTERP_NEAREST), null);
             }
+            ImageLayout layout = new ImageLayout2(minX*tileWidth, minY*tileHeight, tileWidth*wTiles, tileHeight*hTiles); 
 
             RenderedImage mosaicCoverage = MosaicDescriptor.create(riTiles,
                     MosaicDescriptor.MOSAIC_TYPE_OVERLAY, null, null, new double[][] { { 1.0 } },
                     new double[] { 0.0 },
                     // TODO: SET PROPER HINTS
-                    null);
+                    new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout));
             // setup tile set to satisfy the request
 
             // TODO: NOTE THAT THE ENVELOPE IS NOT THE SAME OF THE TILES.
             // THEY ARE A SUPER ENSEMBLE OF THE REAL REQUESTED AREA:
-            // WE STILL NEED TO CROP IT.
+            // WE STILL NEED TO CROP IT AND MOVE TO THE REQUESTED RES
             return gcf.create(name, mosaicCoverage, envelope);
         } catch (MimeException e) {
             throw new IOException(e);

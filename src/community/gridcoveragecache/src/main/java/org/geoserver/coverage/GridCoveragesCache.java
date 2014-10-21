@@ -7,17 +7,11 @@ import org.geowebcache.storage.StorageBroker;
 
 public class GridCoveragesCache {
 
-    static final File tempDir; 
+    static final File tempDir;
     static {
-        
-        //TODO: Customize this location through Spring
-        tempDir = new File(System.getProperty("java.io.tmpDir"));
-    }
-    
-    private GridSetBroker gridSetBroker;
 
-    public GridSetBroker getGridSetBroker() {
-        return gridSetBroker;
+        // TODO: Customize this location through Spring
+        tempDir = new File(System.getProperty("java.io.tmpdir"));
     }
 
     private GridCoveragesCache() {
@@ -25,12 +19,26 @@ public class GridCoveragesCache {
 
     private StorageBroker storageBroker;
 
+    private GridSetBroker gridSetBroker;
+
+    public GridSetBroker getGridSetBroker() {
+        return gridSetBroker;
+    }
+
+    public void setGridSetBroker(GridSetBroker gridSetBroker) {
+        this.gridSetBroker = gridSetBroker;
+    }
+
     public StorageBroker getStorageBroker() {
         return storageBroker;
     }
 
+    public void setStorageBroker(StorageBroker storageBroker) {
+        this.storageBroker = storageBroker;
+    }
+
     private GridCoveragesCache(StorageBroker storageBroker, GridSetBroker gridSetBroker) {
         this.storageBroker = storageBroker;
-        this.gridSetBroker = gridSetBroker; 
+        this.gridSetBroker = gridSetBroker;
     }
 }
