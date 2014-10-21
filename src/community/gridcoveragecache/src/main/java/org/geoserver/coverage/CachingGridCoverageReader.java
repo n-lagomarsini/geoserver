@@ -4,7 +4,9 @@ import it.geosolutions.imageio.utilities.ImageIOUtilities;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReaderSpi;
 
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.RenderedImage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,21 +20,28 @@ import javax.imageio.stream.FileCacheImageInputStream;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.Interpolation;
 import javax.media.jai.JAI;
+import javax.media.jai.operator.CropDescriptor;
 import javax.media.jai.operator.MosaicDescriptor;
 import javax.media.jai.operator.TranslateDescriptor;
 
+import org.bouncycastle.crypto.MaxBytesExceededException;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.ResourcePool;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridGeometry2D;
+import org.geotools.coverage.grid.ViewType;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.OverviewPolicy;
+import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.factory.Hints;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.image.crop.GTCropDescriptor;
 import org.geotools.renderer.lite.gridcoverage2d.GridCoverageRenderer;
+import org.geotools.styling.RasterSymbolizer;
+import org.geotools.styling.RasterSymbolizerImpl;
 import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.BoundingBox;
@@ -47,19 +56,24 @@ import org.geowebcache.mime.MimeType;
 import org.geowebcache.storage.StorageBroker;
 import org.jaitools.imageutils.ImageLayout2;
 import org.opengis.coverage.grid.Format;
+import org.opengis.coverage.grid.GridCoverage;
 import org.opengis.coverage.grid.GridEnvelope;
 import org.opengis.geometry.Envelope;
 import org.opengis.parameter.GeneralParameterDescriptor;
 import org.opengis.parameter.GeneralParameterValue;
 import org.opengis.parameter.ParameterDescriptor;
 import org.opengis.parameter.ParameterValue;
+import org.opengis.parameter.ParameterValueGroup;
 import org.opengis.referencing.ReferenceIdentifier;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.datum.PixelInCell;
 import org.opengis.referencing.operation.MathTransform;
+import org.opengis.referencing.operation.TransformException;
 
 public class CachingGridCoverageReader implements GridCoverage2DReader {
 
+    private final static RasterSymbolizer symbolizer = new RasterSymbolizerImpl();
+    
     private final static Logger LOGGER = org.geotools.util.logging.Logging.getLogger(CachingGridCoverageReader.class);
     
     private static final MimeType TIFF_MIME_TYPE;
@@ -73,13 +87,13 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
 
     }
 
-    GridCoverage2DReader delegate;
+    private GridCoverage2DReader delegate;
 
     private CoverageInfo info;
 
     private WCSLayer wcsLayer;
 
-    GridCoveragesCache cache;
+    private GridCoveragesCache cache;
     
     private static final TIFFImageReaderSpi spi = new TIFFImageReaderSpi();
     
@@ -321,8 +335,17 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
             final StorageBroker storageBroker = cache.getStorageBroker();
             final GridSetBroker gridsetBroker = cache.getGridSetBroker();
             final GridSet gridSet = gridsetBroker.WORLD_EPSG4326;
-            Envelope envelope = extractEnvelope(coverageName, parameters);
-            ReferencedEnvelope env = new ReferencedEnvelope(envelope);
+
+            final GridGeometry2D gridGeometry = extractEnvelope(coverageName, parameters);
+            Envelope requestedEnvelope = null;
+            if (gridGeometry != null) {
+                requestedEnvelope = gridGeometry.getEnvelope();
+            }
+            if (requestedEnvelope == null) {
+                requestedEnvelope = getOriginalEnvelope(coverageName);
+            }
+
+            ReferencedEnvelope env = new ReferencedEnvelope(requestedEnvelope);
             BoundingBox bbox = new BoundingBox(env.getMinX(), env.getMinY(), env.getMaxX(),
                     env.getMaxY());
 
@@ -362,11 +385,22 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
 
             final int numImages = cTiles.size();
             final RenderedImage[] riTiles = new RenderedImage[numImages];
+            BoundingBox extent = null;
+            double minBBX = Double.POSITIVE_INFINITY;
+            double minBBY = Double.POSITIVE_INFINITY;
+            double maxBBX = Double.NEGATIVE_INFINITY;
+            double maxBBY = Double.NEGATIVE_INFINITY;
+            GridSubset subset = wcsLayer.getGridSubset(gridSet.getName());
             for (k = 0; k < numImages; k++) {
                 ConveyorTile tile = cTiles.get(k);
                 long[] tileIndex = tile.getTileIndex();
                 riTiles[k] = TranslateDescriptor.create(getResource(tile),Float.valueOf(tileIndex[0]*tileWidth), Float.valueOf(tileIndex[1]*tileHeight), 
                         Interpolation.getInstance(Interpolation.INTERP_NEAREST), null);
+                extent = subset.boundsFromIndex(tileIndex);
+                minBBX = Math.min(minBBX, extent.getMinX());
+                minBBY = Math.min(minBBY, extent.getMinY());
+                maxBBX = Math.max(maxBBX, extent.getMaxX());
+                maxBBY = Math.max(maxBBY, extent.getMaxY());
             }
             ImageLayout layout = new ImageLayout2(minX*tileWidth, minY*tileHeight, tileWidth*wTiles, tileHeight*hTiles); 
 
@@ -380,12 +414,38 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
             // TODO: NOTE THAT THE ENVELOPE IS NOT THE SAME OF THE TILES.
             // THEY ARE A SUPER ENSEMBLE OF THE REAL REQUESTED AREA:
             // WE STILL NEED TO CROP IT AND MOVE TO THE REQUESTED RES
-            return gcf.create(name, mosaicCoverage, envelope);
+
+            CoordinateReferenceSystem crs = requestedEnvelope.getCoordinateReferenceSystem();
+            ReferencedEnvelope readEnvelope = new ReferencedEnvelope(minBBX, maxBBX, minBBY, maxBBY, crs);
+            GridCoverage2D readCoverage =  gcf.create(name, mosaicCoverage, readEnvelope);
+            
+//            final CoverageProcessor processor = CoverageProcessor.getInstance();
+//
+//            ParameterValueGroup param = processor.getOperation("CoverageCrop").getParameters();
+//            param.parameter("Source").setValue(readCoverage);
+//            param.parameter("Envelope").setValue(requestedEnvelope);
+//            GridCoverage2D cropped = (GridCoverage2D) processor.doOperation(param);
+            GridEnvelope gridRange = gridGeometry.getGridRange();
+            
+            GridCoverageRenderer renderer = new GridCoverageRenderer(crs, env, 
+                    new Rectangle((int) gridRange.getSpan(0), (int) gridRange.getSpan(1)), null);
+            
+            RenderedImage ri = renderer.renderImage(readCoverage, symbolizer, null);
+            return  gcf.create(name, ri, requestedEnvelope);
+            
         } catch (MimeException e) {
             throw new IOException(e);
         } catch (OutsideCoverageException e) {
             throw new IOException(e);
         } catch (GeoWebCacheException e) {
+            throw new IOException(e);
+        } catch (IndexOutOfBoundsException e) {
+            throw new IOException(e);
+        } catch (TransformException e) {
+            throw new IOException(e);
+        } catch (NoninvertibleTransformException e) {
+            throw new IOException(e);
+        } catch (Exception e) {
             throw new IOException(e);
         }
 
@@ -442,8 +502,7 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
      * @param parameters
      * @return
      */
-    private Envelope extractEnvelope(String coverageName, GeneralParameterValue[] parameters) {
-        Envelope envelope = null;
+    private GridGeometry2D extractEnvelope(String coverageName, GeneralParameterValue[] parameters) {
         for (GeneralParameterValue gParam : parameters) {
             GeneralParameterDescriptor descriptor = gParam.getDescriptor();
             final ReferenceIdentifier name = descriptor.getName();
@@ -452,14 +511,10 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
                     final ParameterValue<?> param = (ParameterValue<?>) gParam;
                     final Object value = param.getValue();
                     final GridGeometry2D gg = (GridGeometry2D) value;
-                    envelope = gg.getEnvelope();
-                    break;
+                    return gg;
                 }
             }
         }
-        if (envelope == null) {
-            envelope = getOriginalEnvelope(coverageName);
-        }
-        return envelope;
+        return null;
     }
 }
