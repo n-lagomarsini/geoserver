@@ -29,6 +29,8 @@ import org.geowebcache.storage.blobstore.memory.CacheProvider;
 import org.geowebcache.storage.blobstore.memory.CacheStatistics;
 import org.geowebcache.storage.blobstore.memory.MemoryBlobStore;
 import org.geowebcache.storage.blobstore.memory.NullBlobStore;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
 
 /**
  * {@link MemoryBlobStore} implementation used for changing {@link CacheProvider} and wrapped {@link BlobStore} at runtime. An instance of this class
@@ -63,7 +65,9 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
     private AtomicBoolean configured;
 
     /** Internal {@link CacheConfiguration} instance */
-    private CacheConfiguration internalCacheConfig;
+    private Map<String, CacheConfiguration> internalCacheConfigs;
+    
+    private Map<String, String> cacheProvidersNames;
 
     private Map<String, CacheProvider> cacheProviders;
 
@@ -77,14 +81,18 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
         this.memoryStore = memoryStore;
         this.nullStore = nullStore;
         HashMap<String, CacheProvider> cacheProviders = new HashMap<String, CacheProvider>();
+        HashMap<String, String> cacheProvidersNames = new HashMap<String, String>();
         List<CacheProvider> extensions = GeoServerExtensions.extensions(CacheProvider.class);
         for (CacheProvider provider : extensions) {
             if (provider.isAvailable()) {
                 cacheProviders.put(provider.getClass().toString(), provider);
+                cacheProvidersNames.put(provider.getClass().toString(), provider.getName());
             }
         }
 
         this.cacheProviders = Collections.unmodifiableMap(cacheProviders);
+        this.cacheProvidersNames = Collections.unmodifiableMap(cacheProvidersNames);
+        this.internalCacheConfigs = new HashMap<String, CacheConfiguration>();
     }
 
     @Override
@@ -406,18 +414,27 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
     public Map<String, CacheProvider> getCacheProviders() {
         return cacheProviders;
     }
+    
+    /**
+     * Returns a map of all the cache provider description, where the key is the {@link CacheProvider} class.
+     * 
+     * @return a Map containing all the CacheProvider descriptions
+     */
+    public Map<String, String> getCacheProvidersNames() {
+        return cacheProvidersNames;
+    }
 
     /**
      * This method changes the {@link ConfigurableBlobStore} configuration. It can be used for changing cache configuration or the blobstore used.
      * 
      * @param gwcConfig
      */
-    public synchronized void setChanged(GWCConfig gwcConfig) {
+    public synchronized void setChanged(GWCConfig gwcConfig, boolean initialization) {
         // Change the blobstore configuration
-        configureBlobStore(gwcConfig);
+        configureBlobStore(gwcConfig, initialization);
     }
 
-    private void configureBlobStore(GWCConfig gwcConfig) {
+    private void configureBlobStore(GWCConfig gwcConfig, boolean initialization) {
         if (LOGGER.isLoggable(Level.FINEST)) {
             LOGGER.finest("Configuring BlobStore");
         }
@@ -431,46 +448,53 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
         while (actualOperations.get() > 0) {
         }
 
-        CacheConfiguration cacheConfiguration = gwcConfig.getCacheConfiguration();
-        // Add the internal Cache configuration for the first time
-        if (LOGGER.isLoggable(Level.FINEST)) {
-            LOGGER.finest("Configuring cache");
-        }
-
         String cacheProvider = gwcConfig.getCacheProviderClass();
 
         if (!getCacheProviders().containsKey(cacheProvider)) {
             throw new IllegalArgumentException("Wrong CacheProvider defined");
         }
 
-        // Setting cache
+        CacheConfiguration cacheConfiguration = gwcConfig.getCacheConfigurations().get(
+                cacheProvider);
+        // Add the internal Cache configuration for the first time
+        if (LOGGER.isLoggable(Level.FINEST)) {
+            LOGGER.finest("Configuring cache");
+        }
+
+        // Setting cache 
         cache = getCacheProviders().get(cacheProvider);
 
-        if (internalCacheConfig == null) {
-            internalCacheConfig = new CacheConfiguration();
-            internalCacheConfig.setConcurrencyLevel(cacheConfiguration.getConcurrencyLevel());
-            internalCacheConfig.setEvictionTime(cacheConfiguration.getEvictionTime());
-            internalCacheConfig.setHardMemoryLimit(cacheConfiguration.getHardMemoryLimit());
-            internalCacheConfig.setPolicy(cacheConfiguration.getPolicy());
-
-            cache.setConfiguration(cacheConfiguration);
-        } else if (!internalCacheConfig.equals(cacheConfiguration) && !cache.isImmutable()) {
-            internalCacheConfig.setConcurrencyLevel(cacheConfiguration.getConcurrencyLevel());
-            internalCacheConfig.setEvictionTime(cacheConfiguration.getEvictionTime());
-            internalCacheConfig.setHardMemoryLimit(cacheConfiguration.getHardMemoryLimit());
-            internalCacheConfig.setPolicy(cacheConfiguration.getPolicy());
-            cache.reset();
-            cache.setConfiguration(cacheConfiguration);
-            // It is not the first time so we must cycle on all the layers in order to check
-            // which must not be cached
-            Iterable<GeoServerTileLayer> geoServerTileLayers = GWC.get().getGeoServerTileLayers();
-
-            for (GeoServerTileLayer layer : geoServerTileLayers) {
-                if (layer.getInfo().isEnabled() && layer.getInfo().isInMemoryUncached()) {
-                    cache.addUncachedLayer(layer.getName());
-                }
+        if(!cache.isImmutable()){
+            CacheConfiguration internalCacheConfig = internalCacheConfigs.get(cacheProvider);
+            if (internalCacheConfig == null) {
+                internalCacheConfig = new CacheConfiguration();
+                internalCacheConfig.setConcurrencyLevel(cacheConfiguration.getConcurrencyLevel());
+                internalCacheConfig.setEvictionTime(cacheConfiguration.getEvictionTime());
+                internalCacheConfig.setHardMemoryLimit(cacheConfiguration.getHardMemoryLimit());
+                internalCacheConfig.setPolicy(cacheConfiguration.getPolicy());
+                cache.setConfiguration(cacheConfiguration);
+                internalCacheConfigs.put(cacheProvider, internalCacheConfig);
+            } else if (!internalCacheConfig.equals(cacheConfiguration)) {
+                internalCacheConfig.setConcurrencyLevel(cacheConfiguration.getConcurrencyLevel());
+                internalCacheConfig.setEvictionTime(cacheConfiguration.getEvictionTime());
+                internalCacheConfig.setHardMemoryLimit(cacheConfiguration.getHardMemoryLimit());
+                internalCacheConfig.setPolicy(cacheConfiguration.getPolicy());
+                cache.reset();
+                cache.setConfiguration(internalCacheConfig);
             }
-        } 
+            
+            // If GWC has been already configured, we must cycle on all the layers in order to check
+            // which must not be cached
+            if(!initialization){
+                Iterable<GeoServerTileLayer> geoServerTileLayers = GWC.get().getGeoServerTileLayers();
+
+                for (GeoServerTileLayer layer : geoServerTileLayers) {
+                    if (layer.getInfo().isEnabled() && layer.getInfo().isInMemoryUncached()) {
+                        cache.addUncachedLayer(layer.getName());
+                    }
+                }  
+            }
+        }
 
         if (LOGGER.isLoggable(Level.FINEST)) {
             LOGGER.finest("Configuring BlobStore delegate");
@@ -509,5 +533,11 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
         provs.put(cache.getClass().toString(), cache);
         cacheProviders = provs;
         this.cache = cache;
+    }
+    
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        // Do nothing
+        return;
     }
 }

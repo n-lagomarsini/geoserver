@@ -10,7 +10,9 @@ import static com.google.common.base.Preconditions.*;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
@@ -40,7 +42,7 @@ public class GWCConfig implements Cloneable, Serializable {
     
     private String cacheProviderClass;
     
-    private CacheConfiguration cacheConfiguration;
+    private Map<String, CacheConfiguration> cacheConfigurations;
 
     /**
      * Whether to automatically cache GeoServer layers or they should be enabled explicitly
@@ -95,7 +97,9 @@ public class GWCConfig implements Cloneable, Serializable {
         setDefaultCoverageCacheFormats(Collections.singleton(jpeg));
         setDefaultOtherCacheFormats(new HashSet<String>(Arrays.asList(png, jpeg)));
         setDefaultVectorCacheFormats(Collections.singleton(png));
-        setCacheConfiguration(new CacheConfiguration());
+        Map<String, CacheConfiguration> map = new HashMap<String, CacheConfiguration>();
+        map.put(GuavaCacheProvider.class.toString(), new CacheConfiguration());
+        setCacheConfigurations(map);
 
         readResolve();
     }
@@ -117,8 +121,9 @@ public class GWCConfig implements Cloneable, Serializable {
         if (defaultVectorCacheFormats == null) {
             defaultVectorCacheFormats = new HashSet<String>();
         }
-        if (cacheConfiguration == null) {
-            cacheConfiguration = new CacheConfiguration();
+        if (cacheConfigurations == null) {
+            cacheConfigurations = new HashMap<String, CacheConfiguration>();
+            cacheConfigurations.put(GuavaCacheProvider.class.toString(), new CacheConfiguration());
         }
 
         return this;
@@ -294,7 +299,9 @@ public class GWCConfig implements Cloneable, Serializable {
         setTMSEnabled(true);
         setAvoidPersistence(false);
         setInnerCachingEnabled(false);
-        setCacheConfiguration(new CacheConfiguration());
+        HashMap<String, CacheConfiguration> map = new HashMap<String, CacheConfiguration>();
+        map.put(GuavaCacheProvider.class.toString(), new CacheConfiguration());
+        setCacheConfigurations(map);
         setCacheProviderClass(GuavaCacheProvider.class.toString());
     }
 
@@ -335,7 +342,7 @@ public class GWCConfig implements Cloneable, Serializable {
         clone.setDefaultCoverageCacheFormats(getDefaultCoverageCacheFormats());
         clone.setDefaultVectorCacheFormats(getDefaultVectorCacheFormats());
         clone.setDefaultOtherCacheFormats(getDefaultOtherCacheFormats());
-        clone.setCacheConfiguration(getCacheConfiguration());
+        clone.setCacheConfigurations(getCacheConfigurations());
 
         return clone;
     }
@@ -397,15 +404,11 @@ public class GWCConfig implements Cloneable, Serializable {
         this.cacheProviderClass = cacheProviderClass;
     }
 
-    public CacheConfiguration getCacheConfiguration() {
-        return cacheConfiguration;
+    public Map<String, CacheConfiguration> getCacheConfigurations() {
+        return cacheConfigurations;
     }
 
-    public void setCacheConfiguration(CacheConfiguration cacheConfiguration) {
-        this.cacheConfiguration = new CacheConfiguration();
-        this.cacheConfiguration.setConcurrencyLevel(cacheConfiguration.getConcurrencyLevel());
-        this.cacheConfiguration.setEvictionTime(cacheConfiguration.getEvictionTime());
-        this.cacheConfiguration.setHardMemoryLimit(cacheConfiguration.getHardMemoryLimit());
-        this.cacheConfiguration.setPolicy(cacheConfiguration.getPolicy());
+    public void setCacheConfigurations(Map<String, CacheConfiguration> cacheConfigurations) {
+        this.cacheConfigurations = new HashMap<String, CacheConfiguration>(cacheConfigurations);
     }
 }

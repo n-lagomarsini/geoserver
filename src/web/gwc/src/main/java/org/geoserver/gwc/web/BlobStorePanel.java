@@ -5,9 +5,11 @@
  */
 package org.geoserver.gwc.web;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.form.AjaxFormComponentUpdatingBehavior;
@@ -18,6 +20,7 @@ import org.apache.wicket.markup.html.form.Button;
 import org.apache.wicket.markup.html.form.CheckBox;
 import org.apache.wicket.markup.html.form.DropDownChoice;
 import org.apache.wicket.markup.html.form.Form;
+import org.apache.wicket.markup.html.form.IChoiceRenderer;
 import org.apache.wicket.markup.html.form.TextField;
 import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.model.IModel;
@@ -64,7 +67,7 @@ public class BlobStorePanel extends Panel {
 
     /** Key for the cache current memory occupation */
     public static final String KEY_CURRENT_MEM = "currentMemory";
-    
+
     /** Key for the cache current/total size */
     public static final String KEY_SIZE = "cacheSize";
 
@@ -77,9 +80,9 @@ public class BlobStorePanel extends Panel {
         // Initialize the map
         values = new HashMap<String, String>();
 
-        // get the CacheConfiguration Model
-        IModel<CacheConfiguration> cacheConfiguration = new PropertyModel<CacheConfiguration>(
-                gwcConfigModel, "cacheConfiguration");
+        // get the CacheConfigurations Model
+        IModel<Map<String, CacheConfiguration>> cacheConfigurations = new PropertyModel<Map<String, CacheConfiguration>>(
+                gwcConfigModel, "cacheConfigurations");
 
         // Creation of the Checbox for enabling disabling inmemory caching
         IModel<Boolean> innerCachingEnabled = new PropertyModel<Boolean>(gwcConfigModel,
@@ -87,13 +90,15 @@ public class BlobStorePanel extends Panel {
         final CheckBox innerCachingEnabledChoice = new CheckBox("innerCachingEnabled",
                 innerCachingEnabled);
 
-        // Container containing all the other parameters which can be seen only if In Memory caching is enabled
+        // Container containing all the other parameters
         final WebMarkupContainer container = new WebMarkupContainer("container");
         container.setOutputMarkupId(true).setEnabled(true);
-        
-        // Container containing all the parameters related to cache configuration
-        final WebMarkupContainer cacheConfigContainer = new WebMarkupContainer("cacheConfContainer");
-        cacheConfigContainer.setOutputMarkupId(true).setEnabled(true);
+
+        // Container containing all the parameters related to cache configuration which can be seen only if In Memory caching is enabled
+        final CacheConfigContainerWrapper cacheConfigContainer = new CacheConfigContainerWrapper(
+                "cacheConfContainer", gwcConfigModel.getObject().getCacheProviderClass(),
+                gwcConfigModel);
+        cacheConfigContainer.setOutputMarkupId(true);
 
         // Avoid Persistence checkbox
         IModel<Boolean> avoidPersistence = new PropertyModel<Boolean>(gwcConfigModel,
@@ -102,65 +107,52 @@ public class BlobStorePanel extends Panel {
         boolean visible = innerCachingEnabledChoice.getModelObject() == null ? false
                 : innerCachingEnabledChoice.getModelObject();
         container.setVisible(visible);
+
+        // Choice between the various Cache objects
+        final DropDownChoice<String> choice;
+        final ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
+        if (store != null) {
+            final Map<String, String> cacheProviders = store.getCacheProvidersNames();
+            final IModel<String> providerClass = new PropertyModel<String>(gwcConfigModel,
+                    "cacheProviderClass");
+            IChoiceRenderer<String> renderer = new CacheProviderRenderer(cacheProviders);
+            choice = new DropDownChoice<String>("caches", providerClass, new ArrayList<String>(
+                    cacheProviders.keySet()), renderer);
+            choice.add(new AjaxFormComponentUpdatingBehavior("onChange") {
+
+                @Override
+                protected void onUpdate(AjaxRequestTarget target) {
+                    ConfigurableBlobStore store = GeoServerExtensions
+                            .bean(ConfigurableBlobStore.class);
+                    String cacheClass = providerClass.getObject();
+                    boolean immutable = false;
+                    if (store != null) {
+                        immutable = store.getCacheProviders().get(cacheClass).isImmutable();
+                    }
+                    cacheConfigContainer.setEnabled(!immutable);
+                    // If changing the cacheProvider, you must change also the configuration
+                    if (!immutable) {
+                        if (!gwcConfigModel.getObject().getCacheConfigurations()
+                                .containsKey(cacheClass)) {
+                            gwcConfigModel.getObject().getCacheConfigurations()
+                                    .put(cacheClass, new CacheConfiguration());
+                        }
+                        cacheConfigContainer.setMapKey(cacheClass, gwcConfigModel);
+                    }
+
+                    target.addComponent(cacheConfigContainer);
+                }
+            });
+            cacheConfigContainer.setEnabled(!store.getCacheProviders()
+                    .get(providerClass.getObject()).isImmutable());
+        } else {
+            choice = new DropDownChoice<String>("caches", new ArrayList<String>());
+        }
+
+        container.add(choice);
+
         avoidPersistenceChoice.setOutputMarkupId(true).setEnabled(true);
 
-        // Cache configuration parameters
-        IModel<Long> hardMemoryLimit = new PropertyModel<Long>(cacheConfiguration,
-                "hardMemoryLimit");
-
-        IModel<Long> evictionTimeValue = new PropertyModel<Long>(cacheConfiguration, "evictionTime");
-
-        IModel<EvictionPolicy> policy = new PropertyModel<EvictionPolicy>(cacheConfiguration,
-                "policy");
-
-        IModel<Integer> concurrencyLevel = new PropertyModel<Integer>(cacheConfiguration,
-                "concurrencyLevel");
-
-        final TextField<Long> hardMemory = new TextField<Long>("hardMemoryLimit", hardMemoryLimit);
-        hardMemory.setType(Long.class).setOutputMarkupId(true).setEnabled(true);
-        hardMemory.add(new MinimumLongValidator("BlobStorePanel.invalidHardMemory"));
-
-        final TextField<Long> evictionTime = new TextField<Long>("evictionTime", evictionTimeValue);
-        evictionTime.setType(Long.class).setOutputMarkupId(true).setEnabled(true);
-
-        final DropDownChoice<EvictionPolicy> policyDropDown = new DropDownChoice<EvictionPolicy>(
-                "policy", policy, Arrays.asList(EvictionPolicy.values()));
-        policyDropDown.setOutputMarkupId(true).setEnabled(true);
-        policyDropDown.add(new IValidator<EvictionPolicy>() {
-            
-            @Override
-            public void validate(IValidatable<EvictionPolicy> validatable) {
-                EvictionPolicy value = validatable.getValue();
-                if(value != EvictionPolicy.NULL){
-                    // Ensure that the defined Eviction policy can be accepted by the cache used
-                    ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
-                    if(store != null){
-                        CacheProvider cache = store.getCache();
-                        if (cache != null) {
-                            List<EvictionPolicy> policies = cache.getSupportedPolicies();
-                            if(!policies.contains(value)){
-                                ValidationError error = new ValidationError();
-                                error.setMessage(new ParamResourceModel("BlobStorePanel.invalidPolicy", null,
-                                        "").getObject());
-                                validatable.error(error);
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        final TextField<Integer> textConcurrency = new TextField<Integer>("concurrencyLevel",
-                concurrencyLevel);
-        textConcurrency.setType(Integer.class).setOutputMarkupId(true).setEnabled(true);
-        textConcurrency.add(new MinimumConcurrencyValidator());
-
-        // Add all the parameters to the containes
-        cacheConfigContainer.add(hardMemory);
-        cacheConfigContainer.add(policyDropDown);
-        cacheConfigContainer.add(textConcurrency);
-        cacheConfigContainer.add(evictionTime);
-        
         container.add(cacheConfigContainer);
 
         innerCachingEnabledChoice.add(new AjaxFormComponentUpdatingBehavior("onChange") {
@@ -183,8 +175,9 @@ public class BlobStorePanel extends Panel {
         Button clearCache = new Button("cacheClear") {
             @Override
             public void onSubmit() {
+                final ConfigurableBlobStore store = GeoServerExtensions
+                        .bean(ConfigurableBlobStore.class);
                 // Clear cache
-                ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
                 if (store != null) {
                     store.clearCache();
                 }
@@ -212,9 +205,9 @@ public class BlobStorePanel extends Panel {
             @Override
             protected void onSubmit(AjaxRequestTarget target, Form<?> form) {
                 try {
-                    // If checked, all the statistics are reported
-                    ConfigurableBlobStore store = GeoServerExtensions
+                    final ConfigurableBlobStore store = GeoServerExtensions
                             .bean(ConfigurableBlobStore.class);
+                    // If checked, all the statistics are reported
                     if (store != null) {
                         CacheStatistics stats = store.getCacheStatistics();
 
@@ -297,6 +290,106 @@ public class BlobStorePanel extends Panel {
                         "").getObject());
                 validatable.error(error);
             }
+        }
+    }
+
+    static class CacheProviderRenderer implements IChoiceRenderer<String> {
+
+        private Map<String, String> map;
+
+        public CacheProviderRenderer(Map<String, String> map) {
+            this.map = map;
+        }
+
+        @Override
+        public Object getDisplayValue(String object) {
+            return map.get(object);
+        }
+
+        @Override
+        public String getIdValue(String object, int index) {
+            return object;
+        }
+    }
+
+    static class CacheConfigContainerWrapper extends WebMarkupContainer {
+
+        public CacheConfigContainerWrapper(String id, String key, IModel<GWCConfig> gwcConfigModel) {
+            super(id);
+            setMapKey(key, gwcConfigModel);
+        }
+
+        public void setMapKey(final String key, IModel<GWCConfig> gwcConfigModel) {
+            removeAll();
+            // get the CacheConfigurations Model
+            IModel<Map<String, CacheConfiguration>> cacheConfigurations = new PropertyModel<Map<String, CacheConfiguration>>(
+                    gwcConfigModel, "cacheConfigurations");
+
+            // Get CacheConfiguration model
+            MapModel cacheConfiguration = new MapModel(cacheConfigurations, key);
+
+            // Cache configuration parameters
+            IModel<Long> hardMemoryLimit = new PropertyModel<Long>(cacheConfiguration,
+                    "hardMemoryLimit");
+
+            IModel<Long> evictionTimeValue = new PropertyModel<Long>(cacheConfiguration,
+                    "evictionTime");
+
+            IModel<EvictionPolicy> policy = new PropertyModel<EvictionPolicy>(cacheConfiguration,
+                    "policy");
+
+            IModel<Integer> concurrencyLevel = new PropertyModel<Integer>(cacheConfiguration,
+                    "concurrencyLevel");
+
+            final TextField<Long> hardMemory = new TextField<Long>("hardMemoryLimit",
+                    hardMemoryLimit);
+            hardMemory.setType(Long.class).setOutputMarkupId(true).setEnabled(true);
+            hardMemory.add(new MinimumLongValidator("BlobStorePanel.invalidHardMemory"));
+
+            final TextField<Long> evictionTime = new TextField<Long>("evictionTime",
+                    evictionTimeValue);
+            evictionTime.setType(Long.class).setOutputMarkupId(true).setEnabled(true);
+
+            final DropDownChoice<EvictionPolicy> policyDropDown = new DropDownChoice<EvictionPolicy>(
+                    "policy", policy, Arrays.asList(EvictionPolicy.values()));
+            policyDropDown.setOutputMarkupId(true).setEnabled(true);
+
+            policyDropDown.add(new IValidator<EvictionPolicy>() {
+
+                @Override
+                public void validate(IValidatable<EvictionPolicy> validatable) {
+
+                    EvictionPolicy value = validatable.getValue();
+                    if (value != EvictionPolicy.NULL) {
+                        final ConfigurableBlobStore store = GeoServerExtensions
+                                .bean(ConfigurableBlobStore.class);
+                        // Ensure that the defined Eviction policy can be accepted by the cache used
+                        if (store != null) {
+                            CacheProvider cache = store.getCacheProviders().get(key);
+                            if (cache != null) {
+                                List<EvictionPolicy> policies = cache.getSupportedPolicies();
+                                if (policies != null && !policies.contains(value)) {
+                                    ValidationError error = new ValidationError();
+                                    error.setMessage(new ParamResourceModel(
+                                            "BlobStorePanel.invalidPolicy", null, "").getObject());
+                                    validatable.error(error);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            final TextField<Integer> textConcurrency = new TextField<Integer>("concurrencyLevel",
+                    concurrencyLevel);
+            textConcurrency.setType(Integer.class).setOutputMarkupId(true).setEnabled(true);
+            textConcurrency.add(new MinimumConcurrencyValidator());
+
+            // Add all the parameters to the containes
+            add(hardMemory);
+            add(policyDropDown);
+            add(textConcurrency);
+            add(evictionTime);
         }
     }
 }

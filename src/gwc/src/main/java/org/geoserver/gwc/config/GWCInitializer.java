@@ -11,6 +11,8 @@ import static org.geoserver.gwc.GWC.tileLayerName;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -119,11 +121,13 @@ public class GWCInitializer implements GeoServerInitializer {
         }
         
         // Setting default Cache Configuration
-        if (gwcConfig.getCacheConfiguration() == null) {
+        if (gwcConfig.getCacheConfigurations() == null) {
             if(LOGGER.isLoggable(Level.FINEST)){
                 LOGGER.finest("Setting default CacheConfiguration");
             }
-            gwcConfig.setCacheConfiguration(new CacheConfiguration());
+            Map<String, CacheConfiguration> map = new HashMap<String, CacheConfiguration>();
+            map.put(GuavaCacheProvider.class.toString(), new CacheConfiguration());
+            gwcConfig.setCacheConfigurations(map);
             configPersister.save(gwcConfig);
         } else {
             if(LOGGER.isLoggable(Level.FINEST)){
@@ -133,7 +137,7 @@ public class GWCInitializer implements GeoServerInitializer {
 
         // Change ConfigurableBlobStore behavior
         if (blobStore != null) {
-            blobStore.setChanged(gwcConfig);
+            blobStore.setChanged(gwcConfig, true);
             CacheProvider cache = blobStore.getCache();
             // Add all the various Layers to avoid caching
             addLayersToNotCache(cache, gwcConfig);

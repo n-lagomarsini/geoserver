@@ -102,7 +102,7 @@ public class ConfigurableBlobStoreTest extends GeoServerSystemTestSupport {
         GWCConfig gwcConfig = new GWCConfig();
         gwcConfig.setInnerCachingEnabled(true);
         gwcConfig.setAvoidPersistence(true);
-        blobStore.setChanged(gwcConfig);
+        blobStore.setChanged(gwcConfig, false);
 
         BlobStore delegate = blobStore.getDelegate();
         assertTrue(delegate instanceof MemoryBlobStore);
@@ -154,7 +154,7 @@ public class ConfigurableBlobStoreTest extends GeoServerSystemTestSupport {
         GWCConfig gwcConfig = new GWCConfig();
         gwcConfig.setInnerCachingEnabled(true);
         gwcConfig.setAvoidPersistence(false);
-        blobStore.setChanged(gwcConfig);
+        blobStore.setChanged(gwcConfig, false);
 
         assertTrue(blobStore.getDelegate() instanceof MemoryBlobStore);
 
@@ -198,7 +198,7 @@ public class ConfigurableBlobStoreTest extends GeoServerSystemTestSupport {
 
         GWCConfig gwcConfig = new GWCConfig();
         gwcConfig.setInnerCachingEnabled(false);
-        blobStore.setChanged(gwcConfig);
+        blobStore.setChanged(gwcConfig, false);
 
         assertTrue(blobStore.getDelegate() instanceof FileBlobStore);
 

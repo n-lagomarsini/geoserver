@@ -71,7 +71,7 @@ public class GWCSettingsPage extends GeoServerSecuredPage {
                 // Update ConfigurableBlobStore
                 ConfigurableBlobStore blobstore = GeoServerExtensions.bean(ConfigurableBlobStore.class);
                 if(blobstore != null){
-                    blobstore.setChanged(gwcConfig);
+                    blobstore.setChanged(gwcConfig, false);
                 }
                 // Do return
                 doReturn();

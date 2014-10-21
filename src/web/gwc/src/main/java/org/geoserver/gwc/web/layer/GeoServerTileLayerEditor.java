@@ -212,8 +212,11 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
 
         // CheckBox for enabling/disabling inner caching for the layer
         disableInMemoryCaching = new CheckBox("inMemoryUncached", new PropertyModel<Boolean>(getModel(), "inMemoryUncached"));
-        disableInMemoryCaching.setEnabled(mediator.getConfig().isInnerCachingEnabled()
-                && !mediator.getConfig().isAvoidPersistence());
+        ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
+        if(store != null && store.getCache() != null){
+            disableInMemoryCaching.setEnabled(mediator.getConfig().isInnerCachingEnabled()
+                    && !store.getCache().isImmutable());
+        }
 
         configs.add(disableInMemoryCaching);
 
@@ -425,13 +428,15 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
             
             // Remove add the Layer to the cache if it is present
             ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
-            CacheProvider cache = store.getCache();
-            if (cache != null) {
-                if (disableInMemoryCaching.getModelObject()) {
-                    cache.removeUncachedLayer(getModel().getObject().getName());
-                } else {
-                    cache.addUncachedLayer(getModel().getObject().getName());
-                }
+            if(store != null){
+                CacheProvider cache = store.getCache();
+                if (cache != null) {
+                    if (disableInMemoryCaching.getModelObject()) {
+                        cache.removeUncachedLayer(getModel().getObject().getName());
+                    } else {
+                        cache.addUncachedLayer(getModel().getObject().getName());
+                    }
+                } 
             }
 
             tileLayerInfo.setId(layerModel.getObject().getId());

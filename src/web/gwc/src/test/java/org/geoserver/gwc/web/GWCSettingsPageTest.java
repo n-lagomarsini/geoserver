@@ -23,6 +23,7 @@ import org.geoserver.web.GeoServerHomePage;
 import org.geoserver.web.GeoServerWicketTestSupport;
 import org.geowebcache.locks.MemoryLockProvider;
 import org.geowebcache.locks.NIOLockProvider;
+import org.geowebcache.storage.blobstore.memory.guava.GuavaCacheProvider;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -331,8 +332,8 @@ public class GWCSettingsPageTest extends GeoServerWicketTestSupport {
         // Check the GWCConfig
         config = gwc.getConfig();
         assertTrue(config.isAvoidPersistence());
-        assertEquals(config.getCacheConfiguration().getConcurrencyLevel(), 1);
-        assertEquals(config.getCacheConfiguration().getHardMemoryLimit(), 1);
+        assertEquals(config.getCacheConfigurations().get(GuavaCacheProvider.class.toString()).getConcurrencyLevel(), 1);
+        assertEquals(config.getCacheConfigurations().get(GuavaCacheProvider.class.toString()).getHardMemoryLimit(), 1);
         
         // Start the page
         tester.startPage(new GWCSettingsPage());

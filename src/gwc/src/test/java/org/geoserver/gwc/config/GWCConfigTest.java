@@ -79,7 +79,7 @@ public class GWCConfigTest extends GeoServerSystemTestSupport {
                 clone.getDefaultCoverageCacheFormats());
         assertNotSame(config.getDefaultOtherCacheFormats(), clone.getDefaultOtherCacheFormats());
         assertNotSame(config.getDefaultVectorCacheFormats(), clone.getDefaultVectorCacheFormats());
-        assertNotSame(config.getCacheConfiguration(), clone.getCacheConfiguration());
+        assertNotSame(config.getCacheConfigurations(), clone.getCacheConfigurations());
     }
 
     @Test
