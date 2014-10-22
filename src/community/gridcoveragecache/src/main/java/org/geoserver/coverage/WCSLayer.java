@@ -740,9 +740,6 @@ public class WCSLayer extends AbstractTileLayer {
         targets.add(lonScalingValue);
         targets.add(latScalingValue);
 
-        
-
-        
         // TODO: Deal with other dimensions
         return getCoverage;
     }

@@ -4,10 +4,9 @@ import it.geosolutions.imageio.utilities.ImageIOUtilities;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReaderSpi;
 
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.RenderedImage;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -16,30 +15,25 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.imageio.ImageIO;
 import javax.imageio.stream.FileCacheImageInputStream;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.Interpolation;
 import javax.media.jai.JAI;
-import javax.media.jai.operator.CropDescriptor;
 import javax.media.jai.operator.MosaicDescriptor;
 import javax.media.jai.operator.TranslateDescriptor;
 
-import org.bouncycastle.crypto.MaxBytesExceededException;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.ResourcePool;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridGeometry2D;
-import org.geotools.coverage.grid.ViewType;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.OverviewPolicy;
-import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.factory.Hints;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.geotools.image.crop.GTCropDescriptor;
-import org.geotools.renderer.lite.gridcoverage2d.GridCoverageRenderer;
 import org.geotools.styling.RasterSymbolizer;
 import org.geotools.styling.RasterSymbolizerImpl;
 import org.geowebcache.GeoWebCacheException;
@@ -56,19 +50,16 @@ import org.geowebcache.mime.MimeType;
 import org.geowebcache.storage.StorageBroker;
 import org.jaitools.imageutils.ImageLayout2;
 import org.opengis.coverage.grid.Format;
-import org.opengis.coverage.grid.GridCoverage;
 import org.opengis.coverage.grid.GridEnvelope;
 import org.opengis.geometry.Envelope;
 import org.opengis.parameter.GeneralParameterDescriptor;
 import org.opengis.parameter.GeneralParameterValue;
 import org.opengis.parameter.ParameterDescriptor;
 import org.opengis.parameter.ParameterValue;
-import org.opengis.parameter.ParameterValueGroup;
 import org.opengis.referencing.ReferenceIdentifier;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.datum.PixelInCell;
 import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
 
 public class CachingGridCoverageReader implements GridCoverage2DReader {
 
@@ -394,30 +385,35 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
             for (k = 0; k < numImages; k++) {
                 ConveyorTile tile = cTiles.get(k);
                 long[] tileIndex = tile.getTileIndex();
-                riTiles[k] = TranslateDescriptor.create(getResource(tile),Float.valueOf(tileIndex[0]*tileWidth), Float.valueOf(tileIndex[1]*tileHeight), 
-                        Interpolation.getInstance(Interpolation.INTERP_NEAREST), null);
+                RenderedImage inputImage = getResource(tile);
+                riTiles[k] = numImages > 1 ? TranslateDescriptor.create(inputImage,Float.valueOf(tileIndex[0]*tileWidth), Float.valueOf(tileIndex[1]*tileHeight), 
+                        Interpolation.getInstance(Interpolation.INTERP_NEAREST), null) : inputImage;
                 extent = subset.boundsFromIndex(tileIndex);
                 minBBX = Math.min(minBBX, extent.getMinX());
                 minBBY = Math.min(minBBY, extent.getMinY());
                 maxBBX = Math.max(maxBBX, extent.getMaxX());
                 maxBBY = Math.max(maxBBY, extent.getMaxY());
             }
-            ImageLayout layout = new ImageLayout2(minX*tileWidth, minY*tileHeight, tileWidth*wTiles, tileHeight*hTiles); 
+            RenderedImage finalImage = riTiles[0];
+            if (numImages > 1) {
+                ImageLayout layout = new ImageLayout2(minX*tileWidth, minY*tileHeight, tileWidth*wTiles, tileHeight*hTiles); 
 
-            RenderedImage mosaicCoverage = MosaicDescriptor.create(riTiles,
-                    MosaicDescriptor.MOSAIC_TYPE_OVERLAY, null, null, new double[][] { { 1.0 } },
-                    new double[] { 0.0 },
-                    // TODO: SET PROPER HINTS
-                    new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout));
+                //TODO: Replace that with parallel tile composer which assemble loaded tiles into the final image.
+                finalImage = MosaicDescriptor.create(riTiles,
+                        MosaicDescriptor.MOSAIC_TYPE_OVERLAY, null, null, new double[][] { { 1.0 } },
+                        new double[] { 0.0 },
+                        // TODO: SET PROPER HINTS
+                        new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout));
+            } 
             // setup tile set to satisfy the request
 
             // TODO: NOTE THAT THE ENVELOPE IS NOT THE SAME OF THE TILES.
             // THEY ARE A SUPER ENSEMBLE OF THE REAL REQUESTED AREA:
             // WE STILL NEED TO CROP IT AND MOVE TO THE REQUESTED RES
-
+//            ImageIO.write(finalImage, "tiff", new File("c:\\temp.tif"));
             CoordinateReferenceSystem crs = requestedEnvelope.getCoordinateReferenceSystem();
             ReferencedEnvelope readEnvelope = new ReferencedEnvelope(minBBX, maxBBX, minBBY, maxBBY, crs);
-            GridCoverage2D readCoverage =  gcf.create(name, mosaicCoverage, readEnvelope);
+            GridCoverage2D readCoverage =  gcf.create(name, finalImage, readEnvelope);
             
 //            final CoverageProcessor processor = CoverageProcessor.getInstance();
 //
@@ -425,13 +421,15 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
 //            param.parameter("Source").setValue(readCoverage);
 //            param.parameter("Envelope").setValue(requestedEnvelope);
 //            GridCoverage2D cropped = (GridCoverage2D) processor.doOperation(param);
-            GridEnvelope gridRange = gridGeometry.getGridRange();
             
-            GridCoverageRenderer renderer = new GridCoverageRenderer(crs, env, 
-                    new Rectangle((int) gridRange.getSpan(0), (int) gridRange.getSpan(1)), null);
-            
-            RenderedImage ri = renderer.renderImage(readCoverage, symbolizer, null);
-            return  gcf.create(name, ri, requestedEnvelope);
+//            GridEnvelope gridRange = gridGeometry.getGridRange();
+//            
+//            GridCoverageRenderer renderer = new GridCoverageRenderer(crs, env, 
+//                    new Rectangle((int) gridRange.getSpan(0), (int) gridRange.getSpan(1)), null);
+//            
+//            RenderedImage ri = renderer.renderImage(readCoverage, symbolizer, null);
+            return readCoverage;
+//            return  gcf.create(name, ri, requestedEnvelope);
             
         } catch (MimeException e) {
             throw new IOException(e);
@@ -440,10 +438,6 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
         } catch (GeoWebCacheException e) {
             throw new IOException(e);
         } catch (IndexOutOfBoundsException e) {
-            throw new IOException(e);
-        } catch (TransformException e) {
-            throw new IOException(e);
-        } catch (NoninvertibleTransformException e) {
             throw new IOException(e);
         } catch (Exception e) {
             throw new IOException(e);

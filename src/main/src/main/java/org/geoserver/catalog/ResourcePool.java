@@ -1358,7 +1358,7 @@ public class ResourcePool {
         
         //TODO: DR: We need to cache the wrappers. The current code always wrap to a new wrapper 
         if (!(hints != null && hints.containsKey(SKIP_COVERAGE_EXTENSIONS_LOOKUP) 
-                && (Boolean) hints.get(SKIP_COVERAGE_EXTENSIONS_LOOKUP))) {
+                && (Boolean) hints.get(SKIP_COVERAGE_EXTENSIONS_LOOKUP)) && coverageInfo != null && coverageName != null) {
             GridCoverageReaderCallback callBack = getGridCoverageReader(coverageInfo);
             if (callBack != null) {
                 return callBack.wrapGridCoverageReader(this, coverageInfo, coverageName, hints);
