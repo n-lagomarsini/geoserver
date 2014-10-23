@@ -597,4 +597,9 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
 		// Do nothing
 		return;
 	}
+	
+	@Override
+	public void setCacheProvider(CacheProvider cache) {
+	    throw new UnsupportedOperationException("Operation not supported");
+	}
 }

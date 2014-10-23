@@ -13,6 +13,7 @@ import static junit.framework.Assert.assertTrue;
 
 import org.geoserver.data.test.SystemTestData;
 import org.geoserver.test.GeoServerSystemTestSupport;
+import org.geowebcache.storage.blobstore.memory.guava.GuavaCacheProvider;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -80,6 +81,7 @@ public class GWCConfigTest extends GeoServerSystemTestSupport {
         assertNotSame(config.getDefaultOtherCacheFormats(), clone.getDefaultOtherCacheFormats());
         assertNotSame(config.getDefaultVectorCacheFormats(), clone.getDefaultVectorCacheFormats());
         assertNotSame(config.getCacheConfigurations(), clone.getCacheConfigurations());
+        assertTrue(clone.getCacheConfigurations().containsKey(GuavaCacheProvider.class.toString()));
     }
 
     @Test

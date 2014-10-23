@@ -5,14 +5,18 @@
  */
 package org.geoserver.gwc.web;
 
-import static com.google.common.collect.Lists.*;
-import static com.google.common.collect.Sets.*;
-import static org.junit.Assert.*;
+import static com.google.common.collect.Lists.newArrayList;
+import static com.google.common.collect.Sets.newHashSet;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.wicket.Component;
 import org.apache.wicket.markup.html.form.DropDownChoice;
 import org.apache.wicket.util.tester.FormTester;
 import org.apache.wicket.util.tester.Result;
@@ -287,7 +291,7 @@ public class GWCSettingsPageTest extends GeoServerWicketTestSupport {
     }
 
     @Test
-    public void testEnableDisableInnerCaching() throws IOException {
+    public void testEnableDisableInnerCaching() throws Exception {
         GWC gwc = GWC.get();
         GWCConfig config = gwc.getConfig();
         // Creation of a new page to test
@@ -318,11 +322,24 @@ public class GWCSettingsPageTest extends GeoServerWicketTestSupport {
         // Ensure the page is correctly rendered
         tester.assertRenderedPage(GWCSettingsPage.class);
         
+        // Check if the Cache Provider is GuavaCacheProvider
+        tester.assertComponent("form:cachingOptionsPanel:container:configs:blobstores:container:caches",
+                DropDownChoice.class);
+        DropDownChoice<String> choice = (DropDownChoice<String>) tester.getComponentFromLastRenderedPage("form:cachingOptionsPanel:container:configs:blobstores:container:caches");
+        assertTrue(choice.getChoices().get(0).equalsIgnoreCase(GuavaCacheProvider.class.toString()));
+        
+        // Ensure that the other fields are enabled
+        Component comp1 = tester.getComponentFromLastRenderedPage("form:cachingOptionsPanel:container:configs:blobstores:container:cacheConfContainer:hardMemoryLimit");
+        Component comp2 = tester.getComponentFromLastRenderedPage("form:cachingOptionsPanel:container:configs:blobstores:container:cacheConfContainer:concurrencyLevel");
+        
+        assertTrue(comp1.isEnabled());
+        assertTrue(comp2.isEnabled());
+        
         // Selection of the form tests
         form = tester.newFormTester("form");
         form.setValue("cachingOptionsPanel:container:configs:blobstores:container:avoidPersistence", true);
-        form.setValue("cachingOptionsPanel:container:configs:blobstores:container:hardMemoryLimit", 1 + "");
-        form.setValue("cachingOptionsPanel:container:configs:blobstores:container:concurrencyLevel", 1 + "");
+        form.setValue("cachingOptionsPanel:container:configs:blobstores:container:cacheConfContainer:hardMemoryLimit", 1 + "");
+        form.setValue("cachingOptionsPanel:container:configs:blobstores:container:cacheConfContainer:concurrencyLevel", 1 + "");
         // Check that the page is correctly rendered
         tester.assertRenderedPage(GWCSettingsPage.class);
         // Save the changes

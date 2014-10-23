@@ -128,11 +128,19 @@ These options are used for enabling/disabling In Memory Caching for GeoWebCache.
 
 Enable
 `````````````
-This parameter allows to enable or disable in memory caching.
+This parameter allows to enable or disable in memory caching. By default it is disabled.
 
 Avoid Persistence
 ```````````````````
-This parameter can be used in order to avoid to save any file in the file system, keeping all the GWC tiles only in memory.
+This parameter can be used in order to avoid to save any file in the file system, keeping all the GWC tiles only in memory. By default it is disabled.
+
+Available Caches
+```````````````````
+This parameter defines which Cache method can be used for In Memory Caching. By default the Guava Caching is used. Note that if a caching method
+requires an immutable configuration at GeoServer startup like HazelCast, the *Hard Memory limit*, *Eviction Policy*, *Eviction Time* and *Concurrency Level*
+parameters are disabled.
+
+More informations on how to configure a new Cache object can be found in the GeoWebCache :ref:`gwc_config` page.
 
 Cache Hard Memory limit (Mb)
 ```````````````````````````````````````
@@ -141,7 +149,6 @@ Parameter for configuring in memory cache size in MB.
 Cache Eviction Policy
 ```````````````````````````````````````
 Paramter for configuring in memory cache eviction policy, it may be: LRU, LFU, EXPIRE_AFTER_WRITE, EXPIRE_AFTER_ACCESS, NULL
-	
 
 Cache Eviction Time (in Seconds)
 ```````````````````````````````````````
@@ -155,7 +162,7 @@ Paramter for configuring in memory cache concurrency.
 
 Clear In Memory Cache
 ```````````````````````````````````````
-Button for clearing all the memory cache.
+Button for clearing all the tiles in the in-memory cache.
 
 Cache Statistics
 ```````````````````````````````````````
@@ -165,13 +172,15 @@ Update Cache Statistics
 ```````````````````````````````````````
 Button for updating cache statistics seen above.
 
+.. note:: Note that some Caches do not provide all the statistics parameters, in that case the user will only see *"Unavailable"* for those parameters.
+
 .. figure:: img/blobstoreoptions.png
    :align: center
 
    *In Memory BlobStore Options* 
 
-.. note:: Note that in the *TileCaching* tab for each Layer, you may decide to disable in memory caching for the selected Layer by clicking on the **Disable In Memory Caching for this Layer** checkbox.   
-   
+.. note:: Note that in the *TileCaching* tab for each Layer, you may decide to disable in memory caching for the selected Layer by clicking on the **Disable In Memory Caching for this Layer** checkbox. This option is disabled for those cache which don't support this feature.  
+
 Default Cached Gridsets
 ~~~~~~~~~~~~~~~~~~~~~~~
 
