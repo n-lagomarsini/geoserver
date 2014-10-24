@@ -148,13 +148,13 @@ public class BlobStorePanel extends Panel {
         } else {
             choice = new DropDownChoice<String>("caches", new ArrayList<String>());
         }
-
+        // Adding cache choice to the container
         container.add(choice);
 
         avoidPersistenceChoice.setOutputMarkupId(true).setEnabled(true);
-
+        // Adding cache configuration container to the global container
         container.add(cacheConfigContainer);
-
+        // Definition of the behavior related to caching
         innerCachingEnabledChoice.add(new AjaxFormComponentUpdatingBehavior("onChange") {
 
             @Override
@@ -196,9 +196,10 @@ public class BlobStorePanel extends Panel {
         final Label missRateLabel = new Label("missRate", new MapModel(values, KEY_MISS_RATE));
         final Label hitRateLabel = new Label("hitRate", new MapModel(values, KEY_HIT_RATE));
         final Label evictedLabel = new Label("evicted", new MapModel(values, KEY_EVICTED));
-        final Label currentMemoryLabel = new Label("currentMemory", new MapModel(values, KEY_CURRENT_MEM));
+        final Label currentMemoryLabel = new Label("currentMemory", new MapModel(values,
+                KEY_CURRENT_MEM));
         final Label cacheSizeLabel = new Label("cacheSize", new MapModel(values, KEY_SIZE));
-        
+
         statsContainer.add(new Label("title"));
         statsContainer.add(totalCountLabel);
         statsContainer.add(hitCountLabel);
@@ -230,16 +231,18 @@ public class BlobStorePanel extends Panel {
                         long byteToMb = 1024 * 1024;
                         double actualSize = ((long) (100 * (stats.getActualSize() * 1.0d) / byteToMb)) / 100d;
                         double totalSize = ((long) (100 * (stats.getTotalSize() * 1.0d) / byteToMb)) / 100d;
-
+                        // If a parameter is not correct, Unavailable is used
                         values.put(KEY_MISS_RATE, missRate >= 0 ? missRate + " %" : "Unavailable");
                         values.put(KEY_HIT_RATE, hitRate >= 0 ? hitRate + " %" : "Unavailable");
-                        values.put(KEY_EVICTED, evicted >= 0 ?  evicted + "" : "Unavailable");
-                        values.put(KEY_TOTAL_COUNT, total >= 0 ?  total + "" : "Unavailable");
+                        values.put(KEY_EVICTED, evicted >= 0 ? evicted + "" : "Unavailable");
+                        values.put(KEY_TOTAL_COUNT, total >= 0 ? total + "" : "Unavailable");
                         values.put(KEY_MISS_COUNT, missCount >= 0 ? missCount + "" : "Unavailable");
-                        values.put(KEY_HIT_COUNT,hitCount >= 0 ? hitCount + "" : "Unavailable");
-                        values.put(KEY_CURRENT_MEM, currentMem >= 0 ? currentMem + " %" : "Unavailable");
-                        values.put(KEY_SIZE, currentMem >= 0 && actualSize >= 0 ? actualSize + " / " + totalSize + " Mb" : "Unavailable");
-                        
+                        values.put(KEY_HIT_COUNT, hitCount >= 0 ? hitCount + "" : "Unavailable");
+                        values.put(KEY_CURRENT_MEM, currentMem >= 0 ? currentMem + " %"
+                                : "Unavailable");
+                        values.put(KEY_SIZE, currentMem >= 0 && actualSize >= 0 ? actualSize
+                                + " / " + totalSize + " Mb" : "Unavailable");
+
                     }
                 } catch (Throwable t) {
                     error(t);
@@ -303,6 +306,11 @@ public class BlobStorePanel extends Panel {
         }
     }
 
+    /**
+     * {@link IChoiceRenderer} implementation mapping available {@link CacheProvider} names with the {@link CacheProvider} class names.
+     * 
+     * @author Nicola Lagomarsini Geosolutions
+     */
     static class CacheProviderRenderer implements IChoiceRenderer<String> {
 
         private Map<String, String> map;
@@ -322,6 +330,11 @@ public class BlobStorePanel extends Panel {
         }
     }
 
+    /**
+     * {@link WebMarkupContainer} extension used for rendering a set of components based on the mapping of a key
+     * 
+     * @author Nicola Lagomarsini Geosolutions
+     */
     static class CacheConfigContainerWrapper extends WebMarkupContainer {
 
         public CacheConfigContainerWrapper(String id, String key, IModel<GWCConfig> gwcConfigModel) {
@@ -329,6 +342,13 @@ public class BlobStorePanel extends Panel {
             setMapKey(key, gwcConfigModel);
         }
 
+        /**
+         * This method removes all the previous mappings from the container and then adds the components again by setting as default value the one
+         * taken from the key mapped.
+         * 
+         * @param key
+         * @param gwcConfigModel
+         */
         public void setMapKey(final String key, IModel<GWCConfig> gwcConfigModel) {
             removeAll();
             // get the CacheConfigurations Model
@@ -363,7 +383,7 @@ public class BlobStorePanel extends Panel {
             final DropDownChoice<EvictionPolicy> policyDropDown = new DropDownChoice<EvictionPolicy>(
                     "policy", policy, Arrays.asList(EvictionPolicy.values()));
             policyDropDown.setOutputMarkupId(true).setEnabled(true);
-
+            // Validation for Eviction Policy
             policyDropDown.add(new IValidator<EvictionPolicy>() {
 
                 @Override
