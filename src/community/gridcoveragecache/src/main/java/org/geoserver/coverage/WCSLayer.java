@@ -1,25 +1,11 @@
-/**
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * This code is licensed under the GPL 2.0 license, available at the root
+ * application directory.
  */
-
 package org.geoserver.coverage;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.awt.Rectangle;
-import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,34 +14,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
-import net.opengis.wcs20.DimensionSubsetType;
-import net.opengis.wcs20.DimensionTrimType;
-import net.opengis.wcs20.ExtensionItemType;
-import net.opengis.wcs20.ExtensionType;
-import net.opengis.wcs20.GetCoverageType;
-import net.opengis.wcs20.ScaleToSizeType;
-import net.opengis.wcs20.ScalingType;
-import net.opengis.wcs20.TargetAxisSizeType;
-import net.opengis.wcs20.Wcs20Factory;
-
-import org.eclipse.emf.common.util.EList;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.ResourcePool;
 import org.geoserver.gwc.GWC;
-import org.geoserver.platform.GeoServerExtensions;
-import org.geoserver.wcs2_0.DefaultWebCoverageService20;
-import org.geotools.coverage.grid.GeneralGridEnvelope;
-import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.coverage.grid.GridGeometry2D;
-import org.geotools.coverage.processing.CoverageProcessor;
-import org.geotools.coverage.processing.operation.Mosaic;
-import org.geotools.factory.GeoTools;
-import org.geotools.geometry.GeneralEnvelope;
-import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.filter.request.RequestFilter;
-import org.geowebcache.grid.BoundingBox;
 import org.geowebcache.grid.GridSetBroker;
 import org.geowebcache.grid.GridSubset;
 import org.geowebcache.grid.OutsideCoverageException;
@@ -71,37 +35,15 @@ import org.geowebcache.mime.FormatModifier;
 import org.geowebcache.mime.MimeException;
 import org.geowebcache.mime.MimeType;
 import org.geowebcache.util.GWCVars;
-import org.opengis.parameter.ParameterValueGroup;
 
 /**
  * A tile layer backed by a WCS server
  */
 public class WCSLayer extends AbstractTileLayer {
 
-    private static final CoverageProcessor processor = CoverageProcessor.getInstance(GeoTools
-            .getDefaultHints());
 
-    private static final Mosaic MOSAIC = (Mosaic) processor.getOperation("Mosaic");
-
-    
-    private static final String AXIS_Y = "http://www.opengis.net/def/axis/OGC/1/j";
-    private static final String AXIS_X = "http://www.opengis.net/def/axis/OGC/1/i";
-    private static final String DOUBLE_UNDERSCORE = "__";
-    private static final String WCS_SERVICE_NAME = "WCS";
-    private static final String WCS_VERSION = "2.0.1";
-    private static final String DIMENSION_LONG = "http://www.opengis.net/def/axis/OGC/0/Long";
-    private static final String DIMENSION_LAT = "http://www.opengis.net/def/axis/OGC/0/Lat";
-    private static final Wcs20Factory WCS20_FACTORY = Wcs20Factory.eINSTANCE;
-    private final static Logger LOGGER = org.geotools.util.logging.Logging.getLogger(WCSLayer.class);
-    protected Integer gutter;
-
-    // Not used, should be removed through XSL
-    @SuppressWarnings("unused")
-    private Boolean tiled;
-
-    // Not used, should be removed through XSL
-    @SuppressWarnings("unused")
-    private String cachePrefix;
+    private final static Logger LOGGER = org.geotools.util.logging.Logging
+            .getLogger(WCSLayer.class);
 
     private Integer concurrency;
 
@@ -109,39 +51,42 @@ public class WCSLayer extends AbstractTileLayer {
 
     // private transient int expireClientsInt = -1;
 
-//    private transient WCSSourceHelper sourceHelper;
+     private transient WCSSourceHelper sourceHelper;
 
     private transient LockProvider lockProvider;
 
     private CoverageInfo info;
 
+    public CoverageInfo getInfo() {
+        return info;
+    }
+
+    public void setInfo(CoverageInfo info) {
+        this.info = info;
+    }
+
     private GridSetBroker broker;
 
     WCSLayer(ResourcePool pool, CoverageInfo info, GridSetBroker broker, GridSubset gridSubSet) {
         try {
-            //TODO: FIX THESE PARAMS
+            // TODO: FIX THESE PARAMS
             formats = new ArrayList<MimeType>();
             formats.add(MimeType.createFromExtension("tiff"));
 
             this.broker = broker;
 
             subSets = new HashMap<String, GridSubset>();
-            subSets.put(broker.WORLD_EPSG4326.getName(), gridSubSet);
+            subSets.put(GridCoveragesCache.REFERENCE.getName(), gridSubSet);
             this.info = info;
             expireCacheList = new ArrayList<ExpirationRule>(1);
 
             // TODO: Check that expiring cache topic
             expireCacheList.add(new ExpirationRule(0, GWCVars.CACHE_NEVER_EXPIRE));
             name = info.getId();
+            sourceHelper = new WCSSourceHelper(this);
         } catch (MimeException e) {
-            //TODO: CLEANUP
+            // TODO: CLEANUP
         }
-    }
-//    
-
-    protected WCSLayer readResolve() {
-        super.readResolve();
-        return this;
     }
 
     /**
@@ -152,14 +97,10 @@ public class WCSLayer extends AbstractTileLayer {
         if (null == this.enabled) {
             this.enabled = Boolean.TRUE;
         }
-
-//        if (null == this.sourceHelper) {
-//            LOGGER.warning(this.name
-//                    + " is configured without a source, which is a bug unless you're running tests that don't care.");
-//        }
-
-        if (backendTimeout == null) {
-            backendTimeout = 120;
+        
+        if (null == this.sourceHelper) {
+            LOGGER.warning(this.name
+                    + " is configured without a source, which is a bug unless you're running tests that don't care.");
         }
 
         if (this.metaWidthHeight == null || this.metaWidthHeight.length != 2) {
@@ -168,22 +109,8 @@ public class WCSLayer extends AbstractTileLayer {
             this.metaWidthHeight[1] = 3;
         }
 
-        // Create conditions for tile locking
         if (concurrency == null) {
             concurrency = 32;
-        }
-
-//        if (this.sourceHelper instanceof WMSHttpHelper) {
-//            for (int i = 0; i < wmsUrl.length; i++) {
-//                String url = wmsUrl[i];
-//                if (!url.contains("?")) {
-//                    wmsUrl[i] = url + "?";
-//                }
-//            }
-//        }
-//
-        if (gutter == null) {
-            gutter = Integer.valueOf(0);
         }
 
         if (this.requestFilters != null) {
@@ -200,7 +127,6 @@ public class WCSLayer extends AbstractTileLayer {
         return true;
     }
 
-
     /**
      * Used for seeding
      */
@@ -210,7 +136,7 @@ public class WCSLayer extends AbstractTileLayer {
         if (gridSubset.shouldCacheAtZoom(tile.getTileIndex()[2])) {
             if (tile.getMimeType().supportsTiling()
                     && (metaWidthHeight[0] > 1 || metaWidthHeight[1] > 1)) {
-                //TODO: right now Hardcoded metatiling size
+                // TODO: right now Hardcoded metatiling size
                 getMetatilingReponse(tile, tryCache, 2, 2);
             } else {
                 getNonMetatilingReponse(tile, tryCache);
@@ -245,31 +171,27 @@ public class WCSLayer extends AbstractTileLayer {
                 try {
                     long requestTime = System.currentTimeMillis();
 
-                    List<DefaultWebCoverageService20> extensions = GeoServerExtensions.extensions(DefaultWebCoverageService20.class);
-                    DefaultWebCoverageService20 service = extensions.get(0); 
-                    makeRequest(metaTile, tile, service);
+                    sourceHelper.makeRequest(metaTile, tile);
                     saveTiles(metaTile, tile, requestTime);
                 } catch (Exception e) {
                     throw new GeoWebCacheException("Problem communicating with GeoServer", e);
-                } 
+                }
             }
             /** ****************** Return lock and response ****** */
         } finally {
-            if(lock != null) {
+            if (lock != null) {
                 lock.release();
             }
             metaTile.dispose();
         }
-
-
         return finalizeTile(tile);
-    }    
+    }
 
     private String buildLockKey(ConveyorTile tile, WCSMetaTile metaTile) {
         StringBuilder metaKey = new StringBuilder();
-        
+
         final long[] tileIndex;
-        if(metaTile != null) {
+        if (metaTile != null) {
             tileIndex = metaTile.getMetaGridPos();
             metaKey.append("meta_");
         } else {
@@ -283,9 +205,9 @@ public class WCSLayer extends AbstractTileLayer {
         metaKey.append(tile.getLayerId());
         metaKey.append("_").append(tile.getGridSetId());
         metaKey.append("_").append(x).append("_").append(y).append("_").append(z);
-        if(tile.getParametersId() != null) {
+        if (tile.getParametersId() != null) {
             metaKey.append("_").append(tile.getParametersId());
-        }            
+        }
         metaKey.append(".").append(tile.getMimeType().getFileExtension());
 
         return metaKey.toString();
@@ -294,10 +216,8 @@ public class WCSLayer extends AbstractTileLayer {
     /**
      * Non-metatiling forward to backend
      * 
-     * @param tile
-     *            the Tile with all the information
-     * @param tryCache
-     *            whether to try the cache, or seed
+     * @param tile the Tile with all the information
+     * @param tryCache whether to try the cache, or seed
      * @throws GeoWebCacheException
      */
     private ConveyorTile getNonMetatilingReponse(ConveyorTile tile, boolean tryCache)
@@ -310,7 +230,7 @@ public class WCSLayer extends AbstractTileLayer {
         try {
             /** ****************** Acquire lock ******************* */
             lock = lockProvider.getLock(lockKey);
-            
+
             /** ****************** Check cache again ************** */
             if (tryCache && tryCacheFetch(tile)) {
                 // Someone got it already, return lock and we're done
@@ -338,7 +258,7 @@ public class WCSLayer extends AbstractTileLayer {
 
             /** ****************** Return lock and response ****** */
         } finally {
-            if(lock != null) {
+            if (lock != null) {
                 lock.release();
             }
         }
@@ -364,9 +284,8 @@ public class WCSLayer extends AbstractTileLayer {
         tile.setTileLayer(this);
 
         ByteArrayResource buffer = getImageBuffer(WMS_BUFFER);
-        
 
-//        sourceHelper.makeRequest(tile, buffer);
+        // sourceHelper.makeRequest(tile, buffer);
 
         if (tile.getError() || buffer.getSize() == 0) {
             throw new GeoWebCacheException("Empty tile, error message: " + tile.getErrorMessage());
@@ -430,45 +349,29 @@ public class WCSLayer extends AbstractTileLayer {
         this.metaWidthHeight[1] = h;
     }
 
-//    /**
-//     * Mandatory
-//     */
-//    public void setSourceHelper(WCSSourceHelper source) {
-//        LOGGER.fine("Setting sourceHelper on " + this.name);
-//        this.sourceHelper = source;
-//        if(concurrency != null) {
-//            this.sourceHelper.setConcurrency(concurrency);
-//        } else {
-//            this.sourceHelper.setConcurrency(32);
-//        }
-//        if(backendTimeout != null) {
-//            this.sourceHelper.setBackendTimeout(backendTimeout);
-//        } else {
-//            this.sourceHelper.setBackendTimeout(120);
-//        }
-//    }
+    public void setSourceHelper(WCSSourceHelper source) {
+        LOGGER.fine("Setting sourceHelper on " + this.name);
+        this.sourceHelper = source;
 
-    public void setTiled(boolean tiled) {
-        this.tiled = tiled;
     }
 
     public ConveyorTile getNoncachedTile(ConveyorTile tile) throws GeoWebCacheException {
-        //TODO: FIX THAT REQUEST
+        // TODO: FIX THAT REQUEST
         // Should we do mime type checks?
 
         // note: not using getImageBuffer() here cause this method is not called during seeding, so
         // there's no gain
         Resource buffer = new ByteArrayResource(2048);
-//        sourceHelper.makeRequest(tile, buffer);
+        // sourceHelper.makeRequest(tile, buffer);
         tile.setBlob(buffer);
 
         return tile;
     }
 
-//    public void cleanUpThreadLocals() {
-//        WMS_BUFFER.remove();
-//        WMS_BUFFER2.remove();
-//    }
+    // public void cleanUpThreadLocals() {
+    // WMS_BUFFER.remove();
+    // WMS_BUFFER2.remove();
+    // }
 
     public void setMetaInformation(LayerMetaInformation layerMetaInfo) {
         this.metaInformation = layerMetaInfo;
@@ -480,14 +383,14 @@ public class WCSLayer extends AbstractTileLayer {
 
     @Override
     public String getStyles() {
+        // Styles are ignored
         return null;
-        //TODO: update that
     }
 
     public void setLockProvider(LockProvider lockProvider) {
         this.lockProvider = lockProvider;
     }
-    
+
     @Override
     public ConveyorTile getTile(ConveyorTile tile) throws GeoWebCacheException, IOException,
             OutsideCoverageException {
@@ -519,9 +422,9 @@ public class WCSLayer extends AbstractTileLayer {
         int metaX;
         int metaY;
         if (mime.supportsTiling()) {
-            //TODO: Customize metatiling size
-            metaX = 1;
-            metaY = 1;
+            // TODO: Customize metatiling size
+            metaX = 2;
+            metaY = 2;
         } else {
             metaX = metaY = 1;
         }
@@ -536,9 +439,9 @@ public class WCSLayer extends AbstractTileLayer {
     private WCSMetaTile createMetaTile(ConveyorTile tile, final int metaX, final int metaY) {
         WCSMetaTile metaTile;
 
-        String tileGridSetId = tile.getGridSetId();
-        GridSubset gridSubset = getGridSubset(tileGridSetId);
-        MimeType responseFormat = tile.getMimeType();
+        final String tileGridSetId = tile.getGridSetId();
+        final GridSubset gridSubset = getGridSubset(tileGridSetId);
+        final MimeType responseFormat = tile.getMimeType();
         FormatModifier formatModifier = null;
         long[] tileGridPosition = tile.getTileIndex();
         // int gutter = info.getGutter();
@@ -548,102 +451,7 @@ public class WCSLayer extends AbstractTileLayer {
         return metaTile;
     }
 
-    public void makeRequest(WCSMetaTile metaTile, ConveyorTile tile,
-            DefaultWebCoverageService20 service) throws GeoWebCacheException {
-        final GridSubset gridSubset = getGridSubset(tile.getGridSetId());
+    
 
-        // Implement real METATILING approach
-        //TODO: read the region covered by MetaTile area and split back to tiles.
-        GetCoverageType request = setupGetCoverageRequest(metaTile, gridSubset);
-
-        GridCoverage2D coverage = (GridCoverage2D) service.getCoverage(request);coverage.show();
-        
-        // Creation of a List of the input Sources
-        List<GridCoverage2D> sources = new ArrayList<GridCoverage2D>(2);
-        sources.add(coverage);
-
-//        ParameterValueGroup param = MOSAIC.getParameters();
-//        // Setting of the sources
-//        param.parameter("Sources").setValue(sources);
-//
-//        final BoundingBox bbox = metaTile.getMetaTileBounds(); 
-//        final int width = metaTile.getMetaTileWidth();
-//        final int height = metaTile.getMetaTileHeight();
-//
-//        GridGeometry2D ggStart = new GridGeometry2D(
-//                new GeneralGridEnvelope(new Rectangle(0,0,width,height)), 
-//                        new GeneralEnvelope(new Rectangle2D.Double(bbox.getMinX(), bbox.getMinY(), bbox.getWidth(), bbox.getHeight())));
-//
-//        param.parameter("geometry").setValue(ggStart);
-//        // Mosaic
-//        GridCoverage2D mosaic = (GridCoverage2D) processor.doOperation(param);
-//        mosaic.show();
-        GridCoverage2D mosaic = coverage;
-        metaTile.setImage(mosaic.getRenderedImage());
-
-    }
-
-    private GetCoverageType setupGetCoverageRequest(WCSMetaTile metaTile, GridSubset gridSubset) {
-        final GetCoverageType getCoverage = WCS20_FACTORY.createGetCoverageType();
-        getCoverage.setVersion(WCS_VERSION);
-        getCoverage.setService(WCS_SERVICE_NAME);
-        getCoverage.setCoverageId(info.getNamespace().getName() + DOUBLE_UNDERSCORE + info.getName());
-        final EList<DimensionSubsetType> dimensionSubset = getCoverage.getDimensionSubset();
-
-        // Setting BBOX
-        final BoundingBox bbox = metaTile.getMetaTileBounds(); 
-        final int width = metaTile.getMetaTileWidth();
-        final int height = metaTile.getMetaTileHeight();
-
-        final DimensionTrimType trimLon = WCS20_FACTORY.createDimensionTrimType();
-        trimLon.setDimension(DIMENSION_LONG);
-        trimLon.setTrimLow(Double.toString(bbox.getMinX()));
-        trimLon.setTrimHigh(Double.toString(bbox.getMaxX()));
-        dimensionSubset.add(trimLon);
-
-        final DimensionTrimType trimLat = WCS20_FACTORY.createDimensionTrimType();
-        trimLat.setDimension(DIMENSION_LAT);
-        trimLat.setTrimLow(Double.toString(bbox.getMinY()));
-        trimLat.setTrimHigh(Double.toString(bbox.getMaxY()));
-        dimensionSubset.add(trimLat);
-
-        // Setting output size
-        final ExtensionType extension = WCS20_FACTORY.createExtensionType();
-        getCoverage.setExtension(extension);
-        
-        ReferencedEnvelope nativeBbox = info.getNativeBoundingBox();
-        // Check lon-lat order
-        final double envWidth = nativeBbox.getSpan(0);
-        final double envHeight = nativeBbox.getSpan(1);
-        final int refinedWidth = (int)(((long) envWidth) * width / bbox.getWidth());
-        final int refinedHeight = (int)(((long) envHeight) * height / bbox.getHeight());
-
-        final EList<ExtensionItemType> content = extension.getContents();
-        final ExtensionItemType extensionItem = WCS20_FACTORY.createExtensionItemType();
-        final ScalingType scalingType = WCS20_FACTORY.createScalingType();
-        
-        extensionItem.setName("Scaling");
-        extensionItem.setObjectContent(scalingType);
-        content.add(extensionItem);
-
-        // get scaling
-        final ScaleToSizeType scaleToSize = WCS20_FACTORY.createScaleToSizeType();
-        scalingType.setScaleToSize(scaleToSize);
-
-        final TargetAxisSizeType lonScalingValue = WCS20_FACTORY.createTargetAxisSizeType();
-        lonScalingValue.setAxis(AXIS_X);
-        lonScalingValue.setTargetSize(refinedWidth);
-
-        final TargetAxisSizeType latScalingValue = WCS20_FACTORY.createTargetAxisSizeType();
-        latScalingValue.setAxis(AXIS_Y);
-        latScalingValue.setTargetSize(refinedHeight);
-
-        final EList<TargetAxisSizeType> targets = scaleToSize.getTargetAxisSize();
-        targets.add(lonScalingValue);
-        targets.add(latScalingValue);
-
-        // TODO: Deal with other dimensions
-        return getCoverage;
-    }
-
+   
 }

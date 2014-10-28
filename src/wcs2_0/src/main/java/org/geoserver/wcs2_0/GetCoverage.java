@@ -600,7 +600,7 @@ public class GetCoverage {
             final Integer epsgCode = CRS.lookupEpsgCode(outputCRS, false);
             if(epsgCode!=null&& epsgCode>0){
                 CoordinateReferenceSystem originalCRS = latLonCRSFactory.createCoordinateReferenceSystem(SRS_STARTER+epsgCode);
-                return !CRS.getAxisOrder(originalCRS).equals(CRS.getAxisOrder(outputCRS));
+                return CRS.getAxisOrder(originalCRS).equals(CRS.getAxisOrder(outputCRS));
             }
         } catch (FactoryException e) {
             LOGGER.log(Level.INFO, e.getMessage(), e);
