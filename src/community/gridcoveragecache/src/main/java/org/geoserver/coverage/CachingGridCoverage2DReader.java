@@ -27,8 +27,10 @@ import javax.media.jai.operator.TranslateDescriptor;
 import org.apache.commons.io.IOUtils;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.ResourcePool;
+import org.geoserver.wms.GetMapRequest;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
+import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.DimensionDescriptor;
@@ -40,8 +42,10 @@ import org.geotools.coverage.grid.io.StructuredGridCoverage2DReader;
 import org.geotools.factory.Hints;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.renderer.lite.RendererUtilities;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.BoundingBox;
+import org.geowebcache.grid.Grid;
 import org.geowebcache.grid.GridSet;
 import org.geowebcache.grid.GridSetBroker;
 import org.geowebcache.grid.GridSubset;
@@ -355,8 +359,22 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                     env.getMaxY());
 
             // Finding tiles involved by the request
-            long[] tiles = gridSet.closestRectangle(bbox);
+            //long[] tiles = gridSet.closestRectangle(bbox);
+            GridEnvelope2D gridEnv = null;
+            if(gridGeometry != null){
+                gridEnv = gridGeometry.getGridRange2D();
+            }
+            
+            if(gridEnv == null){
+                gridEnv = (GridEnvelope2D) getOriginalGridRange();
+            }
+            
+            
 
+            Integer zoomLevel = findClosestZoom(gridSet, env, gridEnv.width);
+            
+            long[] tiles = GridSubsetFactory.createGridSubSet(gridSet).getCoverageIntersection(zoomLevel, bbox);
+            
             final int minX = (int) tiles[0];
             final int minY = (int) tiles[1];
             final int maxX = (int) tiles[2];
@@ -391,7 +409,16 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                     }
                 }
             }
-
+            // Value used for defining the Mosaicked image Y origin
+            int minYImage = Integer.MAX_VALUE;
+            // Maximum Y value for the gridset at the level defined by the zoomlevel variable
+            long maxYTotal = gridSet.getGrid(zoomLevel).getNumTilesHigh() - 1;
+            
+            boolean topDown = axisOrderingTopDown(gridSet);
+            if(topDown){
+                minYImage = 0;
+            }
+            
             // //
             // Reassembling tiles
             // //
@@ -411,17 +438,21 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                 // place tile in the proper position
                 riTiles[k] = numImages > 1 ? TranslateDescriptor.create(inputImage,
                         Float.valueOf(tileIndex[0] * tileWidth),
-                        Float.valueOf(tileIndex[1] * tileHeight),
+                        Float.valueOf((topDown ? tileIndex[1] : (maxYTotal - tileIndex[1]) )* tileHeight),
                         Interpolation.getInstance(Interpolation.INTERP_NEAREST), null) : inputImage;
                 extent = subset.boundsFromIndex(tileIndex);
                 minBBX = Math.min(minBBX, extent.getMinX());
                 minBBY = Math.min(minBBY, extent.getMinY());
                 maxBBX = Math.max(maxBBX, extent.getMaxX());
                 maxBBY = Math.max(maxBBY, extent.getMaxY());
+
+                if(!topDown && riTiles[k].getMinY() < minYImage){
+                    minYImage = riTiles[k].getMinY();
+                }
             }
             RenderedImage finalImage = riTiles[0];
             if (numImages > 1) {
-                ImageLayout layout = new ImageLayout2(minX * tileWidth, minY * tileHeight,
+                ImageLayout layout = new ImageLayout2(minX * tileWidth, topDown ? minY * tileHeight : minYImage,
                         tileWidth * wTiles, tileHeight * hTiles);
 
                 // TODO: Replace that with parallel tile composer which assembles loaded tiles into the final image.
@@ -441,6 +472,50 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             throw new IOException(e);
         }
 
+    }
+
+    /**
+     * This method checks if the Gridset Y axis order increases from top to bottom.
+     * 
+     * @param gridSet
+     * @return
+     */
+    private boolean axisOrderingTopDown(GridSet gridSet) {
+        int level = 2;
+        GridSubset subset = GridSubsetFactory.createGridSubSet(gridSet, gridSet.getOriginalExtent(), level, level);
+        BoundingBox b1 = subset.boundsFromIndex(new long[]{0 , 0, level});
+        BoundingBox b2 = subset.boundsFromIndex(new long[]{0 , 1, level});
+        
+        return b2.getMinX() < b1.getMinX();
+    }
+
+    /**
+     * This method returns the closest zoom level for the requested BBOX and resolution
+     * 
+     * @param gridSet
+     * @param env
+     * @param width
+     * @return closest zoom level to the requested resolution
+     */
+    private Integer findClosestZoom(GridSet gridSet, ReferencedEnvelope env, int width) {
+        double reqScale = RendererUtilities.calculateOGCScale(env, width,
+                null);
+
+        int i = 0;
+        double error = Math.abs(gridSet.getGrid(i).getScaleDenominator() - reqScale);
+        while (i < gridSet.getNumLevels() - 1) {
+            Grid g = gridSet.getGrid(i + 1);
+            double e = Math.abs(g.getScaleDenominator() - reqScale);
+
+            if (e > error) {
+                break;
+            } else {
+                error = e;
+            }
+            i++;
+        }
+
+        return Math.max(i, 0);
     }
 
     /**
