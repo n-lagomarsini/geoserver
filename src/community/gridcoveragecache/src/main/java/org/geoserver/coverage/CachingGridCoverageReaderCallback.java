@@ -4,22 +4,22 @@
  */
 package org.geoserver.coverage;
 
+import java.io.IOException;
+
 import org.geoserver.catalog.CoverageInfo;
-import org.geoserver.catalog.FeatureTypeCallback;
 import org.geoserver.catalog.GridCoverageReaderCallback;
 import org.geoserver.catalog.ResourcePool;
-//import org.geoserver.wcs2_0.WebCoverageService20;
+import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.factory.Hints;
-import org.opengis.coverage.grid.GridCoverageReader;
 
 /**
  * 
- * Implementation of FeatureTypeInitializer extension point to initialize SOLR datastore
+ * Implementation of GridCoverageReaderCallback extension point to return wrapping GridCoverageReaders
  * 
- * @see {@link FeatureTypeCallback}
+ * @see {@link GridCoverageReaderCallback}
  * 
  */
-public class CachingGridCoverageReaderCallback implements GridCoverageReaderCallback{
+public class CachingGridCoverageReaderCallback implements GridCoverageReaderCallback {
 
     GridCoveragesCache gridCoveragesCache;
 
@@ -33,16 +33,14 @@ public class CachingGridCoverageReaderCallback implements GridCoverageReaderCall
 
     @Override
     public boolean canHandle(CoverageInfo info) {
-        //TODO: handle that
+        // TODO: handle that
         return true;
     }
 
     @Override
-    public GridCoverageReader wrapGridCoverageReader(ResourcePool pool,
-            CoverageInfo info,
-            String coverageName,
-            Hints hints) {
-        return new CachingGridCoverageReader(pool, gridCoveragesCache, info, coverageName, hints);
+    public GridCoverage2DReader wrapGridCoverageReader(ResourcePool pool, CoverageInfo info,
+            String coverageName, Hints hints) throws IOException {
+        return CachingGridCoverage2DReader.wrap(pool, gridCoveragesCache, info, coverageName, hints);
     }
 
 }

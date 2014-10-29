@@ -4,8 +4,10 @@
  */
 package org.geoserver.catalog;
 
+import java.io.IOException;
+
+import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.factory.Hints;
-import org.opengis.coverage.grid.GridCoverageReader;
 
 /**
  * Extension point to provide GridCoverage.
@@ -33,8 +35,8 @@ public interface GridCoverageReaderCallback {
     boolean canHandle(CoverageInfo info/*,
             DataAccess<? extends FeatureType, ? extends Feature> dataAccess*/);
 
-    GridCoverageReader wrapGridCoverageReader(ResourcePool pool, 
+    GridCoverage2DReader wrapGridCoverageReader(ResourcePool pool, 
             CoverageInfo coverageInfo,
             String coverageName,
-            Hints hints);
+            Hints hints) throws IOException;
 }

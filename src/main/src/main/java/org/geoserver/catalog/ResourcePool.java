@@ -191,6 +191,7 @@ public class ResourcePool {
     Map<String, WebMapServer> wmsCache;
     Map<String, GridCoverageReader>  coverageReaderCache;
     Map<CoverageHintReaderKey, GridCoverageReader> hintCoverageReaderCache;
+    Map<CoverageHintReaderKey, GridCoverageReader> wrappedCoverageReaderCache;
     Map<StyleInfo,Style> styleCache;
     List<Listener> listeners;
     ThreadPoolExecutor coverageExecutor;
@@ -226,6 +227,7 @@ public class ResourcePool {
         featureTypeAttributeCache = createFeatureTypeAttributeCache(FEATURETYPE_CACHE_SIZE_DEFAULT);
         coverageReaderCache = createCoverageReaderCache();
         hintCoverageReaderCache = createHintCoverageReaderCache();
+        wrappedCoverageReaderCache = createWrappedCoverageReaderCache();
         
         wmsCache = createWmsCache();
         styleCache = createStyleCache();
@@ -366,6 +368,9 @@ public class ResourcePool {
         return new CoverageHintReaderCache();
     }
 
+    protected Map<CoverageHintReaderKey, GridCoverageReader> createWrappedCoverageReaderCache() {
+        return new CoverageHintReaderCache();
+    }
     /**
      * Returns the cache for {@link Style} objects for a particular style.
      * <p>
@@ -1356,12 +1361,25 @@ public class ResourcePool {
     private GridCoverageReader getGridCoverageReader(CoverageStoreInfo info, CoverageInfo coverageInfo, String coverageName, Hints hints) 
         throws IOException {
         
+        GridCoverage2DReader wrappedReader = null;
         //TODO: DR: We need to cache the wrappers. The current code always wrap to a new wrapper 
         if (!(hints != null && hints.containsKey(SKIP_COVERAGE_EXTENSIONS_LOOKUP) 
                 && (Boolean) hints.get(SKIP_COVERAGE_EXTENSIONS_LOOKUP)) && coverageInfo != null && coverageName != null) {
-            GridCoverageReaderCallback callBack = getGridCoverageReader(coverageInfo);
-            if (callBack != null) {
-                return callBack.wrapGridCoverageReader(this, coverageInfo, coverageName, hints);
+            CoverageHintReaderKey key;
+            if (info.getId() != null) {
+                // expand the hints if necessary
+                key = new CoverageHintReaderKey(info.getId(), hints);
+                synchronized (wrappedCoverageReaderCache) {
+                    Object cachedReader = wrappedCoverageReaderCache.get( key );
+                    wrappedReader = cachedReader != null ? (GridCoverage2DReader)cachedReader : null;
+                    if (wrappedReader == null) {
+                        GridCoverageReaderCallback callBack = getGridCoverageReader(coverageInfo);
+                        if (callBack != null) {
+                            wrappedReader = callBack.wrapGridCoverageReader(this, coverageInfo, coverageName, hints);
+                            wrappedCoverageReaderCache.put(key, wrappedReader);
+                        }
+                    }
+                }
             }
         }
 
@@ -1373,69 +1391,72 @@ public class ResourcePool {
         // look into the cache
         GridCoverageReader reader = null;
         Object key;
-        if ( hints != null && info.getId() != null) {
-            // expand the hints if necessary
-            final String formatName = gridFormat.getName();
-            if (formatName.equalsIgnoreCase(IMAGE_MOSAIC) || formatName.equalsIgnoreCase(IMAGE_PYRAMID)){
-                if (coverageExecutor != null){
-                    if (hints != null) {
-                        // do not modify the caller hints
-                        hints = new Hints(hints);
-                        hints.add(new RenderingHints(Hints.EXECUTOR_SERVICE, coverageExecutor));
-                    } else {
-                        hints = new Hints(new RenderingHints(Hints.EXECUTOR_SERVICE, coverageExecutor));
+        if (wrappedReader == null) {
+            if (hints != null && info.getId() != null) {
+                // expand the hints if necessary
+                final String formatName = gridFormat.getName();
+                if (formatName.equalsIgnoreCase(IMAGE_MOSAIC) || formatName.equalsIgnoreCase(IMAGE_PYRAMID)){
+                    if (coverageExecutor != null){
+                        if (hints != null) {
+                            // do not modify the caller hints
+                            hints = new Hints(hints);
+                            hints.add(new RenderingHints(Hints.EXECUTOR_SERVICE, coverageExecutor));
+                        } else {
+                            hints = new Hints(new RenderingHints(Hints.EXECUTOR_SERVICE, coverageExecutor));
+                        }
                     }
+                }
+                
+                key = new CoverageHintReaderKey(info.getId(), hints);
+                reader = hintCoverageReaderCache.get( key );
+            } else {
+                key = info.getId();
+                if(key != null) {
+                    reader = coverageReaderCache.get( key );
                 }
             }
             
-            key = new CoverageHintReaderKey(info.getId(), hints);
-            reader = hintCoverageReaderCache.get( key );
-        } else {
-            key = info.getId();
-            if(key != null) {
-                reader = coverageReaderCache.get( key );
-            }
-        }
-        
-        // if not found in cache, create it
-        if(reader == null) {
-            synchronized ( hints != null ? hintCoverageReaderCache : coverageReaderCache ) {
-                if (key != null) {
-                    if (hints != null) {
-                        reader = hintCoverageReaderCache.get(key);
-                    } else {
-                        reader = coverageReaderCache.get(key);
-                    }
-                }
-                if (reader == null) {
-                    /////////////////////////////////////////////////////////
-                    //
-                    // Getting coverage reader using the format and the real path.
-                    //
-                    // /////////////////////////////////////////////////////////
-                    final String url = info.getURL();
-                    GeoServerResourceLoader loader = catalog.getResourceLoader();
-                    final File obj = loader.url(url);
-
-                    // In case no File is returned, provide the original String url
-                    final Object input = obj != null ? obj : url;  
-
-                    // readers might change the provided hints, pass down a defensive copy
-                    reader = gridFormat.getReader(input, new Hints(hints));
-                    if(reader == null) {
-                        throw new IOException("Failed to create reader from " + url + " and hints " + hints);
-                    }
-                    if(key != null) {
-                        if(hints != null) {
-                            hintCoverageReaderCache.put((CoverageHintReaderKey) key, reader);
+            // if not found in cache, create it
+            if(reader == null) {
+                synchronized ( hints != null ? hintCoverageReaderCache : coverageReaderCache ) {
+                    if (key != null) {
+                        if (hints != null) {
+                            reader = hintCoverageReaderCache.get(key);
                         } else {
-                            coverageReaderCache.put((String) key, reader);
+                            reader = coverageReaderCache.get(key);
+                        }
+                    }
+                    if (reader == null) {
+                        /////////////////////////////////////////////////////////
+                        //
+                        // Getting coverage reader using the format and the real path.
+                        //
+                        // /////////////////////////////////////////////////////////
+                        final String url = info.getURL();
+                        GeoServerResourceLoader loader = catalog.getResourceLoader();
+                        final File obj = loader.url(url);
+    
+                        // In case no File is returned, provide the original String url
+                        final Object input = obj != null ? obj : url;  
+    
+                        // readers might change the provided hints, pass down a defensive copy
+                        reader = gridFormat.getReader(input, new Hints(hints));
+                        if(reader == null) {
+                            throw new IOException("Failed to create reader from " + url + " and hints " + hints);
+                        }
+                        if(key != null) {
+                            if(hints != null) {
+                                hintCoverageReaderCache.put((CoverageHintReaderKey) key, reader);
+                            } else {
+                                coverageReaderCache.put((String) key, reader);
+                            }
                         }
                     }
                 }
             }
+        } else {
+            reader = wrappedReader;
         }
-
         if (coverageInfo != null) {
             MetadataMap metadata = coverageInfo.getMetadata();
             if (metadata != null && metadata.containsKey(CoverageView.COVERAGE_VIEW)) {
@@ -1481,7 +1502,7 @@ public class ResourcePool {
                 hintCoverageReaderCache.remove(key);
             }
         }
-        
+        //TODO: Should I clear wrapped readers
     }
     
     public GridCoverage getGridCoverage(CoverageInfo info, ReferencedEnvelope env, Hints hints) throws IOException {

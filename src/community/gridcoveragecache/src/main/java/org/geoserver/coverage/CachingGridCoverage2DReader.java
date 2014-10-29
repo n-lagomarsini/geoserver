@@ -31,8 +31,12 @@ import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
+import org.geotools.coverage.grid.io.DimensionDescriptor;
+import org.geotools.coverage.grid.io.GranuleSource;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
+import org.geotools.coverage.grid.io.HarvestedSource;
 import org.geotools.coverage.grid.io.OverviewPolicy;
+import org.geotools.coverage.grid.io.StructuredGridCoverage2DReader;
 import org.geotools.factory.Hints;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -50,6 +54,7 @@ import org.geowebcache.storage.StorageBroker;
 import org.jaitools.imageutils.ImageLayout2;
 import org.opengis.coverage.grid.Format;
 import org.opengis.coverage.grid.GridEnvelope;
+import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.geometry.Envelope;
 import org.opengis.parameter.GeneralParameterDescriptor;
 import org.opengis.parameter.GeneralParameterValue;
@@ -60,10 +65,10 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.datum.PixelInCell;
 import org.opengis.referencing.operation.MathTransform;
 
-public class CachingGridCoverageReader implements GridCoverage2DReader {
+public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
     private final static Logger LOGGER = org.geotools.util.logging.Logging
-            .getLogger(CachingGridCoverageReader.class);
+            .getLogger(CachingGridCoverage2DReader.class);
 
     private static final MimeType TIFF_MIME_TYPE;
 
@@ -88,10 +93,8 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
 
     private static final GridCoverageFactory gcf = new GridCoverageFactory();
 
-    public CachingGridCoverageReader(ResourcePool pool, GridCoveragesCache cache,
-            CoverageInfo info, String coverageName, Hints hints) {
-        this.info = info;
-        this.cache = cache;
+    public static CachingGridCoverage2DReader wrap(ResourcePool pool, GridCoveragesCache cache,
+            CoverageInfo info, String coverageName, Hints hints) throws IOException {
         Hints localHints = null;
 
         // Set hints to exclude gridCoverage extensions lookup to go through
@@ -103,10 +106,23 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
         } else {
             localHints = newHints;
         }
+        GridCoverage2DReader delegate = (GridCoverage2DReader) pool.getGridCoverageReader(info,
+                coverageName, localHints);
+        if (delegate instanceof StructuredGridCoverage2DReader) {
+            return new CachingStructuredGridCoverage2DReader(pool, cache, info,
+                    (StructuredGridCoverage2DReader) delegate);
+        } else {
+            return new CachingGridCoverage2DReader(pool, cache, info, delegate);
+        }
 
+    }
+
+    public CachingGridCoverage2DReader(ResourcePool pool, GridCoveragesCache cache,
+            CoverageInfo info, GridCoverage2DReader reader) {
+        this.info = info;
+        this.cache = cache;
         try {
-            delegate = (GridCoverage2DReader) pool.getGridCoverageReader(info, coverageName,
-                    localHints);
+            delegate = reader;
             GridSubset gridSubSet = buildGridSubSet();
             wcsLayer = new WCSLayer(pool, info, cache.getGridSetBroker(), gridSubSet);
 
@@ -253,7 +269,7 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
 
     @Override
     public MathTransform getOriginalGridToWorld(String coverageName, PixelInCell pixInCell) {
-        return getOriginalGridToWorld(coverageName, pixInCell);
+        return delegate.getOriginalGridToWorld(coverageName, pixInCell);
     }
 
     @Override
@@ -481,5 +497,63 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
             }
         }
         return null;
+    }
+    
+    static class CachingStructuredGridCoverage2DReader extends CachingGridCoverage2DReader implements StructuredGridCoverage2DReader {
+
+        private StructuredGridCoverage2DReader structuredDelegate;
+        
+        public CachingStructuredGridCoverage2DReader(ResourcePool pool, GridCoveragesCache cache,
+                CoverageInfo info, StructuredGridCoverage2DReader reader) {
+            super(pool, cache, info, reader);
+            this.structuredDelegate = reader;
+        }
+
+        @Override
+        public GranuleSource getGranules(String coverageName, boolean readOnly) throws IOException,
+                UnsupportedOperationException {
+            return structuredDelegate.getGranules(coverageName, readOnly);
+        }
+
+        @Override
+        public boolean isReadOnly() {
+            return structuredDelegate.isReadOnly();
+        }
+
+        @Override
+        public void createCoverage(String coverageName, SimpleFeatureType schema)
+                throws IOException, UnsupportedOperationException {
+            structuredDelegate.createCoverage(coverageName, schema);
+        }
+
+        @Override
+        public boolean removeCoverage(String coverageName) throws IOException,
+                UnsupportedOperationException {
+            return structuredDelegate.removeCoverage(coverageName);
+        }
+
+        @Override
+        public boolean removeCoverage(String coverageName, boolean delete) throws IOException,
+                UnsupportedOperationException {
+            return structuredDelegate.removeCoverage(coverageName, delete);
+        }
+
+        @Override
+        public void delete(boolean deleteData) throws IOException {
+            structuredDelegate.delete(deleteData);
+        }
+
+        @Override
+        public List<HarvestedSource> harvest(String defaultTargetCoverage, Object source,
+                Hints hints) throws IOException, UnsupportedOperationException {
+            return structuredDelegate.harvest(defaultTargetCoverage, source, hints);
+        }
+
+        @Override
+        public List<DimensionDescriptor> getDimensionDescriptors(String coverageName)
+                throws IOException {
+            return structuredDelegate.getDimensionDescriptors(coverageName);
+        }
+        
     }
 }
