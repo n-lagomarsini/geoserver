@@ -376,7 +376,7 @@
       </modules>
     </profile>
      <profile>
-      <id>gccache</id>
+      <id>gc-cache</id>
       <modules>
         <module>gridcoveragecache</module>
       </modules>

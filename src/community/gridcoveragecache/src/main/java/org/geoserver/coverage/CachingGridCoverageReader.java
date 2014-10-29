@@ -36,7 +36,6 @@ import org.geotools.coverage.grid.io.OverviewPolicy;
 import org.geotools.factory.Hints;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.BoundingBox;
 import org.geowebcache.grid.GridSet;
@@ -339,26 +338,28 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
             BoundingBox bbox = new BoundingBox(env.getMinX(), env.getMinY(), env.getMaxX(),
                     env.getMaxY());
 
-            // Finding tiles involved by the reques
+            // Finding tiles involved by the request
             long[] tiles = gridSet.closestRectangle(bbox);
 
-            int minX = (int) tiles[0];
-            int minY = (int) tiles[1];
-            int maxX = (int) tiles[2];
-            int maxY = (int) tiles[3];
-            int level = (int) tiles[4];
-            int wTiles = maxX - minX + 1;
-            int hTiles = maxY - minY + 1;
+            final int minX = (int) tiles[0];
+            final int minY = (int) tiles[1];
+            final int maxX = (int) tiles[2];
+            final int maxY = (int) tiles[3];
+            final int level = (int) tiles[4];
+            final int wTiles = maxX - minX + 1;
+            final int hTiles = maxY - minY + 1;
             final int numTiles = wTiles * hTiles;
-            int tileHeight = gridSet.getTileHeight();
-            int tileWidth = gridSet.getTileWidth();
+            final int tileHeight = gridSet.getTileHeight();
+            final int tileWidth = gridSet.getTileWidth();
             List<ConveyorTile> cTiles = new ArrayList<ConveyorTile>(numTiles);
 
             String id = info.getId();
             String name = GridCoveragesCache.REFERENCE.getName();
             int k = 0;
 
+            // // 
             // Getting tiles
+            // //
             for (int i = minX; i <= maxX; i++) {
                 for (int j = minY; j <= maxY; j++) {
                     ct = new ConveyorTile(storageBroker, id, name, new long[] { i, j, level },
@@ -375,7 +376,9 @@ public class CachingGridCoverageReader implements GridCoverage2DReader {
                 }
             }
 
+            // //
             // Reassembling tiles
+            // //
             final int numImages = cTiles.size();
             final RenderedImage[] riTiles = new RenderedImage[numImages];
             BoundingBox extent = null;
