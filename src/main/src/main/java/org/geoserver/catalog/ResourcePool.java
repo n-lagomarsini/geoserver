@@ -196,6 +196,7 @@ public class ResourcePool {
     List<Listener> listeners;
     ThreadPoolExecutor coverageExecutor;
     CatalogRepository repository;
+    List<GridCoverageReaderCallback> gridCoverageReaders;
 
     /**
      * Creates a new instance of the resource pool.
@@ -228,7 +229,8 @@ public class ResourcePool {
         coverageReaderCache = createCoverageReaderCache();
         hintCoverageReaderCache = createHintCoverageReaderCache();
         wrappedCoverageReaderCache = createWrappedCoverageReaderCache();
-        
+        gridCoverageReaders = GeoServerExtensions
+                .extensions(GridCoverageReaderCallback.class);
         wmsCache = createWmsCache();
         styleCache = createStyleCache();
 
@@ -1362,7 +1364,7 @@ public class ResourcePool {
         throws IOException {
         
         GridCoverage2DReader wrappedReader = null;
-        //TODO: DR: We need to cache the wrappers. The current code always wrap to a new wrapper 
+
         if (!(hints != null && hints.containsKey(SKIP_COVERAGE_EXTENSIONS_LOOKUP) 
                 && (Boolean) hints.get(SKIP_COVERAGE_EXTENSIONS_LOOKUP)) && coverageInfo != null && coverageName != null) {
             CoverageHintReaderKey key;
@@ -2248,14 +2250,11 @@ public class ResourcePool {
     }
 
     GridCoverageReaderCallback getGridCoverageReader(CoverageInfo info) {
-        List<GridCoverageReaderCallback> gridCoverageReaders = GeoServerExtensions
-                .extensions(GridCoverageReaderCallback.class);
-        GridCoverageReaderCallback initializer = null;
         for (GridCoverageReaderCallback gcc : gridCoverageReaders) {
             if (gcc.canHandle(info)) {
                 return gcc;
             }
         }
-        return initializer;
+        return null;
     }
 }

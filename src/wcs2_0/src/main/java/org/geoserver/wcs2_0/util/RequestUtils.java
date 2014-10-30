@@ -30,6 +30,7 @@ import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
+import org.geotools.coverage.grid.io.OverviewPolicy;
 import org.geotools.factory.GeoTools;
 import org.geotools.factory.Hints;
 import org.geotools.gce.imagemosaic.ImageMosaicFormat;
@@ -224,6 +225,9 @@ public class RequestUtils {
                 if(!foundInterpolation) {
                     paramList.add(readInterpolation);
                 } 
+                final Parameter<OverviewPolicy> overviewPolicy = (Parameter<OverviewPolicy>) AbstractGridFormat.OVERVIEW_POLICY.createValue(); 
+                overviewPolicy.setValue(OverviewPolicy.QUALITY);
+                paramList.add(overviewPolicy);
 
                 readParams = (GeneralParameterValue[]) paramList.toArray(new GeneralParameterValue[paramList.size()]);
             }

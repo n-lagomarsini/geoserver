@@ -14,6 +14,7 @@ import java.awt.image.RenderedImage;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.imageio.spi.ImageWriterSpi;
@@ -54,15 +55,10 @@ public class WCSMetaTile extends MetaTile {
             Map<String, String> fullParameters) {
         
         super(gridSubset, responseFormat, formatModifier, tileGridPosition, metaX, metaY,
-                null/*(layer == null ? null : layer.gutter)*/);
+                null);
         this.wcsLayer = layer;
         this.fullParameters = fullParameters;
     }
-
-
-//    public int[] getGutter() {
-//        return gutter.clone();
-//    }
 
     protected WCSLayer getLayer() {
         return wcsLayer;
@@ -119,9 +115,27 @@ public class WCSMetaTile extends MetaTile {
         final int y = tileRect.y;
         final int tileWidth = tileRect.width;
         final int tileHeight = tileRect.height;
+        // now do the splitting
+        return getSubImage(x, y, tileWidth, tileHeight);
+    }
+
+    /**
+     * Extract subImage from the available metaTile
+     * 
+     * @param x
+     * @param y
+     * @param tileWidth
+     * @param tileHeight
+     * @return
+     * 
+     * TODO: We can do this more efficiently
+     */
+    private RenderedImage getSubImage(int x, int y, int tileWidth, int tileHeight) {
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.fine("Getting subImage with parameters: x = "  + x + "; y ="
+                    + y + " tileWidth = " + tileWidth + " tileHeight = " + tileHeight);
+        }
         // check image type
-        
-        //TODO: We can probably do this more efficiently
         final int type;
         if (metaTileImage instanceof PlanarImage) {
             type = 1;
@@ -130,9 +144,7 @@ public class WCSMetaTile extends MetaTile {
         } else {
             type = 0;
         }
-
-        // now do the splitting
-        RenderedImage tile;
+        RenderedImage tile = null;
         switch (type) {
         case 0:
             // do a crop, and then turn it into a buffered image so that we can release
@@ -164,35 +176,15 @@ public class WCSMetaTile extends MetaTile {
             break;
         case 2:
             final BufferedImage image = (BufferedImage) metaTileImage;
-            tile = image.getSubimage(x, y, tileWidth, tileHeight);
+            tile =  image.getSubimage(x, y, tileWidth, tileHeight);
             break;
         default:
             throw new IllegalStateException(Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2,
                     "metaTile class", metaTileImage.getClass().toString()));
 
         }
-
         return tile;
     }
-
-
-//    /**
-//     * Checks if this meta tile has a gutter, or not
-//     * @return
-//     */
-//    private boolean metaHasGutter() {
-//        if(this.gutter == null) {
-//            return false;
-//        }
-//        
-//        for (int element : gutter) {
-//            if(element > 0) {
-//                return true;
-//            }
-//        }
-//        
-//        return false;
-//    }
 
     /**
      * Overrides to use the same method to slice the tiles than {@code MetatileMapOutputFormat} so
@@ -204,57 +196,6 @@ public class WCSMetaTile extends MetaTile {
     @Override
     public RenderedImage createTile(final int x, final int y, final int tileWidth,
             final int tileHeight) {
-        // check image type
-        final int type;
-        if (metaTileImage instanceof PlanarImage) {
-            type = 1;
-        } else if (metaTileImage instanceof BufferedImage) {
-            type = 2;
-        } else {
-            type = 0;
-        }
-
-        // now do the splitting
-        RenderedImage tile;
-        switch (type) {
-        case 0:
-            // do a crop, and then turn it into a buffered image so that we can release
-            // the image chain
-            RenderedOp cropped = GTCropDescriptor
-                    .create(metaTileImage, Float.valueOf(x), Float.valueOf(y),
-                            Float.valueOf(tileWidth), Float.valueOf(tileHeight), NO_CACHE);
-            tile = cropped.getAsBufferedImage();
-            disposeLater(cropped);
-            break;
-        case 1:
-            final PlanarImage pImage = (PlanarImage) metaTileImage;
-            final WritableRaster wTile = WritableRaster.createWritableRaster(pImage
-                    .getSampleModel().createCompatibleSampleModel(tileWidth, tileHeight),
-                    new Point(x, y));
-            Rectangle sourceArea = new Rectangle(x, y, tileWidth, tileHeight);
-            sourceArea = sourceArea.intersection(pImage.getBounds());
-
-            // copying the data to ensure we don't have side effects when we clean the cache
-            pImage.copyData(wTile);
-            if (wTile.getMinX() != 0 || wTile.getMinY() != 0) {
-                tile = new BufferedImage(pImage.getColorModel(),
-                        (WritableRaster) wTile.createTranslatedChild(0, 0), pImage.getColorModel()
-                                .isAlphaPremultiplied(), null);
-            } else {
-                tile = new BufferedImage(pImage.getColorModel(), wTile, pImage.getColorModel()
-                        .isAlphaPremultiplied(), null);
-            }
-            break;
-        case 2:
-            final BufferedImage image = (BufferedImage) metaTileImage;
-            tile = image.getSubimage(x, y, tileWidth, tileHeight);
-            break;
-        default:
-            throw new IllegalStateException(Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2,
-                    "metaTile class", metaTileImage.getClass().toString()));
-
-        }
-
-        return tile;
+       return getSubImage(x, y, tileWidth, tileHeight);
     }
 }

@@ -27,7 +27,6 @@ import javax.media.jai.operator.TranslateDescriptor;
 import org.apache.commons.io.IOUtils;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.ResourcePool;
-import org.geoserver.wms.GetMapRequest;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridEnvelope2D;
@@ -93,6 +92,12 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
     private GridCoveragesCache cache;
 
+    private GridSubset gridSubSet;
+
+    private boolean axisOrderingTopDown;
+
+    private GridSet gridSet;
+
     private static final TIFFImageReaderSpi spi = new TIFFImageReaderSpi();
 
     private static final GridCoverageFactory gcf = new GridCoverageFactory();
@@ -127,7 +132,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
         this.cache = cache;
         try {
             delegate = reader;
-            GridSubset gridSubSet = buildGridSubSet();
+            gridSubSet = buildGridSubSet();
             wcsLayer = new WCSLayer(pool, info, cache.getGridSetBroker(), gridSubSet);
 
         } catch (IOException e) {
@@ -136,12 +141,13 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
     }
 
     private GridSubset buildGridSubSet() throws IOException {
-        GridSet gridSet = buildGridSet();
-        GeneralEnvelope env = getOriginalEnvelope();
-        return GridSubsetFactory.createGridSubSet(gridSet, new BoundingBox(
-        // 0,0,180,90),
+        gridSet = buildGridSet();
+        axisOrderingTopDown = axisOrderingTopDown();
+//        GeneralEnvelope env = getOriginalEnvelope();
+//        GridSubsetFactory.createGridSubSet(gridSet)
+        return GridSubsetFactory.createGridSubSet(gridSet/*, new BoundingBox(
                 env.getMinimum(0), env.getMinimum(1), env.getMaximum(0), env.getMaximum(1)), null,
-                null);
+                null*/);
     }
 
     GridSet buildGridSet() throws IOException {
@@ -153,7 +159,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
         GridSet set = broker.get(cache.REFERENCE.getName());
         return set;
 
-        // Previous code for dynamic gridSet
+        // Previous code for dynamic gridSet 
         //
         // int epsgCode = 4326;
         // String name = info.getName() + "_" + epsgCode + "_" + 1;
@@ -342,7 +348,6 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
         try {
             final StorageBroker storageBroker = cache.getStorageBroker();
             // final GridSetBroker gridsetBroker = cache.getGridSetBroker();
-            final GridSet gridSet = cache.REFERENCE;
 
             // Getting requested gridGeometry and envelope
             final GridGeometry2D gridGeometry = extractEnvelope(parameters);
@@ -368,13 +373,11 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             if(gridEnv == null){
                 gridEnv = (GridEnvelope2D) getOriginalGridRange();
             }
-            
-            
 
             Integer zoomLevel = findClosestZoom(gridSet, env, gridEnv.width);
-            
-            long[] tiles = GridSubsetFactory.createGridSubSet(gridSet).getCoverageIntersection(zoomLevel, bbox);
-            
+
+            long[] tiles = gridSubSet.getCoverageIntersection(zoomLevel, bbox);
+
             final int minX = (int) tiles[0];
             final int minY = (int) tiles[1];
             final int maxX = (int) tiles[2];
@@ -387,7 +390,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             final int tileWidth = gridSet.getTileWidth();
             List<ConveyorTile> cTiles = new ArrayList<ConveyorTile>(numTiles);
 
-            String id = info.getId();
+            String id = wcsLayer.getName();
             String name = GridCoveragesCache.REFERENCE.getName();
             int k = 0;
 
@@ -414,8 +417,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             // Maximum Y value for the gridset at the level defined by the zoomlevel variable
             long maxYTotal = gridSet.getGrid(zoomLevel).getNumTilesHigh() - 1;
             
-            boolean topDown = axisOrderingTopDown(gridSet);
-            if(topDown){
+            if (axisOrderingTopDown) {
                 minYImage = 0;
             }
             
@@ -438,7 +440,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                 // place tile in the proper position
                 riTiles[k] = numImages > 1 ? TranslateDescriptor.create(inputImage,
                         Float.valueOf(tileIndex[0] * tileWidth),
-                        Float.valueOf((topDown ? tileIndex[1] : (maxYTotal - tileIndex[1]) )* tileHeight),
+                        Float.valueOf((axisOrderingTopDown ? tileIndex[1] : (maxYTotal - tileIndex[1]) )* tileHeight),
                         Interpolation.getInstance(Interpolation.INTERP_NEAREST), null) : inputImage;
                 extent = subset.boundsFromIndex(tileIndex);
                 minBBX = Math.min(minBBX, extent.getMinX());
@@ -446,13 +448,14 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                 maxBBX = Math.max(maxBBX, extent.getMaxX());
                 maxBBY = Math.max(maxBBY, extent.getMaxY());
 
-                if(!topDown && riTiles[k].getMinY() < minYImage){
+                if(!axisOrderingTopDown && riTiles[k].getMinY() < minYImage){
                     minYImage = riTiles[k].getMinY();
                 }
             }
             RenderedImage finalImage = riTiles[0];
             if (numImages > 1) {
-                ImageLayout layout = new ImageLayout2(minX * tileWidth, topDown ? minY * tileHeight : minYImage,
+                ImageLayout layout = new ImageLayout2(minX * tileWidth,
+                        axisOrderingTopDown ? minY * tileHeight : minYImage,
                         tileWidth * wTiles, tileHeight * hTiles);
 
                 // TODO: Replace that with parallel tile composer which assembles loaded tiles into the final image.
@@ -480,12 +483,11 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
      * @param gridSet
      * @return
      */
-    private boolean axisOrderingTopDown(GridSet gridSet) {
+    private boolean axisOrderingTopDown() {
         int level = 2;
         GridSubset subset = GridSubsetFactory.createGridSubSet(gridSet, gridSet.getOriginalExtent(), level, level);
         BoundingBox b1 = subset.boundsFromIndex(new long[]{0 , 0, level});
         BoundingBox b2 = subset.boundsFromIndex(new long[]{0 , 1, level});
-        
         return b2.getMinX() < b1.getMinX();
     }
 
@@ -574,6 +576,9 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
         return null;
     }
     
+    /**
+     * Caching Structured GridCoverage2DReader implementation
+     */
     static class CachingStructuredGridCoverage2DReader extends CachingGridCoverage2DReader implements StructuredGridCoverage2DReader {
 
         private StructuredGridCoverage2DReader structuredDelegate;

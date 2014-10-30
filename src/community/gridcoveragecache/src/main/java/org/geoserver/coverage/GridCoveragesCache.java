@@ -19,7 +19,7 @@ public class GridCoveragesCache {
 
     public static GridSet REFERENCE;
 
-    // TODO: May be removed after testings
+    // TODO: remove after testings
     public static final BoundingBox WORLD4326_FINE = new BoundingBox(10, 40, 16, 46);
 
     static final File tempDir;

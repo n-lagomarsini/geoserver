@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import org.geoserver.catalog.CoverageInfo;
+import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.ResourcePool;
 import org.geoserver.gwc.GWC;
 import org.geowebcache.GeoWebCacheException;
@@ -23,13 +24,10 @@ import org.geowebcache.filter.request.RequestFilter;
 import org.geowebcache.grid.GridSetBroker;
 import org.geowebcache.grid.GridSubset;
 import org.geowebcache.grid.OutsideCoverageException;
-import org.geowebcache.io.ByteArrayResource;
-import org.geowebcache.io.Resource;
 import org.geowebcache.layer.AbstractTileLayer;
 import org.geowebcache.layer.ExpirationRule;
 import org.geowebcache.layer.meta.LayerMetaInformation;
 import org.geowebcache.layer.meta.MetadataURL;
-import org.geowebcache.locks.LockProvider;
 import org.geowebcache.locks.LockProvider.Lock;
 import org.geowebcache.mime.FormatModifier;
 import org.geowebcache.mime.MimeException;
@@ -41,7 +39,6 @@ import org.geowebcache.util.GWCVars;
  */
 public class WCSLayer extends AbstractTileLayer {
 
-
     private final static Logger LOGGER = org.geotools.util.logging.Logging
             .getLogger(WCSLayer.class);
 
@@ -51,9 +48,7 @@ public class WCSLayer extends AbstractTileLayer {
 
     // private transient int expireClientsInt = -1;
 
-     private transient WCSSourceHelper sourceHelper;
-
-    private transient LockProvider lockProvider;
+    private transient WCSSourceHelper sourceHelper;
 
     private CoverageInfo info;
 
@@ -82,7 +77,9 @@ public class WCSLayer extends AbstractTileLayer {
 
             // TODO: Check that expiring cache topic
             expireCacheList.add(new ExpirationRule(0, GWCVars.CACHE_NEVER_EXPIRE));
-            name = info.getId();
+            final CoverageStoreInfo storeInfo = info.getStore();
+            final String workspaceName = storeInfo.getWorkspace().getName();
+            name = workspaceName + ":" + info.getName();
             sourceHelper = new WCSSourceHelper(this);
         } catch (MimeException e) {
             // TODO: CLEANUP
@@ -97,7 +94,7 @@ public class WCSLayer extends AbstractTileLayer {
         if (null == this.enabled) {
             this.enabled = Boolean.TRUE;
         }
-        
+
         if (null == this.sourceHelper) {
             LOGGER.warning(this.name
                     + " is configured without a source, which is a bug unless you're running tests that don't care.");
@@ -134,13 +131,9 @@ public class WCSLayer extends AbstractTileLayer {
             IOException {
         GridSubset gridSubset = getGridSubset(tile.getGridSetId());
         if (gridSubset.shouldCacheAtZoom(tile.getTileIndex()[2])) {
-            if (tile.getMimeType().supportsTiling()
-                    && (metaWidthHeight[0] > 1 || metaWidthHeight[1] > 1)) {
-                // TODO: right now Hardcoded metatiling size
-                getMetatilingReponse(tile, tryCache, 2, 2);
-            } else {
-                getNonMetatilingReponse(tile, tryCache);
-            }
+            // Always use metaTiling on seeding since we are implementing our
+            // custom GWC layer
+            getMetatilingReponse(tile, tryCache, 2, 2);
         }
     }
 
@@ -213,58 +206,6 @@ public class WCSLayer extends AbstractTileLayer {
         return metaKey.toString();
     }
 
-    /**
-     * Non-metatiling forward to backend
-     * 
-     * @param tile the Tile with all the information
-     * @param tryCache whether to try the cache, or seed
-     * @throws GeoWebCacheException
-     */
-    private ConveyorTile getNonMetatilingReponse(ConveyorTile tile, boolean tryCache)
-            throws GeoWebCacheException {
-        // String debugHeadersStr = null;
-        long[] gridLoc = tile.getTileIndex();
-
-        String lockKey = buildLockKey(tile, null);
-        Lock lock = null;
-        try {
-            /** ****************** Acquire lock ******************* */
-            lock = lockProvider.getLock(lockKey);
-
-            /** ****************** Check cache again ************** */
-            if (tryCache && tryCacheFetch(tile)) {
-                // Someone got it already, return lock and we're done
-                return tile;
-            }
-
-            /** ****************** Tile ******************* */
-            // String requestURL = null;
-            // Leave a hint to save expiration, if necessary
-            if (saveExpirationHeaders) {
-                tile.setExpiresHeader(GWCVars.CACHE_USE_WMS_BACKEND_VALUE);
-            }
-
-            tile = doNonMetatilingRequest(tile);
-
-            if (tile.getStatus() > 299
-                    || this.getExpireCache((int) gridLoc[2]) != GWCVars.CACHE_DISABLE_CACHE) {
-                tile.persist();
-            }
-
-            if (saveExpirationHeaders) {
-                // Converting to seconds in the process
-                saveExpirationInformation((int) (tile.getExpiresHeader() / 1000));
-            }
-
-            /** ****************** Return lock and response ****** */
-        } finally {
-            if (lock != null) {
-                lock.release();
-            }
-        }
-        return finalizeTile(tile);
-    }
-
     public boolean tryCacheFetch(ConveyorTile tile) {
         int expireCache = this.getExpireCache((int) tile.getTileIndex()[2]);
         if (expireCache != GWCVars.CACHE_DISABLE_CACHE) {
@@ -280,20 +221,15 @@ public class WCSLayer extends AbstractTileLayer {
     }
 
     public ConveyorTile doNonMetatilingRequest(ConveyorTile tile) throws GeoWebCacheException {
-        // TODO: FIX that request
-        tile.setTileLayer(this);
-
-        ByteArrayResource buffer = getImageBuffer(WMS_BUFFER);
-
-        // sourceHelper.makeRequest(tile, buffer);
-
-        if (tile.getError() || buffer.getSize() == 0) {
-            throw new GeoWebCacheException("Empty tile, error message: " + tile.getErrorMessage());
-        }
-
-        tile.setBlob(buffer);
-        return tile;
+        // We are doing our custom GWC layer implementation for gridCoverage setup
+        throw new UnsupportedOperationException();
     }
+
+    public ConveyorTile getNoncachedTile(ConveyorTile tile) throws GeoWebCacheException {
+        // We are doing our custom GWC layer implementation for gridCoverage setup
+        throw new UnsupportedOperationException();
+    }
+
 
     private ConveyorTile finalizeTile(ConveyorTile tile) {
         if (tile.getStatus() == 0 && !tile.getError()) {
@@ -355,18 +291,6 @@ public class WCSLayer extends AbstractTileLayer {
 
     }
 
-    public ConveyorTile getNoncachedTile(ConveyorTile tile) throws GeoWebCacheException {
-        // TODO: FIX THAT REQUEST
-        // Should we do mime type checks?
-
-        // note: not using getImageBuffer() here cause this method is not called during seeding, so
-        // there's no gain
-        Resource buffer = new ByteArrayResource(2048);
-        // sourceHelper.makeRequest(tile, buffer);
-        tile.setBlob(buffer);
-
-        return tile;
-    }
 
     // public void cleanUpThreadLocals() {
     // WMS_BUFFER.remove();
@@ -385,10 +309,6 @@ public class WCSLayer extends AbstractTileLayer {
     public String getStyles() {
         // Styles are ignored
         return null;
-    }
-
-    public void setLockProvider(LockProvider lockProvider) {
-        this.lockProvider = lockProvider;
     }
 
     @Override
@@ -444,14 +364,10 @@ public class WCSLayer extends AbstractTileLayer {
         final MimeType responseFormat = tile.getMimeType();
         FormatModifier formatModifier = null;
         long[] tileGridPosition = tile.getTileIndex();
-        // int gutter = info.getGutter();
         metaTile = new WCSMetaTile(this, gridSubset, responseFormat, formatModifier,
-                tileGridPosition, metaX, metaY, null/* ,gutter */);
+                tileGridPosition, metaX, metaY, null);
 
         return metaTile;
     }
 
-    
-
-   
 }

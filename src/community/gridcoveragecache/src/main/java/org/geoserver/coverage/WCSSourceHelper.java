@@ -30,7 +30,6 @@ import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.coverage.processing.operation.Mosaic;
 import org.geotools.factory.GeoTools;
 import org.geotools.geometry.GeneralEnvelope;
-import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.BoundingBox;
@@ -145,12 +144,13 @@ public class WCSSourceHelper {
         final ExtensionType extension = WCS20_FACTORY.createExtensionType();
         getCoverage.setExtension(extension);
 
-        ReferencedEnvelope nativeBbox = info.getNativeBoundingBox();
+        //TODO: Checking targetSize params are properly set
+//        ReferencedEnvelope nativeBbox = info.getNativeBoundingBox();
         // Check lon-lat order
-        final double envWidth = nativeBbox.getSpan(0);
-        final double envHeight = nativeBbox.getSpan(1);
-        final int refinedWidth = (int) (((long) envWidth) * width / bbox.getWidth());
-        final int refinedHeight = (int) (((long) envHeight) * height / bbox.getHeight());
+//        final double envWidth = nativeBbox.getSpan(0);
+//        final double envHeight = nativeBbox.getSpan(1);
+//        final int refinedWidth = (int) (((long) envWidth) * width / bbox.getWidth());
+//        final int refinedHeight = (int) (((long) envHeight) * height / bbox.getHeight());
 
         final EList<ExtensionItemType> content = extension.getContents();
         final ExtensionItemType extensionItem = WCS20_FACTORY.createExtensionItemType();
@@ -165,11 +165,11 @@ public class WCSSourceHelper {
 
         final TargetAxisSizeType lonScalingValue = WCS20_FACTORY.createTargetAxisSizeType();
         lonScalingValue.setAxis(AXIS_X);
-        lonScalingValue.setTargetSize(refinedWidth);
+        lonScalingValue.setTargetSize(width);
 
         final TargetAxisSizeType latScalingValue = WCS20_FACTORY.createTargetAxisSizeType();
         latScalingValue.setAxis(AXIS_Y);
-        latScalingValue.setTargetSize(refinedHeight);
+        latScalingValue.setTargetSize(height);
 
         final EList<TargetAxisSizeType> targets = scaleToSize.getTargetAxisSize();
         targets.add(lonScalingValue);
