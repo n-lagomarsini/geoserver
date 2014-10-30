@@ -19,6 +19,9 @@ import java.util.logging.Logger;
 
 import javax.imageio.stream.FileCacheImageInputStream;
 import javax.media.jai.ImageLayout;
+import javax.media.jai.Interpolation;
+import javax.media.jai.RenderedOp;
+import javax.media.jai.operator.TranslateDescriptor;
 
 import org.apache.commons.io.IOUtils;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -66,6 +69,8 @@ public class ConveyorTilesRenderedImage implements RenderedImage {
     private int cTileStartX;
 
     private long cTileStartY;
+    
+    private final boolean axisOrderingTopDown;
 
     public ReferencedEnvelope getEnvelope() {
         return envelope;
@@ -80,6 +85,9 @@ public class ConveyorTilesRenderedImage implements RenderedImage {
         // Maximum Y value for the gridset at the level defined by the zoomlevel variable
         long maxYTotal = gridSet.getGrid(zoomLevel).getNumTilesHigh() - 1;
 
+        // Setting axis ordering
+        this.axisOrderingTopDown = axisOrderingTopDown;
+        
         if (axisOrderingTopDown) {
             minYImage = 0;
         }
@@ -254,10 +262,14 @@ public class ConveyorTilesRenderedImage implements RenderedImage {
             LOGGER.fine("Getting tile: " + tileX + " , " + tileY);
         }
         final int x = (int) (cTileStartX + tileX);
-        final int y = (int) (cTileStartY + tileY);
+        final int y = (int) (cTileStartY +  (axisOrderingTopDown ? tileY : numYTiles - 1 - tileY ));
         ConveyorTile tile = cTiles.get(x + "_" + y);
         try {
-            return getResource(tile).getData();
+            RenderedImage resource = getResource(tile);
+            float xTrans = minX + tileX * getTileWidth();
+            float yTrans = minY + tileY * getTileHeight();
+            RenderedOp result = TranslateDescriptor.create(resource, xTrans, yTrans, Interpolation.getInstance(Interpolation.INTERP_NEAREST), null);
+            return result.getData();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

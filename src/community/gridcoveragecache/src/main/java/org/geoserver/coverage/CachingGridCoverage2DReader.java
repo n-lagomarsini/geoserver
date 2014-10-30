@@ -4,15 +4,12 @@
  */
 package org.geoserver.coverage;
 
-import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
-import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReaderSpi;
-
-import java.awt.RenderingHints;
-import java.awt.image.RenderedImage;
 import java.io.IOException;
+
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Date;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,14 +17,8 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.imageio.stream.FileCacheImageInputStream;
 import javax.media.jai.ImageLayout;
-import javax.media.jai.Interpolation;
-import javax.media.jai.JAI;
-import javax.media.jai.operator.MosaicDescriptor;
-import javax.media.jai.operator.TranslateDescriptor;
 
-import org.apache.commons.io.IOUtils;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.ResourcePool;
 import org.geoserver.gwc.layer.CatalogConfiguration;
@@ -56,7 +47,6 @@ import org.geowebcache.grid.GridSetBroker;
 import org.geowebcache.grid.GridSubset;
 import org.geowebcache.grid.GridSubsetFactory;
 import org.geowebcache.grid.OutsideCoverageException;
-import org.geowebcache.io.Resource;
 import org.geowebcache.mime.MimeException;
 import org.geowebcache.mime.MimeType;
 import org.geowebcache.storage.StorageBroker;
@@ -106,8 +96,6 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
     private GridSet gridSet;
 
-    private static final TIFFImageReaderSpi spi = new TIFFImageReaderSpi();
-
     private static final GridCoverageFactory gcf = new GridCoverageFactory();
 
     public static CachingGridCoverage2DReader wrap(ResourcePool pool, GridCoveragesCache cache,
@@ -141,7 +129,8 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
         try {
             delegate = reader;
             gridSubSet = buildGridSubSet();
-            wcsLayer = new WCSLayer(pool, info, cache.getGridSetBroker(), gridSubSet);
+            ImageLayout layout = reader.getImageLayout();
+            wcsLayer = new WCSLayer(pool, info, cache.getGridSetBroker(), gridSubSet, layout);
             List<CatalogConfiguration> extensions = GeoServerExtensions
                     .extensions(CatalogConfiguration.class);
             CatalogConfiguration config = extensions.get(0);
@@ -398,16 +387,17 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             final int level = (int) tiles[4];
             final int wTiles = maxX - minX + 1;
             final int hTiles = maxY - minY + 1;
-            final int numTiles = wTiles * hTiles;
             final int tileHeight = gridSet.getTileHeight();
             final int tileWidth = gridSet.getTileWidth();
-            List<ConveyorTile> cTiles = new ArrayList<ConveyorTile>(numTiles);
+            Map<String, ConveyorTile> cTiles = new HashMap<String, ConveyorTile>();
 
             String id = wcsLayer.getName();
             String name = GridCoveragesCache.REFERENCE.getName();
+
             int k = 0;
             
             Map<String,String> filteringParameters = extractParameters(parameters);
+
             // // 
             // Getting tiles
             // //
@@ -417,7 +407,8 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                             TIFF_MIME_TYPE, filteringParameters, null, null);
                     try {
                         ConveyorTile tile = wcsLayer.getTile(ct);
-                        cTiles.add(tile);
+                        String index = i + "_" + j;
+                        cTiles.put(index, tile);
                     } catch (OutsideCoverageException oce) {
                         if (LOGGER.isLoggable(Level.FINE)) {
                             LOGGER.fine("Exception occurred while getting tile (" + i + "," + j
@@ -426,69 +417,24 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                     }
                 }
             }
-            // Value used for defining the Mosaicked image Y origin
-            int minYImage = Integer.MAX_VALUE;
-            // Maximum Y value for the gridset at the level defined by the zoomlevel variable
-            long maxYTotal = gridSet.getGrid(zoomLevel).getNumTilesHigh() - 1;
-            
-            if (axisOrderingTopDown) {
-                minYImage = 0;
-            }
             
             // //
             // Reassembling tiles
             // //
-            final int numImages = cTiles.size();
-            final RenderedImage[] riTiles = new RenderedImage[numImages];
-            BoundingBox extent = null;
-            double minBBX = Double.POSITIVE_INFINITY;
-            double minBBY = Double.POSITIVE_INFINITY;
-            double maxBBX = Double.NEGATIVE_INFINITY;
-            double maxBBY = Double.NEGATIVE_INFINITY;
             GridSubset subset = wcsLayer.getGridSubset(gridSet.getName());
-            for (k = 0; k < numImages; k++) {
-                ConveyorTile tile = cTiles.get(k);
-                long[] tileIndex = tile.getTileIndex();
-                RenderedImage inputImage = getResource(tile);
-
-                // place tile in the proper position
-                riTiles[k] = numImages > 1 ? TranslateDescriptor.create(inputImage,
-                        Float.valueOf(tileIndex[0] * tileWidth),
-                        Float.valueOf((axisOrderingTopDown ? tileIndex[1] : (maxYTotal - tileIndex[1]) )* tileHeight),
-                        Interpolation.getInstance(Interpolation.INTERP_NEAREST), null) : inputImage;
-                extent = subset.boundsFromIndex(tileIndex);
-                minBBX = Math.min(minBBX, extent.getMinX());
-                minBBY = Math.min(minBBY, extent.getMinY());
-                maxBBX = Math.max(maxBBX, extent.getMaxX());
-                maxBBY = Math.max(maxBBY, extent.getMaxY());
-
-                if(!axisOrderingTopDown && riTiles[k].getMinY() < minYImage){
-                    minYImage = riTiles[k].getMinY();
-                }
-            }
-            RenderedImage finalImage = riTiles[0];
-            if (numImages > 1) {
-                ImageLayout layout = new ImageLayout2(minX * tileWidth,
-                        axisOrderingTopDown ? minY * tileHeight : minYImage,
-                        tileWidth * wTiles, tileHeight * hTiles);
-
-                // TODO: Replace that with parallel tile composer which assembles loaded tiles into the final image.
-                finalImage = MosaicDescriptor.create(riTiles, MosaicDescriptor.MOSAIC_TYPE_OVERLAY,
-                        null, null, new double[][] { { 1.0 } }, new double[] { 0.0 },
-                        // TODO: SET PROPER HINTS
-                        new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout));
-            }
+            ImageLayout layout = new ImageLayout2(minX,
+                    minY, tileWidth * wTiles, tileHeight * hTiles, 0, 0, tileWidth, tileHeight, null, null);
+            
             // setup tile set to satisfy the request
 
             CoordinateReferenceSystem crs = requestedEnvelope.getCoordinateReferenceSystem();
-            ReferencedEnvelope readEnvelope = new ReferencedEnvelope(minBBX, maxBBX, minBBY,
-                    maxBBY, crs);
+            ConveyorTilesRenderedImage finalImage = new ConveyorTilesRenderedImage(cTiles, layout, axisOrderingTopDown, wTiles, hTiles, zoomLevel, gridSet, subset, crs);
+            ReferencedEnvelope readEnvelope = finalImage.getEnvelope();
             GridCoverage2D readCoverage = gcf.create(name, finalImage, readEnvelope);
             return readCoverage;
         } catch (Exception e) {
             throw new IOException(e);
         }
-
     }
 
     private Map<String, String> extractParameters(GeneralParameterValue[] parameters) {
@@ -567,38 +513,6 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
         return Math.max(i, 0);
     }
 
-    /**
-     * Extract the RenderedImage from the underlying tile.
-     * 
-     * @param conveyorTile
-     * @return
-     * @throws IOException
-     */
-    private RenderedImage getResource(ConveyorTile conveyorTile) throws IOException {
-        final Resource blob = conveyorTile.getBlob();
-        //
-        InputStream stream = null;
-        TIFFImageReader reader = null;
-        stream = blob.getInputStream();
-        reader = new TIFFImageReader(spi);
-        FileCacheImageInputStream fciis = null;
-        try {
-            fciis = new FileCacheImageInputStream(stream, GridCoveragesCache.tempDir);
-            reader.setInput(fciis);
-            return reader.read(0);
-        } finally {
-            IOUtils.closeQuietly(stream);
-            IOUtils.closeQuietly(fciis);
-
-            if (reader != null) {
-                try {
-                    reader.dispose();
-                } catch (Throwable t) {
-
-                }
-            }
-        }
-    }
 
     /**
      * Extract the reading envelope from the parameter list.

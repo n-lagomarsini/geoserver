@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import javax.media.jai.ImageLayout;
+
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.ResourcePool;
@@ -77,7 +79,9 @@ public class WCSLayer extends GeoServerTileLayer {
 
     protected transient List<MimeType> formats;
 
-    WCSLayer(ResourcePool pool, CoverageInfo info, GridSetBroker broker, GridSubset gridSubSet) {
+    private ImageLayout layout;
+
+    WCSLayer(ResourcePool pool, CoverageInfo info, GridSetBroker broker, GridSubset gridSubSet, ImageLayout layout) {
         super(new LayerGroupInfoImpl(), config, broker);
         try {
             // TODO: FIX THESE PARAMS
@@ -101,6 +105,7 @@ public class WCSLayer extends GeoServerTileLayer {
             localLayerInfo.setName(name);
             localLayerInfo.setId(info.getId());
             localLayerInfo.getMimeFormats().add("image/tiff");
+            this.layout = layout;
             
         } catch (MimeException e) {
             // TODO: CLEANUP
@@ -400,4 +405,7 @@ public class WCSLayer extends GeoServerTileLayer {
         return metaTile;
     }
 
+    public ImageLayout getLayout() {
+        return layout;
+    }
 }

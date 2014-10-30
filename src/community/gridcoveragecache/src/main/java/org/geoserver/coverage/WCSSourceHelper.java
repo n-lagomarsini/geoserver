@@ -6,9 +6,13 @@ package org.geoserver.coverage;
 
 import java.awt.Rectangle;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.RenderedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import javax.media.jai.ImageLayout;
+import javax.media.jai.operator.ConstantDescriptor;
 
 import net.opengis.wcs20.DimensionSliceType;
 import net.opengis.wcs20.DimensionSubsetType;
@@ -28,16 +32,22 @@ import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.wcs2_0.DefaultWebCoverageService20;
 import org.geotools.coverage.grid.GeneralGridEnvelope;
 import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.coverage.processing.operation.Mosaic;
 import org.geotools.factory.GeoTools;
 import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.CRS;
+import org.geotools.resources.image.ImageUtilities;
 import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.BoundingBox;
 import org.geowebcache.grid.GridSubset;
+import org.opengis.geometry.Envelope;
 import org.opengis.parameter.ParameterValueGroup;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class WCSSourceHelper {
 
@@ -84,9 +94,40 @@ public class WCSSourceHelper {
     public void makeRequest(WCSMetaTile metaTile, ConveyorTile tile) throws GeoWebCacheException {
         final GridSubset gridSubset = layer.getGridSubset(tile.getGridSetId());
 
+
         final GetCoverageType request = setupGetCoverageRequest(metaTile, tile, gridSubset);
 
-        final GridCoverage2D coverage = (GridCoverage2D) service.getCoverage(request);
+        
+        // Getting Metatile properties
+        final BoundingBox bbox = metaTile.getMetaTileBounds();
+        final int width = metaTile.getMetaTileWidth();
+        final int height = metaTile.getMetaTileHeight();
+        
+        // Checking if the MetaTile BoundingBox intersects with the Coverage BBOX
+        boolean intersection = true;
+        try {
+            ReferencedEnvelope layerBBOX = layer.getCoverageInfo().boundingBox();
+            int code = metaTile.getSRS().getNumber();
+            CoordinateReferenceSystem tileCRS = CRS.decode("EPSG:" + code);
+            ReferencedEnvelope tileBBOX = new ReferencedEnvelope(bbox.getMinX(), bbox.getMaxX(), bbox.getMinY(), bbox.getMaxY(), tileCRS);
+            intersection = layerBBOX.intersects(tileBBOX.toBounds(tileCRS));
+        } catch (Exception e) {
+            throw new GeoWebCacheException(e);
+        }
+
+        
+        final GridCoverage2D coverage;
+        
+        if(intersection){
+            coverage = (GridCoverage2D) service.getCoverage(request);
+        } else {
+            ImageLayout layout = layer.getLayout();
+            Number[] backgroundValues = ImageUtilities.getBackgroundValues(layout.getSampleModel(null), null);
+            RenderedImage constant = ConstantDescriptor.create(width * 1.0f, height * 1.0f, backgroundValues, null);
+            coverage = (GridCoverage2D) new GridCoverageFactory().create("empty", constant, new GeneralEnvelope(new Rectangle2D.Double(bbox.getMinX(),
+                    bbox.getMinY(), bbox.getWidth(), bbox.getHeight())));
+        }
+
 
         // WCS May return an area which is smaller then requested since it's internally
         // doing an intersection between the requested envelope and the
@@ -101,10 +142,7 @@ public class WCSSourceHelper {
         // Setting of the sources
         param.parameter("Sources").setValue(sources);
 
-        // Getting Metatile properties
-        final BoundingBox bbox = metaTile.getMetaTileBounds();
-        final int width = metaTile.getMetaTileWidth();
-        final int height = metaTile.getMetaTileHeight();
+
 
         // Setting the imposed GridGeometry to satisfy the request.
         final GridGeometry2D ggStart = new GridGeometry2D(new GeneralGridEnvelope(new Rectangle(0,
