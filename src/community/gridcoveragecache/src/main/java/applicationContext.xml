@@ -6,8 +6,6 @@ This code is licensed under the GPL 2.0 license, available at the root applicati
 
 <beans>
     <bean id="cacheCoverageReaderCallback" class="org.geoserver.coverage.CachingGridCoverageReaderCallback">
-        <!-- <property name="service" ref="wcs20ServiceTarget" /> -->
-        <!-- <property name="service" ref="geoServer" /> -->
         <property name="gridCoveragesCache" ref="gridCoveragesCache" />
     </bean>
 

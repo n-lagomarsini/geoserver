@@ -12,7 +12,10 @@ import java.awt.image.RenderedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -27,6 +30,9 @@ import javax.media.jai.operator.TranslateDescriptor;
 import org.apache.commons.io.IOUtils;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.ResourcePool;
+import org.geoserver.gwc.layer.CatalogConfiguration;
+import org.geoserver.platform.GeoServerExtensions;
+import org.geoserver.util.ISO8601Formatter;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridEnvelope2D;
@@ -74,6 +80,8 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             .getLogger(CachingGridCoverage2DReader.class);
 
     private static final MimeType TIFF_MIME_TYPE;
+
+    private ISO8601Formatter formatter = new ISO8601Formatter();
 
     static {
         try {
@@ -134,7 +142,12 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             delegate = reader;
             gridSubSet = buildGridSubSet();
             wcsLayer = new WCSLayer(pool, info, cache.getGridSetBroker(), gridSubSet);
-
+            List<CatalogConfiguration> extensions = GeoServerExtensions
+                    .extensions(CatalogConfiguration.class);
+            CatalogConfiguration config = extensions.get(0);
+            if (!config.containsLayer(wcsLayer.getId())) {
+                config.addLayer(wcsLayer);
+            }
         } catch (IOException e) {
             throw new IllegalArgumentException(e);
         }
@@ -393,14 +406,15 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             String id = wcsLayer.getName();
             String name = GridCoveragesCache.REFERENCE.getName();
             int k = 0;
-
+            
+            Map<String,String> filteringParameters = extractParameters(parameters);
             // // 
             // Getting tiles
             // //
             for (int i = minX; i <= maxX; i++) {
                 for (int j = minY; j <= maxY; j++) {
                     ct = new ConveyorTile(storageBroker, id, name, new long[] { i, j, level },
-                            TIFF_MIME_TYPE, null, null, null);
+                            TIFF_MIME_TYPE, filteringParameters, null, null);
                     try {
                         ConveyorTile tile = wcsLayer.getTile(ct);
                         cTiles.add(tile);
@@ -475,6 +489,39 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             throw new IOException(e);
         }
 
+    }
+
+    private Map<String, String> extractParameters(GeneralParameterValue[] parameters) {
+        Map<String, String> params = null;
+        for (GeneralParameterValue gParam : parameters) {
+            GeneralParameterDescriptor descriptor = gParam.getDescriptor();
+            final ReferenceIdentifier name = descriptor.getName();
+            if (name.equals(AbstractGridFormat.TIME.getName())) {
+                if (gParam instanceof ParameterValue<?>) {
+                    final ParameterValue<?> param = (ParameterValue<?>) gParam;
+                    final Object value = param.getValue();
+                    List<Date> times = (List<Date>)value;
+                    Date date = times.get(0);
+                    if (params == null) {
+                        params = new HashMap<String, String>();
+                    } 
+                    params.put(WCSSourceHelper.TIME, formatter.format(date));
+                }
+            } else if (name.equals(AbstractGridFormat.ELEVATION.getName())) {
+                if (gParam instanceof ParameterValue<?>) {
+                    final ParameterValue<?> param = (ParameterValue<?>) gParam;
+                    final Object value = param.getValue();
+                    List<Number> elevations = (List<Number>)value;
+                    Number elevation = elevations.get(0);
+                    if (params == null) {
+                        params = new HashMap<String, String>();
+                    }
+                    params.put(WCSSourceHelper.ELEVATION, elevation.toString());
+                }
+            }
+            // TODO: ADD management for custom dimensions
+        }
+        return params;
     }
 
     /**

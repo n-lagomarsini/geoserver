@@ -8,7 +8,9 @@ import java.awt.Rectangle;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import net.opengis.wcs20.DimensionSliceType;
 import net.opengis.wcs20.DimensionSubsetType;
 import net.opengis.wcs20.DimensionTrimType;
 import net.opengis.wcs20.ExtensionItemType;
@@ -21,6 +23,7 @@ import net.opengis.wcs20.Wcs20Factory;
 
 import org.eclipse.emf.common.util.EList;
 import org.geoserver.catalog.CoverageInfo;
+import org.geoserver.gwc.layer.CatalogConfiguration;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.wcs2_0.DefaultWebCoverageService20;
 import org.geotools.coverage.grid.GeneralGridEnvelope;
@@ -48,9 +51,17 @@ public class WCSSourceHelper {
 
     private static final String WCS_VERSION = "2.0.1";
 
+    public static final String TIME = "TIME";
+
+    public static final String ELEVATION = "ELEVATION";
+
     private static final String DIMENSION_LONG = "http://www.opengis.net/def/axis/OGC/0/Long";
 
     private static final String DIMENSION_LAT = "http://www.opengis.net/def/axis/OGC/0/Lat";
+
+    private static final String DIMENSION_TIME = "http://www.opengis.net/def/axis/OGC/0/time";
+
+    private static final String DIMENSION_ELEVATION = "http://www.opengis.net/def/axis/OGC/0/elevation";
 
     private static final Wcs20Factory WCS20_FACTORY = Wcs20Factory.eINSTANCE;
 
@@ -73,7 +84,7 @@ public class WCSSourceHelper {
     public void makeRequest(WCSMetaTile metaTile, ConveyorTile tile) throws GeoWebCacheException {
         final GridSubset gridSubset = layer.getGridSubset(tile.getGridSetId());
 
-        final GetCoverageType request = setupGetCoverageRequest(metaTile, gridSubset);
+        final GetCoverageType request = setupGetCoverageRequest(metaTile, tile, gridSubset);
 
         final GridCoverage2D coverage = (GridCoverage2D) service.getCoverage(request);
 
@@ -111,11 +122,12 @@ public class WCSSourceHelper {
      * Setup a proper WCS 2.0 getCoverage request by inspecting tile bbox and forcing size.
      * 
      * @param metaTile
+     * @param tile
      * @param gridSubset
      * @return
      */
-    private GetCoverageType setupGetCoverageRequest(WCSMetaTile metaTile, GridSubset gridSubset) {
-        CoverageInfo info = layer.getInfo();
+    private GetCoverageType setupGetCoverageRequest(WCSMetaTile metaTile, ConveyorTile tile, GridSubset gridSubset) {
+        CoverageInfo info = layer.getCoverageInfo();
         final GetCoverageType getCoverage = WCS20_FACTORY.createGetCoverageType();
         getCoverage.setVersion(WCS_VERSION);
         getCoverage.setService(WCS_SERVICE_NAME);
@@ -127,6 +139,7 @@ public class WCSSourceHelper {
         final BoundingBox bbox = metaTile.getMetaTileBounds();
         final int width = metaTile.getMetaTileWidth();
         final int height = metaTile.getMetaTileHeight();
+        Map<String, String> parameters = tile.getFullParameters();
 
         final DimensionTrimType trimLon = WCS20_FACTORY.createDimensionTrimType();
         trimLon.setDimension(DIMENSION_LONG);
@@ -140,6 +153,23 @@ public class WCSSourceHelper {
         trimLat.setTrimHigh(Double.toString(bbox.getMaxY()));
         dimensionSubset.add(trimLat);
 
+        if (parameters != null && parameters.size() > 0) {
+            if (parameters.containsKey(TIME)) {
+                final DimensionSliceType sliceTime = WCS20_FACTORY.createDimensionSliceType();
+                sliceTime.setDimension(DIMENSION_TIME);
+                sliceTime.setSlicePoint(parameters.get(TIME));
+                dimensionSubset.add(sliceTime);
+            }
+            if (parameters.containsKey(ELEVATION)) {
+                final DimensionSliceType sliceElevation = WCS20_FACTORY.createDimensionSliceType();
+                sliceElevation.setDimension(DIMENSION_ELEVATION);
+                sliceElevation.setSlicePoint(parameters.get(ELEVATION));
+                dimensionSubset.add(sliceElevation);
+            }
+            
+            // TODO: Deal with other dimensions
+        }
+        
         // Setting output size
         final ExtensionType extension = WCS20_FACTORY.createExtensionType();
         getCoverage.setExtension(extension);
@@ -175,8 +205,6 @@ public class WCSSourceHelper {
         targets.add(lonScalingValue);
         targets.add(latScalingValue);
 
-        // TODO: Deal with other dimensions
         return getCoverage;
     }
-
 }

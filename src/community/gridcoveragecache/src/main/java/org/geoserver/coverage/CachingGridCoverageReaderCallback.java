@@ -9,6 +9,7 @@ import java.io.IOException;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.GridCoverageReaderCallback;
 import org.geoserver.catalog.ResourcePool;
+import org.geoserver.gwc.layer.CatalogConfiguration;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.factory.Hints;
 
@@ -22,7 +23,7 @@ import org.geotools.factory.Hints;
 public class CachingGridCoverageReaderCallback implements GridCoverageReaderCallback {
 
     GridCoveragesCache gridCoveragesCache;
-
+    
     public GridCoveragesCache getGridCoveragesCache() {
         return gridCoveragesCache;
     }
