@@ -28,6 +28,16 @@
       <artifactId>gs-gwc</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.geoserver.web</groupId>
+      <artifactId>gs-web-core</artifactId>
+      <version>${gs.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.geoserver.web</groupId>
+      <artifactId>gs-web-gwc</artifactId>
+      <version>${gs.version}</version>
+    </dependency>
+    <dependency>
       <groupId>com.mockrunner</groupId>
       <artifactId>mockrunner</artifactId>
       <scope>test</scope>

@@ -407,6 +407,10 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                             TIFF_MIME_TYPE, filteringParameters, null, null);
                     try {
                         ConveyorTile tile = wcsLayer.getTile(ct);
+                        // Ask again for the Tile in order to get the cached 
+                        // one with FileResource and not the Conveyor Tile 
+                        // with the ByteArrayResource
+                        tile = wcsLayer.getTile(ct);
                         String index = i + "_" + j;
                         cTiles.put(index, tile);
                     } catch (OutsideCoverageException oce) {

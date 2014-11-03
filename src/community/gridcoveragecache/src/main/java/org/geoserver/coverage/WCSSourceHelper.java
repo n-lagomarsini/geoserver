@@ -142,8 +142,6 @@ public class WCSSourceHelper {
         // Setting of the sources
         param.parameter("Sources").setValue(sources);
 
-
-
         // Setting the imposed GridGeometry to satisfy the request.
         final GridGeometry2D ggStart = new GridGeometry2D(new GeneralGridEnvelope(new Rectangle(0,
                 0, width, height)), new GeneralEnvelope(new Rectangle2D.Double(bbox.getMinX(),
