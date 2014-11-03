@@ -26,7 +26,6 @@ import org.geoserver.gwc.GWC;
 import org.geoserver.gwc.config.GWCConfig;
 import org.geoserver.gwc.layer.GeoServerTileLayer;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
-import org.geoserver.platform.GeoServerExtensions;
 import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.GridSetBroker;
@@ -46,19 +45,11 @@ public class WCSLayer extends GeoServerTileLayer {
     private static GWCConfig config;
 
     static {
-        List<GWCConfig> extensions = GeoServerExtensions
-        .extensions(GWCConfig.class);
         config = GWC.get().getConfig().saneConfig();
     }
     
     private final static Logger LOGGER = org.geotools.util.logging.Logging
             .getLogger(WCSLayer.class);
-
-//    private Integer concurrency;
-
-    // private transient int expireCacheInt = -1;
-
-    // private transient int expireClientsInt = -1;
 
     private transient WCSSourceHelper sourceHelper;
 
@@ -88,15 +79,10 @@ public class WCSLayer extends GeoServerTileLayer {
             formats = new ArrayList<MimeType>();
             formats.add(MimeType.createFromExtension("tiff"));
 
-//            this.broker = broker;
-
             subSets = new HashMap<String, GridSubset>();
             subSets.put(GridCoveragesCache.REFERENCE.getName(), gridSubSet);
             this.coverageInfo = info;
-//            expireCacheList = new ArrayList<ExpirationRule>(1);
 
-            // TODO: Check that expiring cache topic
-//            expireCacheList.add(new ExpirationRule(0, GWCVars.CACHE_NEVER_EXPIRE));
             final CoverageStoreInfo storeInfo = info.getStore();
             final String workspaceName = storeInfo.getWorkspace().getName();
             name = workspaceName + ":" + info.getName();
@@ -121,43 +107,6 @@ public class WCSLayer extends GeoServerTileLayer {
     public GridSubset getGridSubset(String gridSetId) {
         return subSets.get(gridSetId);
     }
-//    /**
-//     * @see org.geowebcache.layer.TileLayer#initializeInternal(org.geowebcache.grid.GridSetBroker)
-//     */
-//    @Override
-//    protected boolean initializeInternal(GridSetBroker gridSetBroker) {
-//        if (null == this.enabled) {
-//            this.enabled = Boolean.TRUE;
-//        }
-//
-//        if (null == this.sourceHelper) {
-//            LOGGER.warning(this.name
-//                    + " is configured without a source, which is a bug unless you're running tests that don't care.");
-//        }
-//
-//        if (this.metaWidthHeight == null || this.metaWidthHeight.length != 2) {
-//            this.metaWidthHeight = new int[2];
-//            this.metaWidthHeight[0] = 3;
-//            this.metaWidthHeight[1] = 3;
-//        }
-//
-//        if (concurrency == null) {
-//            concurrency = 32;
-//        }
-//
-//        if (this.requestFilters != null) {
-//            Iterator<RequestFilter> iter = requestFilters.iterator();
-//            while (iter.hasNext()) {
-//                try {
-//                    iter.next().initialize(this);
-//                } catch (GeoWebCacheException e) {
-//                    LOGGER.severe(e.getMessage());
-//                }
-//            }
-//        }
-//
-//        return true;
-//    }
 
     /**
      * Used for seeding
@@ -278,37 +227,6 @@ public class WCSLayer extends GeoServerTileLayer {
         return tile;
     }
 
-//    protected void saveExpirationInformation(int backendExpire) {
-//        this.saveExpirationHeaders = false;
-//
-//        try {
-//            if (getExpireCache(0) == GWCVars.CACHE_USE_WMS_BACKEND_VALUE) {
-//                if (backendExpire == -1) {
-//                    this.expireCacheList.set(0, new ExpirationRule(0, 7200));
-//                    LOGGER.severe("Layer profile wants MaxAge from backend,"
-//                            + " but backend does not provide this. Setting to 7200 seconds.");
-//                } else {
-//                    this.expireCacheList.set(backendExpire, new ExpirationRule(0, 7200));
-//                }
-//                LOGGER.finest("Setting expireCache to: " + expireCache);
-//            }
-//            if (getExpireCache(0) == GWCVars.CACHE_USE_WMS_BACKEND_VALUE) {
-//                if (backendExpire == -1) {
-//                    this.expireClientsList.set(0, new ExpirationRule(0, 7200));
-//                    LOGGER.severe("Layer profile wants MaxAge from backend,"
-//                            + " but backend does not provide this. Setting to 7200 seconds.");
-//                } else {
-//                    this.expireClientsList.set(0, new ExpirationRule(0, backendExpire));
-//                    LOGGER.fine("Setting expireClients to: " + expireClients);
-//                }
-//
-//            }
-//        } catch (Exception e) {
-//            // Sometimes this doesn't work (network conditions?),
-//            // and it's really not worth getting caught up on it.
-//            e.printStackTrace();
-//        }
-//    }
 
     public long[][] getZoomedInGridLoc(String gridSetId, long[] gridLoc)
             throws GeoWebCacheException {
@@ -331,14 +249,6 @@ public class WCSLayer extends GeoServerTileLayer {
     // WMS_BUFFER.remove();
     // WMS_BUFFER2.remove();
     // }
-
-//    public void setMetaInformation(LayerMetaInformation layerMetaInfo) {
-//        this.metaInformation = layerMetaInfo;
-//    }
-//
-//    public void setMetadataURLs(List<MetadataURL> metadataURLs) {
-//        this.metadataURLs = metadataURLs;
-//    }
 
     @Override
     public String getStyles() {
@@ -374,15 +284,9 @@ public class WCSLayer extends GeoServerTileLayer {
 
         ConveyorTile returnTile;
 
-        int metaX;
-        int metaY;
-        if (mime.supportsTiling()) {
-            // TODO: Customize metatiling size
-            metaX = 2;
-            metaY = 2;
-        } else {
-            metaX = metaY = 1;
-        }
+        // Customize metatiling size
+        final int metaX = 2;
+        final int metaY = 2;
 
         returnTile = getMetatilingReponse(tile, true, metaX, metaY);
 
