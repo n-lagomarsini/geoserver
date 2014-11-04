@@ -134,9 +134,9 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             List<CatalogConfiguration> extensions = GeoServerExtensions
                     .extensions(CatalogConfiguration.class);
             CatalogConfiguration config = extensions.get(0);
-            if (!config.containsLayer(wcsLayer.getId())) {
-                config.addLayer(wcsLayer);
-            }
+//            if (!config.containsLayer(wcsLayer.getId())) {
+//                config.addLayer(wcsLayer);
+//            }
         } catch (IOException e) {
             throw new IllegalArgumentException(e);
         }

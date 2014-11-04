@@ -37,6 +37,7 @@ import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.NamespaceInfo;
 import org.geoserver.catalog.ProjectionPolicy;
 import org.geoserver.catalog.ResourceInfo;
+import org.geoserver.catalog.ResourcePool;
 import org.geoserver.web.ComponentAuthorizer;
 import org.geoserver.web.GeoServerApplication;
 import org.geoserver.web.GeoServerSecuredPage;

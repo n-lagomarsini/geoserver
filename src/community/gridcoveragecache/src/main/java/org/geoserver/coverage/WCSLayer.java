@@ -21,7 +21,7 @@ import javax.media.jai.Interpolation;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.ResourcePool;
-import org.geoserver.catalog.impl.LayerInfoImpl;
+import org.geoserver.catalog.impl.LayerGroupInfoImpl;
 import org.geoserver.gwc.GWC;
 import org.geoserver.gwc.config.GWCConfig;
 import org.geoserver.gwc.layer.GeoServerTileLayer;
@@ -72,7 +72,7 @@ public class WCSLayer extends GeoServerTileLayer {
     private ImageLayout layout;
 
     WCSLayer(ResourcePool pool, CoverageInfo info, GridSetBroker broker, GridSubset gridSubSet, ImageLayout layout) {
-        super(new LayerInfoImpl(), config, broker);
+        super(new LayerGroupInfoImpl(), config, broker);
 
         subSets = new HashMap<String, GridSubset>();
         subSets.put(GridCoveragesCache.REFERENCE.getName(), gridSubSet);
