@@ -1,0 +1,47 @@
+<html xmlns:wicket="http://wicket.apache.org/">
+<head></head>
+<body>
+  <wicket:panel>
+     <fieldset>
+      <legend>
+        <span><wicket:message key="RasterCachingLayerEditor.title">Tile caching configuration</wicket:message></span>
+      </legend>
+      <ul>
+        <li>
+          <input id="createTileLayer" wicket:id="createTileLayer" class="field checkbox" type="checkbox"/>
+          <label for="createTileLayer" wicket:id="createTileLayerLabel" class="choice">Create a cached Layer for this Layer/Group</label>
+        </li>
+        <li wicket:id="container">
+          <div wicket:id="configs">
+            <ul>
+              <li>
+                <label><wicket:message key="metaTiling">Meta tiling factors</wicket:message></label>
+                <select class="select" id="metaTilingX" wicket:id="metaTilingX"></select>
+                <wicket:message key="metaTilingX">Tiles wide by </wicket:message>
+                <select class="select" id="metaTilingY" wicket:id="metaTilingY"></select>
+                <wicket:message key="metaTilingY">Tiles high</wicket:message>
+              </li>
+              <li>
+                <label><wicket:message key="gutter">Gutter size:</wicket:message></label>
+                <select class="select" id="gutter" wicket:id="gutter"></select>
+                <br>
+              </li>
+              <li>
+                <label><wicket:message key="parameterFilters">ParameterFilters:</wicket:message></label>
+                <span wicket:id="parameterFilters"></span>
+              </li>
+              <li>
+                <label><wicket:message key="cachedGridsets">Cached Grid Sets:</wicket:message></label>
+                <span wicket:id="cachedGridsets"></span>
+              </li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </fieldset>
+
+    <!-- the confirm removal of existing tile layer and its associated cache dialog -->
+    <div wicket:id="confirmRemovalDialog"></div>
+  </wicket:panel>
+</body>
+</html>
