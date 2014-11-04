@@ -7,7 +7,6 @@ package org.geoserver.coverage;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -17,11 +16,12 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import javax.media.jai.ImageLayout;
+import javax.media.jai.Interpolation;
 
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.ResourcePool;
-import org.geoserver.catalog.impl.LayerGroupInfoImpl;
+import org.geoserver.catalog.impl.LayerInfoImpl;
 import org.geoserver.gwc.GWC;
 import org.geoserver.gwc.config.GWCConfig;
 import org.geoserver.gwc.layer.GeoServerTileLayer;
@@ -33,7 +33,6 @@ import org.geowebcache.grid.GridSubset;
 import org.geowebcache.grid.OutsideCoverageException;
 import org.geowebcache.locks.LockProvider.Lock;
 import org.geowebcache.mime.FormatModifier;
-import org.geowebcache.mime.MimeException;
 import org.geowebcache.mime.MimeType;
 import org.geowebcache.util.GWCVars;
 
@@ -64,38 +63,32 @@ public class WCSLayer extends GeoServerTileLayer {
     }
 
     protected String name;
-    
+
     protected transient Map<String, GridSubset> subSets;
 
-
-    protected transient List<MimeType> formats;
+    /** Interpolation used when processing raster data to populate this layer's tiles **/
+    protected Interpolation interpolation = Interpolation.getInstance(Interpolation.INTERP_NEAREST); 
 
     private ImageLayout layout;
 
     WCSLayer(ResourcePool pool, CoverageInfo info, GridSetBroker broker, GridSubset gridSubSet, ImageLayout layout) {
-        super(new LayerGroupInfoImpl(), config, broker);
-        try {
-            // TODO: FIX THESE PARAMS
-            formats = new ArrayList<MimeType>();
-            formats.add(MimeType.createFromExtension("tiff"));
+        super(new LayerInfoImpl(), config, broker);
 
-            subSets = new HashMap<String, GridSubset>();
-            subSets.put(GridCoveragesCache.REFERENCE.getName(), gridSubSet);
-            this.coverageInfo = info;
+        subSets = new HashMap<String, GridSubset>();
+        subSets.put(GridCoveragesCache.REFERENCE.getName(), gridSubSet);
+        this.coverageInfo = info;
 
-            final CoverageStoreInfo storeInfo = info.getStore();
-            final String workspaceName = storeInfo.getWorkspace().getName();
-            name = workspaceName + ":" + info.getName();
-            sourceHelper = new WCSSourceHelper(this);
-            GeoServerTileLayerInfo localLayerInfo = getInfo();
-            localLayerInfo.setName(name);
-            localLayerInfo.setId(info.getId());
-            localLayerInfo.getMimeFormats().add("image/tiff");
-            this.layout = layout;
-            
-        } catch (MimeException e) {
-            // TODO: CLEANUP
-        }
+        final CoverageStoreInfo storeInfo = info.getStore();
+        final String workspaceName = storeInfo.getWorkspace().getName();
+        name = workspaceName + ":" + info.getName();
+        sourceHelper = new WCSSourceHelper(this);
+        GeoServerTileLayerInfo localLayerInfo = getInfo();
+        localLayerInfo.setName(name);
+        localLayerInfo.setId(info.getId());
+        localLayerInfo.getMimeFormats().add("image/tiff");
+        this.layout = layout;
+        
+        //TODO: Customize Interpolation, getting it from the GUI
     }
 
     @Override
@@ -148,7 +141,7 @@ public class WCSLayer extends GeoServerTileLayer {
                 try {
                     long requestTime = System.currentTimeMillis();
 
-                    sourceHelper.makeRequest(metaTile, tile);
+                    sourceHelper.makeRequest(metaTile, tile, interpolation);
                     saveTiles(metaTile, tile, requestTime);
                 } catch (Exception e) {
                     throw new GeoWebCacheException("Problem communicating with GeoServer", e);

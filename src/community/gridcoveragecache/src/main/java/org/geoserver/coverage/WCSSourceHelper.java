@@ -12,6 +12,10 @@ import java.util.List;
 import java.util.Map;
 
 import javax.media.jai.ImageLayout;
+import javax.media.jai.Interpolation;
+import javax.media.jai.InterpolationBicubic2;
+import javax.media.jai.InterpolationBilinear;
+import javax.media.jai.InterpolationNearest;
 import javax.media.jai.operator.ConstantDescriptor;
 
 import net.opengis.wcs20.DimensionSliceType;
@@ -20,6 +24,8 @@ import net.opengis.wcs20.DimensionTrimType;
 import net.opengis.wcs20.ExtensionItemType;
 import net.opengis.wcs20.ExtensionType;
 import net.opengis.wcs20.GetCoverageType;
+import net.opengis.wcs20.InterpolationMethodType;
+import net.opengis.wcs20.InterpolationType;
 import net.opengis.wcs20.ScaleToSizeType;
 import net.opengis.wcs20.ScalingType;
 import net.opengis.wcs20.TargetAxisSizeType;
@@ -27,7 +33,6 @@ import net.opengis.wcs20.Wcs20Factory;
 
 import org.eclipse.emf.common.util.EList;
 import org.geoserver.catalog.CoverageInfo;
-import org.geoserver.gwc.layer.CatalogConfiguration;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.wcs2_0.DefaultWebCoverageService20;
 import org.geotools.coverage.grid.GeneralGridEnvelope;
@@ -45,11 +50,16 @@ import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.BoundingBox;
 import org.geowebcache.grid.GridSubset;
-import org.opengis.geometry.Envelope;
 import org.opengis.parameter.ParameterValueGroup;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class WCSSourceHelper {
+
+    private static final String INTERPOLATION_CUBIC = "http://www.opengis.net/def/interpolation/OGC/1/cubic";
+
+    private static final String INTERPOLATION_NEAREST = "http://www.opengis.net/def/interpolation/OGC/1/nearest-neighbor";
+
+    private static final String INTERPOLATION_BILINEAR = "http://www.opengis.net/def/interpolation/OGC/1/linear";
 
     private static final String AXIS_Y = "http://www.opengis.net/def/axis/OGC/1/j";
 
@@ -91,34 +101,32 @@ public class WCSSourceHelper {
         service = extensions.get(0);
     }
 
-    public void makeRequest(WCSMetaTile metaTile, ConveyorTile tile) throws GeoWebCacheException {
+    public void makeRequest(WCSMetaTile metaTile, ConveyorTile tile, Interpolation interpolation) throws GeoWebCacheException {
         final GridSubset gridSubset = layer.getGridSubset(tile.getGridSetId());
 
+        final GetCoverageType request = setupGetCoverageRequest(metaTile, tile, gridSubset, interpolation);
 
-        final GetCoverageType request = setupGetCoverageRequest(metaTile, tile, gridSubset);
-
-        
         // Getting Metatile properties
         final BoundingBox bbox = metaTile.getMetaTileBounds();
         final int width = metaTile.getMetaTileWidth();
         final int height = metaTile.getMetaTileHeight();
-        
+
         // Checking if the MetaTile BoundingBox intersects with the Coverage BBOX
         boolean intersection = true;
         try {
             ReferencedEnvelope layerBBOX = layer.getCoverageInfo().boundingBox();
             int code = metaTile.getSRS().getNumber();
             CoordinateReferenceSystem tileCRS = CRS.decode("EPSG:" + code);
-            ReferencedEnvelope tileBBOX = new ReferencedEnvelope(bbox.getMinX(), bbox.getMaxX(), bbox.getMinY(), bbox.getMaxY(), tileCRS);
+            ReferencedEnvelope tileBBOX = new ReferencedEnvelope(bbox.getMinX(), bbox.getMaxX(),
+                    bbox.getMinY(), bbox.getMaxY(), tileCRS);
             intersection = layerBBOX.intersects(tileBBOX.toBounds(tileCRS));
         } catch (Exception e) {
             throw new GeoWebCacheException(e);
         }
 
-        
         final GridCoverage2D coverage;
-        
-        if(intersection){
+
+        if (intersection) {
             coverage = (GridCoverage2D) service.getCoverage(request);
         } else {
             ImageLayout layout = layer.getLayout();
@@ -127,7 +135,6 @@ public class WCSSourceHelper {
             coverage = (GridCoverage2D) new GridCoverageFactory().create("empty", constant, new GeneralEnvelope(new Rectangle2D.Double(bbox.getMinX(),
                     bbox.getMinY(), bbox.getWidth(), bbox.getHeight())));
         }
-
 
         // WCS May return an area which is smaller then requested since it's internally
         // doing an intersection between the requested envelope and the
@@ -162,20 +169,124 @@ public class WCSSourceHelper {
      * @param gridSubset
      * @return
      */
-    private GetCoverageType setupGetCoverageRequest(WCSMetaTile metaTile, ConveyorTile tile, GridSubset gridSubset) {
-        CoverageInfo info = layer.getCoverageInfo();
+    private GetCoverageType setupGetCoverageRequest(WCSMetaTile metaTile, ConveyorTile tile,
+            GridSubset gridSubset, Interpolation interpolation) {
+        final CoverageInfo info = layer.getCoverageInfo();
+
+        // // 
+        // Setting base getCoverage request parameters
+        // //
         final GetCoverageType getCoverage = WCS20_FACTORY.createGetCoverageType();
         getCoverage.setVersion(WCS_VERSION);
         getCoverage.setService(WCS_SERVICE_NAME);
         getCoverage.setCoverageId(info.getNamespace().getName() + DOUBLE_UNDERSCORE
                 + info.getName());
-        final EList<DimensionSubsetType> dimensionSubset = getCoverage.getDimensionSubset();
 
-        // Setting BBOX
-        final BoundingBox bbox = metaTile.getMetaTileBounds();
+        // //
+        // Setting dimensions (long/lat, time, elevation, ...)
+        // //
+        setDimensions(getCoverage, metaTile, tile);
+
+        // //
+        // Setting output size
+        // //
+        setScaling(getCoverage, metaTile);
+
+        // //
+        // Setting interpolation
+        // //
+        setInterpolation(getCoverage, interpolation);
+
+        return getCoverage;
+    }
+
+    /**
+     * Set the interpolation extension to the WCS 2.0 get coverage request.
+     * @param getCoverage
+     * @param interpolation
+     */
+    private void setInterpolation(GetCoverageType getCoverage, Interpolation interpolation) {
+        ExtensionType extension = getCoverage.getExtension();
+
+        final EList<ExtensionItemType> content = extension.getContents();
+        final ExtensionItemType extensionItem = WCS20_FACTORY.createExtensionItemType();
+        final InterpolationType interpolationType = WCS20_FACTORY.createInterpolationType();
+
+        extensionItem.setName("Interpolation");
+        extensionItem.setObjectContent(interpolationType);
+        content.add(extensionItem);
+
+        final InterpolationMethodType interpolationMethodType = WCS20_FACTORY.createInterpolationMethodType();
+        String interpolationMethod = getInterpolationMethod(interpolation);
+        interpolationMethodType.setInterpolationMethod(interpolationMethod);
+        interpolationType.setInterpolationMethod(interpolationMethodType);
+    }
+
+    /** 
+     * Retrieve a proper Interpolation method policy from the provided JAI interpolation instance 
+     */
+    private String getInterpolationMethod(Interpolation interpolation) {
+        if (interpolation instanceof InterpolationNearest) {
+            return INTERPOLATION_NEAREST;
+        } else if (interpolation instanceof InterpolationBilinear) {
+            return INTERPOLATION_BILINEAR;
+        } else if (interpolation instanceof InterpolationBicubic2) {
+            return INTERPOLATION_CUBIC;
+        } else {
+            throw new IllegalArgumentException("Unsupported interpolation type: " + interpolation);
+        }
+    }
+
+    /**
+     * Set the scaling extension to the WCS 2.0 getCoverage request
+     * 
+     * @param getCoverage
+     * @param metaTile
+     */
+    private void setScaling(GetCoverageType getCoverage, WCSMetaTile metaTile) {
         final int width = metaTile.getMetaTileWidth();
         final int height = metaTile.getMetaTileHeight();
+        final ExtensionType extension = WCS20_FACTORY.createExtensionType();
+        getCoverage.setExtension(extension);
+
+        final EList<ExtensionItemType> content = extension.getContents();
+        final ExtensionItemType extensionItem = WCS20_FACTORY.createExtensionItemType();
+        final ScalingType scalingType = WCS20_FACTORY.createScalingType();
+
+        extensionItem.setName("Scaling");
+        extensionItem.setObjectContent(scalingType);
+        content.add(extensionItem);
+
+        final ScaleToSizeType scaleToSize = WCS20_FACTORY.createScaleToSizeType();
+        scalingType.setScaleToSize(scaleToSize);
+
+        final TargetAxisSizeType lonScalingValue = WCS20_FACTORY.createTargetAxisSizeType();
+        lonScalingValue.setAxis(AXIS_X);
+        lonScalingValue.setTargetSize(width);
+
+        final TargetAxisSizeType latScalingValue = WCS20_FACTORY.createTargetAxisSizeType();
+        latScalingValue.setAxis(AXIS_Y);
+        latScalingValue.setTargetSize(height);
+
+        final EList<TargetAxisSizeType> targets = scaleToSize.getTargetAxisSize();
+        targets.add(lonScalingValue);
+        targets.add(latScalingValue);
+    }
+
+    /**
+     * Setting dimensions extension on WCS 2.0 request, needed to do long/lat selection (trimming on the axis),
+     * time and elevation subsetting and so on.
+     * 
+     * @param getCoverage
+     * @param metaTile
+     * @param tile
+     * 
+     * @TODO Need to add support for custom dimensions
+     */
+    private void setDimensions(GetCoverageType getCoverage, WCSMetaTile metaTile, ConveyorTile tile) {
+        final BoundingBox bbox = metaTile.getMetaTileBounds();
         Map<String, String> parameters = tile.getFullParameters();
+        final EList<DimensionSubsetType> dimensionSubset = getCoverage.getDimensionSubset();
 
         final DimensionTrimType trimLon = WCS20_FACTORY.createDimensionTrimType();
         trimLon.setDimension(DIMENSION_LONG);
@@ -202,45 +313,8 @@ public class WCSSourceHelper {
                 sliceElevation.setSlicePoint(parameters.get(ELEVATION));
                 dimensionSubset.add(sliceElevation);
             }
-            
+
             // TODO: Deal with other dimensions
         }
-        
-        // Setting output size
-        final ExtensionType extension = WCS20_FACTORY.createExtensionType();
-        getCoverage.setExtension(extension);
-
-        //TODO: Checking targetSize params are properly set
-//        ReferencedEnvelope nativeBbox = info.getNativeBoundingBox();
-        // Check lon-lat order
-//        final double envWidth = nativeBbox.getSpan(0);
-//        final double envHeight = nativeBbox.getSpan(1);
-//        final int refinedWidth = (int) (((long) envWidth) * width / bbox.getWidth());
-//        final int refinedHeight = (int) (((long) envHeight) * height / bbox.getHeight());
-
-        final EList<ExtensionItemType> content = extension.getContents();
-        final ExtensionItemType extensionItem = WCS20_FACTORY.createExtensionItemType();
-        final ScalingType scalingType = WCS20_FACTORY.createScalingType();
-
-        extensionItem.setName("Scaling");
-        extensionItem.setObjectContent(scalingType);
-        content.add(extensionItem);
-
-        final ScaleToSizeType scaleToSize = WCS20_FACTORY.createScaleToSizeType();
-        scalingType.setScaleToSize(scaleToSize);
-
-        final TargetAxisSizeType lonScalingValue = WCS20_FACTORY.createTargetAxisSizeType();
-        lonScalingValue.setAxis(AXIS_X);
-        lonScalingValue.setTargetSize(width);
-
-        final TargetAxisSizeType latScalingValue = WCS20_FACTORY.createTargetAxisSizeType();
-        latScalingValue.setAxis(AXIS_Y);
-        latScalingValue.setTargetSize(height);
-
-        final EList<TargetAxisSizeType> targets = scaleToSize.getTargetAxisSize();
-        targets.add(lonScalingValue);
-        targets.add(latScalingValue);
-
-        return getCoverage;
     }
 }
