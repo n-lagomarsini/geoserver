@@ -114,15 +114,15 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
         GridCoverage2DReader delegate = (GridCoverage2DReader) pool.getGridCoverageReader(info,
                 coverageName, localHints);
         if (delegate instanceof StructuredGridCoverage2DReader) {
-            return new CachingStructuredGridCoverage2DReader(pool, cache, info,
+            return new CachingStructuredGridCoverage2DReader(cache, info,
                     (StructuredGridCoverage2DReader) delegate);
         } else {
-            return new CachingGridCoverage2DReader(pool, cache, info, delegate);
+            return new CachingGridCoverage2DReader(cache, info, delegate);
         }
 
     }
 
-    public CachingGridCoverage2DReader(ResourcePool pool, GridCoveragesCache cache,
+    public CachingGridCoverage2DReader(GridCoveragesCache cache,
             CoverageInfo info, GridCoverage2DReader reader) {
         this.info = info;
         this.cache = cache;
@@ -130,7 +130,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             delegate = reader;
             gridSubSet = buildGridSubSet();
             ImageLayout layout = reader.getImageLayout();
-            wcsLayer = new WCSLayer(pool, info, cache.getGridSetBroker(), gridSubSet, layout);
+            wcsLayer = new WCSLayer(info, cache.getGridSetBroker(), gridSubSet, layout);
             List<CatalogConfiguration> extensions = GeoServerExtensions
                     .extensions(CatalogConfiguration.class);
             CatalogConfiguration config = extensions.get(0);
@@ -548,9 +548,9 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
         private StructuredGridCoverage2DReader structuredDelegate;
         
-        public CachingStructuredGridCoverage2DReader(ResourcePool pool, GridCoveragesCache cache,
+        public CachingStructuredGridCoverage2DReader( GridCoveragesCache cache,
                 CoverageInfo info, StructuredGridCoverage2DReader reader) {
-            super(pool, cache, info, reader);
+            super(cache, info, reader);
             this.structuredDelegate = reader;
         }
 

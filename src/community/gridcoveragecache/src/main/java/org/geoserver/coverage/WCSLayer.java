@@ -71,7 +71,7 @@ public class WCSLayer extends GeoServerTileLayer {
 
     private ImageLayout layout;
 
-    WCSLayer(ResourcePool pool, CoverageInfo info, GridSetBroker broker, GridSubset gridSubSet, ImageLayout layout) {
+    public WCSLayer( CoverageInfo info, GridSetBroker broker, GridSubset gridSubSet, ImageLayout layout) {
         super(new LayerGroupInfoImpl(), config, broker);
 
         subSets = new HashMap<String, GridSubset>();
