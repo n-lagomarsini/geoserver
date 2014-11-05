@@ -171,33 +171,33 @@ class RasterParameterFilterEditor extends FormComponentPanel<Set<ParameterFilter
 
                 if (subForm instanceof StyleParameterFilterSubform) {
                     item.setVisible(false);
+                } else {
+                    // final Component subForm = new Label("subform", "Blah");
+                    item.add(subForm);
+
+                    final Component removeLink;
+
+                    removeLink = new ImageAjaxLink("removeLink", GWCIconFactory.DELETE_ICON) {
+                        private static final long serialVersionUID = 1L;
+
+                        @Override
+                        protected void onClick(AjaxRequestTarget target) {
+                            List<ParameterFilter> list;
+                            list = new ArrayList<ParameterFilter>(filters.getModelObject());
+                            final ParameterFilter filter = (ParameterFilter) getDefaultModelObject();
+
+                            list.remove(filter);
+                            filters.setModelObject(list);
+                            item.remove();
+
+                            target.addComponent(container);
+                        }
+                    };
+                    removeLink.setDefaultModel(item.getModel());
+                    removeLink.add(new AttributeModifier("title", true, new ResourceModel(
+                            "ParameterFilterEditor.removeLink")));
+                    item.add(removeLink);
                 }
-
-                // final Component subForm = new Label("subform", "Blah");
-                item.add(subForm);
-
-                final Component removeLink;
-
-                removeLink = new ImageAjaxLink("removeLink", GWCIconFactory.DELETE_ICON) {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    protected void onClick(AjaxRequestTarget target) {
-                        List<ParameterFilter> list;
-                        list = new ArrayList<ParameterFilter>(filters.getModelObject());
-                        final ParameterFilter filter = (ParameterFilter) getDefaultModelObject();
-
-                        list.remove(filter);
-                        filters.setModelObject(list);
-                        item.remove();
-
-                        target.addComponent(container);
-                    }
-                };
-                removeLink.setDefaultModel(item.getModel());
-                removeLink.add(new AttributeModifier("title", true, new ResourceModel(
-                        "ParameterFilterEditor.removeLink")));
-                item.add(removeLink);
             }
         };
 

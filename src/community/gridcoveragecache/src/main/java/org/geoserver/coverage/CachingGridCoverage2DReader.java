@@ -6,8 +6,6 @@ package org.geoserver.coverage;
 
 import java.io.IOException;
 
-import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Date;
 
 import java.util.HashMap;
@@ -84,7 +82,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
     private GridCoverage2DReader delegate;
 
-    private CoverageInfo info;
+   // private CoverageInfo info;
 
     private WCSLayer wcsLayer;
 
@@ -124,7 +122,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
     public CachingGridCoverage2DReader(GridCoveragesCache cache,
             CoverageInfo info, GridCoverage2DReader reader) {
-        this.info = info;
+        //this.info = info;
         this.cache = cache;
         try {
             delegate = reader;
@@ -133,11 +131,13 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             wcsLayer = new WCSLayer(info, cache.getGridSetBroker(), gridSubSet, layout);
             List<CatalogConfiguration> extensions = GeoServerExtensions
                     .extensions(CatalogConfiguration.class);
-            CatalogConfiguration config = extensions.get(0);
+            //CatalogConfiguration config = extensions.get(0);
 //            if (!config.containsLayer(wcsLayer.getId())) {
 //                config.addLayer(wcsLayer);
 //            }
         } catch (IOException e) {
+            throw new IllegalArgumentException(e);
+        } catch (Exception e) {
             throw new IllegalArgumentException(e);
         }
     }
@@ -393,8 +393,6 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
             String id = wcsLayer.getName();
             String name = GridCoveragesCache.REFERENCE.getName();
-
-            int k = 0;
             
             Map<String,String> filteringParameters = extractParameters(parameters);
 

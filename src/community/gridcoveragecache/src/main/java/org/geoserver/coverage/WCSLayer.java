@@ -26,6 +26,7 @@ import org.geoserver.gwc.GWC;
 import org.geoserver.gwc.config.GWCConfig;
 import org.geoserver.gwc.layer.GeoServerTileLayer;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.GridSetBroker;
@@ -52,39 +53,36 @@ public class WCSLayer extends GeoServerTileLayer {
 
     private transient WCSSourceHelper sourceHelper;
 
-    private CoverageInfo coverageInfo;
-
-    public CoverageInfo getCoverageInfo() {
-        return coverageInfo;
-    }
-
-    public void setInfo(CoverageInfo coverageInfo) {
-        this.coverageInfo = coverageInfo;
-    }
-
     protected String name;
 
-    protected transient Map<String, GridSubset> subSets;
+    protected Map<String, GridSubset> subSets;
 
     /** Interpolation used when processing raster data to populate this layer's tiles **/
     protected Interpolation interpolation = Interpolation.getInstance(Interpolation.INTERP_NEAREST); 
 
     private ImageLayout layout;
 
-    public WCSLayer( CoverageInfo info, GridSetBroker broker, GridSubset gridSubSet, ImageLayout layout) {
+    private String workspaceName;
+
+    private ReferencedEnvelope bbox;
+
+    private String coverageName;
+
+    public WCSLayer( CoverageInfo info, GridSetBroker broker, GridSubset gridSubSet, ImageLayout layout) throws Exception {
         super(new LayerGroupInfoImpl(), config, broker);
 
         subSets = new HashMap<String, GridSubset>();
         subSets.put(GridCoveragesCache.REFERENCE.getName(), gridSubSet);
-        this.coverageInfo = info;
 
         final CoverageStoreInfo storeInfo = info.getStore();
-        final String workspaceName = storeInfo.getWorkspace().getName();
-        name = workspaceName + ":" + info.getName();
+        workspaceName = storeInfo.getWorkspace().getName();
+        coverageName = info.getName();
+        name = workspaceName + ":" + coverageName;
+        bbox = info.boundingBox();
         sourceHelper = new WCSSourceHelper(this);
         GeoServerTileLayerInfo localLayerInfo = getInfo();
-        localLayerInfo.setName(name);
-        localLayerInfo.setId(info.getId());
+        localLayerInfo.setName(name + "test");
+        localLayerInfo.setId(info.getId() + "test");
         localLayerInfo.getMimeFormats().add("image/tiff");
         this.layout = layout;
         
@@ -99,6 +97,18 @@ public class WCSLayer extends GeoServerTileLayer {
     @Override
     public GridSubset getGridSubset(String gridSetId) {
         return subSets.get(gridSetId);
+    }
+
+    public String getCoverageName() {
+        return coverageName;
+    }
+
+    public String getWorkspaceName() {
+        return workspaceName;
+    }
+
+    public ReferencedEnvelope getBbox() {
+        return bbox;
     }
 
     /**

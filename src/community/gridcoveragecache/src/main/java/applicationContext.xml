@@ -23,6 +23,12 @@ This code is licensed under the GPL 2.0 license, available at the root applicati
         <property name="order" value="300"/>
     </bean>
   
+    <bean id="wcsCatalogConfiguration" class="org.geoserver.gwc.layer.CatalogConfiguration">
+        <constructor-arg ref="rawCatalog" />
+        <constructor-arg ref="GeoSeverTileLayerCatalog" />
+        <constructor-arg ref="gwcGridSetBroker" />
+    </bean>
+
 <!-- 
     <bean id="coverageCacheStorageBroker" class="org.geowebcache.storage.DefaultStorageBroker" destroy-method="destroy">
         <constructor-arg ref="coverageCacheBlobStore" />

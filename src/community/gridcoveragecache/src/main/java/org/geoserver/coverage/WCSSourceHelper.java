@@ -114,7 +114,7 @@ public class WCSSourceHelper {
         // Checking if the MetaTile BoundingBox intersects with the Coverage BBOX
         boolean intersection = true;
         try {
-            ReferencedEnvelope layerBBOX = layer.getCoverageInfo().boundingBox();
+            ReferencedEnvelope layerBBOX = layer.getBbox();
             int code = metaTile.getSRS().getNumber();
             CoordinateReferenceSystem tileCRS = CRS.decode("EPSG:" + code);
             ReferencedEnvelope tileBBOX = new ReferencedEnvelope(bbox.getMinX(), bbox.getMaxX(),
@@ -171,7 +171,6 @@ public class WCSSourceHelper {
      */
     private GetCoverageType setupGetCoverageRequest(WCSMetaTile metaTile, ConveyorTile tile,
             GridSubset gridSubset, Interpolation interpolation) {
-        final CoverageInfo info = layer.getCoverageInfo();
 
         // // 
         // Setting base getCoverage request parameters
@@ -179,8 +178,8 @@ public class WCSSourceHelper {
         final GetCoverageType getCoverage = WCS20_FACTORY.createGetCoverageType();
         getCoverage.setVersion(WCS_VERSION);
         getCoverage.setService(WCS_SERVICE_NAME);
-        getCoverage.setCoverageId(info.getNamespace().getName() + DOUBLE_UNDERSCORE
-                + info.getName());
+        getCoverage.setCoverageId(layer.getWorkspaceName() + DOUBLE_UNDERSCORE
+                + layer.getCoverageName());
 
         // //
         // Setting dimensions (long/lat, time, elevation, ...)
