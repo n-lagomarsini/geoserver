@@ -48,12 +48,12 @@ public class LegacyTileLayerInfoLoader {
 
     public static final String CONFIG_KEY_CACHED_STYLES = "GWC.cachedNonDefaultStyles";
     
-    public static final String CONFIG_KEY_IN_MEMORY_UNCACHED = "GWC.inMemoryUncached";
+    public static final String CONFIG_KEY_IN_MEMORY_CACHED = "GWC.inMemoryUncached";
 
     public static final String[] _ALL_KEYS = { CONFIG_KEY_ENABLED, CONFIG_KEY_GUTTER,
             CONFIG_KEY_GRIDSETS, CONFIG_KEY_METATILING_X, CONFIG_KEY_METATILING_Y,
             CONFIG_KEY_FORMATS, CONFIG_KEY_AUTO_CACHE_STYLES, CONFIG_KEY_CACHED_STYLES, 
-            CONFIG_KEY_IN_MEMORY_UNCACHED };
+            CONFIG_KEY_IN_MEMORY_CACHED };
 
     public static GeoServerTileLayerInfoImpl load(final LayerInfo layer) {
         MetadataMap metadataMap = layer.getMetadata();
@@ -129,9 +129,9 @@ public class LegacyTileLayerInfoLoader {
             info.setAutoCacheStyles(autoCacheStyles);
         }
         
-        if(metadataMap.containsKey(CONFIG_KEY_IN_MEMORY_UNCACHED)){
-            boolean inMemoryUncached = metadataMap.get(CONFIG_KEY_IN_MEMORY_UNCACHED, Boolean.class);
-            info.setInMemoryUncached(inMemoryUncached);
+        if(metadataMap.containsKey(CONFIG_KEY_IN_MEMORY_CACHED)){
+            boolean inMemoryCached = metadataMap.get(CONFIG_KEY_IN_MEMORY_CACHED, Boolean.class);
+            info.setInMemoryCached(inMemoryCached);
         }
 
         return info;
@@ -208,7 +208,7 @@ public class LegacyTileLayerInfoLoader {
         final Set<String> mimeFormats = source.getMimeFormats();
         final Boolean autoCacheStyles = source.isAutoCacheStyles();
         final Set<String> cachedStyles = source.cachedStyles();
-        final boolean inMemoryUncached = source.isInMemoryUncached();
+        final boolean inMemoryCached = source.isInMemoryCached();
 
         metadata.put(CONFIG_KEY_ENABLED, Boolean.valueOf(enabled));
         metadata.put(CONFIG_KEY_GUTTER, Integer.valueOf(gutter));
@@ -221,7 +221,7 @@ public class LegacyTileLayerInfoLoader {
         metadata.put(CONFIG_KEY_METATILING_Y, Integer.valueOf(metaTilingY));
         metadata.put(CONFIG_KEY_FORMATS, marshalList(mimeFormats));
         metadata.put(CONFIG_KEY_AUTO_CACHE_STYLES, autoCacheStyles);
-        metadata.put(CONFIG_KEY_IN_MEMORY_UNCACHED, inMemoryUncached);
+        metadata.put(CONFIG_KEY_IN_MEMORY_CACHED, inMemoryCached);
 
         if (cachedStyles.size() > 0) {
             metadata.put(CONFIG_KEY_CACHED_STYLES, marshalList(cachedStyles));

@@ -337,7 +337,7 @@ public class GWCSettingsPageTest extends GeoServerWicketTestSupport {
         
         // Selection of the form tests
         form = tester.newFormTester("form");
-        form.setValue("cachingOptionsPanel:container:configs:blobstores:container:avoidPersistence", true);
+        form.setValue("cachingOptionsPanel:container:configs:blobstores:container:persistenceEnabled", true);
         form.setValue("cachingOptionsPanel:container:configs:blobstores:container:cacheConfContainer:hardMemoryLimit", 1 + "");
         form.setValue("cachingOptionsPanel:container:configs:blobstores:container:cacheConfContainer:concurrencyLevel", 1 + "");
         // Check that the page is correctly rendered
@@ -348,7 +348,7 @@ public class GWCSettingsPageTest extends GeoServerWicketTestSupport {
         tester.assertNoErrorMessage();
         // Check the GWCConfig
         config = gwc.getConfig();
-        assertTrue(config.isAvoidPersistence());
+        assertTrue(!config.isPersistenceEnabled());
         assertEquals(config.getCacheConfigurations().get(GuavaCacheProvider.class.toString()).getConcurrencyLevel(), 1);
         assertEquals(config.getCacheConfigurations().get(GuavaCacheProvider.class.toString()).getHardMemoryLimit(), 1);
         

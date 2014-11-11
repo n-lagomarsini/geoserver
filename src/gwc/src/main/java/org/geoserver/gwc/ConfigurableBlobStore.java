@@ -520,7 +520,7 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
                         .getGeoServerTileLayers();
 
                 for (GeoServerTileLayer layer : geoServerTileLayers) {
-                    if (layer.getInfo().isEnabled() && layer.getInfo().isInMemoryUncached()) {
+                    if (layer.getInfo().isEnabled() && !layer.getInfo().isInMemoryCached()) {
                         cache.addUncachedLayer(layer.getName());
                     }
                 }
@@ -533,7 +533,7 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
         // BlobStore configuration
         if (gwcConfig.isInnerCachingEnabled()) {
             memoryStore.setCacheProvider(cache);
-            if (gwcConfig.isAvoidPersistence()) {
+            if (!gwcConfig.isPersistenceEnabled()) {
                 memoryStore.setStore(nullStore);
             } else {
                 memoryStore.setStore(defaultStore);

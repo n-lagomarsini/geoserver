@@ -132,7 +132,7 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
 
     private IModel<? extends CatalogInfo> layerModel;
 
-    private CheckBox disableInMemoryCaching;
+    private CheckBox enableInMemoryCaching;
 
     /**
      * @param id
@@ -211,14 +211,14 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
         configs.add(enabled);
 
         // CheckBox for enabling/disabling inner caching for the layer
-        disableInMemoryCaching = new CheckBox("inMemoryUncached", new PropertyModel<Boolean>(getModel(), "inMemoryUncached"));
+        enableInMemoryCaching = new CheckBox("inMemoryCached", new PropertyModel<Boolean>(getModel(), "inMemoryCached"));
         ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
         if(store != null && store.getCache() != null){
-            disableInMemoryCaching.setEnabled(mediator.getConfig().isInnerCachingEnabled()
+            enableInMemoryCaching.setEnabled(mediator.getConfig().isInnerCachingEnabled()
                     && !store.getCache().isImmutable());
         }
 
-        configs.add(disableInMemoryCaching);
+        configs.add(enableInMemoryCaching);
 
         List<Integer> metaTilingChoices = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
                 14, 15, 16, 17, 18, 19, 20);
@@ -431,7 +431,7 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
             if(store != null){
                 CacheProvider cache = store.getCache();
                 if (cache != null) {
-                    if (disableInMemoryCaching.getModelObject()) {
+                    if (enableInMemoryCaching.getModelObject()) {
                         cache.removeUncachedLayer(getModel().getObject().getName());
                     } else {
                         cache.addUncachedLayer(getModel().getObject().getName());

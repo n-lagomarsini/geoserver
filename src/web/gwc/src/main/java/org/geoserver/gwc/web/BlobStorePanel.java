@@ -101,9 +101,9 @@ public class BlobStorePanel extends Panel {
         cacheConfigContainer.setOutputMarkupId(true);
 
         // Avoid Persistence checkbox
-        IModel<Boolean> avoidPersistence = new PropertyModel<Boolean>(gwcConfigModel,
-                "avoidPersistence");
-        final CheckBox avoidPersistenceChoice = new CheckBox("avoidPersistence", avoidPersistence);
+        IModel<Boolean> persistenceEnabled = new PropertyModel<Boolean>(gwcConfigModel,
+                "persistenceEnabled");
+        final CheckBox persistenceEnabledChoice = new CheckBox("persistenceEnabled", persistenceEnabled);
         boolean visible = innerCachingEnabledChoice.getModelObject() == null ? false
                 : innerCachingEnabledChoice.getModelObject();
         container.setVisible(visible);
@@ -151,7 +151,7 @@ public class BlobStorePanel extends Panel {
         // Adding cache choice to the container
         container.add(choice);
 
-        avoidPersistenceChoice.setOutputMarkupId(true).setEnabled(true);
+        persistenceEnabledChoice.setOutputMarkupId(true).setEnabled(true);
         // Adding cache configuration container to the global container
         container.add(cacheConfigContainer);
         // Definition of the behavior related to caching
@@ -168,7 +168,7 @@ public class BlobStorePanel extends Panel {
         });
 
         add(innerCachingEnabledChoice);
-        container.add(avoidPersistenceChoice);
+        container.add(persistenceEnabledChoice);
         add(container);
 
         // Cache Clearing Option

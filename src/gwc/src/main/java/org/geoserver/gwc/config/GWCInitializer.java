@@ -277,7 +277,7 @@ public class GWCInitializer implements GeoServerInitializer {
                 // Check if the Layer must not be cached
                 GeoServerTileLayerInfo tileLayerInfo = tileLayerCatalog.getLayerById(layer.getId());
                 if (tileLayerInfo != null && tileLayerInfo.isEnabled()
-                        && tileLayerInfo.isInMemoryUncached()) {
+                        && !tileLayerInfo.isInMemoryCached()) {
                     // Add it to the cache
                     cache.addUncachedLayer(tileLayerInfo.getName());
                 }
@@ -293,7 +293,7 @@ public class GWCInitializer implements GeoServerInitializer {
                 // Check if the LayerGroup must not be cached
                 GeoServerTileLayerInfo tileLayerInfo = tileLayerCatalog.getLayerById(layer.getId());
                 if (tileLayerInfo != null && tileLayerInfo.isEnabled()
-                        && tileLayerInfo.isInMemoryUncached()) {
+                        && !tileLayerInfo.isInMemoryCached()) {
                     // Add it to the cache
                     cache.addUncachedLayer(tileLayerInfo.getName());
                 }

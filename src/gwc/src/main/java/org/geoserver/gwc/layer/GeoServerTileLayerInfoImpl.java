@@ -51,7 +51,7 @@ public class GeoServerTileLayerInfoImpl implements Serializable, GeoServerTileLa
 
     private boolean enabled;
     
-    private boolean inMemoryUncached;
+    private Boolean inMemoryCached;
 
     private String name;
 
@@ -426,12 +426,16 @@ public class GeoServerTileLayerInfoImpl implements Serializable, GeoServerTileLa
     }
 
     @Override
-    public boolean isInMemoryUncached() {
-        return inMemoryUncached;
+    public boolean isInMemoryCached() {
+        boolean exists = inMemoryCached != null;
+        if(!exists){
+            inMemoryCached = new Boolean(true);
+        }
+        return inMemoryCached;
     }
 
     @Override
-    public void setInMemoryUncached(boolean inMemoryUncached) {
-        this.inMemoryUncached = inMemoryUncached;
+    public void setInMemoryCached(boolean inMemoryCached) {
+        this.inMemoryCached = inMemoryCached;
     }
 }

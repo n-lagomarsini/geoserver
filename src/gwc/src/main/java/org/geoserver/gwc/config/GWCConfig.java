@@ -38,7 +38,7 @@ public class GWCConfig implements Cloneable, Serializable {
     
     private boolean innerCachingEnabled;
     
-    private boolean avoidPersistence;
+    private boolean persistenceEnabled;
     
     private String cacheProviderClass;
     
@@ -297,7 +297,7 @@ public class GWCConfig implements Cloneable, Serializable {
         setWMSCEnabled(true);
         setWMTSEnabled(true);
         setTMSEnabled(true);
-        setAvoidPersistence(false);
+        setEnabledPersistence(true);
         setInnerCachingEnabled(false);
         HashMap<String, CacheConfiguration> map = new HashMap<String, CacheConfiguration>();
         map.put(GuavaCacheProvider.class.toString(), new CacheConfiguration());
@@ -388,12 +388,12 @@ public class GWCConfig implements Cloneable, Serializable {
         this.innerCachingEnabled = innerCachingEnabled;
     }
 
-    public boolean isAvoidPersistence() {
-        return avoidPersistence;
+    public boolean isPersistenceEnabled() {
+        return persistenceEnabled;
     }
 
-    public void setAvoidPersistence(boolean avoidPersistence) {
-        this.avoidPersistence = avoidPersistence;
+    public void setEnabledPersistence(boolean persistenceEnabled) {
+        this.persistenceEnabled = persistenceEnabled;
     }
 
     public String getCacheProviderClass() {

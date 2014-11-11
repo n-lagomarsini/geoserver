@@ -64,7 +64,7 @@ public class LayerCacheOptionsTabPanelTest extends GeoServerWicketTestSupport {
         tester.assertComponent("form:panel", LayerCacheOptionsTabPanel.class);
         tester.assertComponent("form:panel:tileLayerEditor", GeoServerTileLayerEditor.class);
         // Ensure the InMemoryCaching checkbox is present
-        tester.assertComponent("form:panel:tileLayerEditor:container:configs:inMemoryUncached", CheckBox.class);
+        tester.assertComponent("form:panel:tileLayerEditor:container:configs:inMemoryCached", CheckBox.class);
     }
 
     @Test
