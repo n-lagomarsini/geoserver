@@ -326,6 +326,19 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
         Preconditions.checkState(layer.getId() != null);
         tileLayerInfo.setId(layer.getId());
 
+        // Remove the Layer from the cache if it is present
+        ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
+        if(store != null){
+            CacheProvider cache = store.getCache();
+            if (cache != null) {
+                if (enableInMemoryCaching.getModelObject()) {
+                    cache.removeUncachedLayer(getModel().getObject().getName());
+                } else {
+                    cache.addUncachedLayer(getModel().getObject().getName());
+                }
+            } 
+        }
+        
         final String name;
         final GridSetBroker gridsets = gwc.getGridSetBroker();
         GeoServerTileLayer tileLayer;
@@ -426,18 +439,18 @@ class GeoServerTileLayerEditor extends FormComponentPanel<GeoServerTileLayerInfo
             parameterFilters.processInput();
             gridSubsets.processInput();
             
-            // Remove add the Layer to the cache if it is present
-            ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
-            if(store != null){
-                CacheProvider cache = store.getCache();
-                if (cache != null) {
-                    if (enableInMemoryCaching.getModelObject()) {
-                        cache.removeUncachedLayer(getModel().getObject().getName());
-                    } else {
-                        cache.addUncachedLayer(getModel().getObject().getName());
-                    }
-                } 
-            }
+//            // Remove add the Layer to the cache if it is present
+//            ConfigurableBlobStore store = GeoServerExtensions.bean(ConfigurableBlobStore.class);
+//            if(store != null){
+//                CacheProvider cache = store.getCache();
+//                if (cache != null) {
+//                    if (enableInMemoryCaching.getModelObject()) {
+//                        cache.removeUncachedLayer(getModel().getObject().getName());
+//                    } else {
+//                        cache.addUncachedLayer(getModel().getObject().getName());
+//                    }
+//                } 
+//            }
 
             tileLayerInfo.setId(layerModel.getObject().getId());
             setConvertedInput(tileLayerInfo);

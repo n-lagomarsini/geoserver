@@ -427,11 +427,7 @@ public class GeoServerTileLayerInfoImpl implements Serializable, GeoServerTileLa
 
     @Override
     public boolean isInMemoryCached() {
-        boolean exists = inMemoryCached != null;
-        if(!exists){
-            inMemoryCached = new Boolean(true);
-        }
-        return inMemoryCached;
+        return inMemoryCached != null ? inMemoryCached : true;
     }
 
     @Override

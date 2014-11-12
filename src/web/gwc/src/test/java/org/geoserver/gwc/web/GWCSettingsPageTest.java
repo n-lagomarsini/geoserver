@@ -348,7 +348,7 @@ public class GWCSettingsPageTest extends GeoServerWicketTestSupport {
         tester.assertNoErrorMessage();
         // Check the GWCConfig
         config = gwc.getConfig();
-        assertTrue(!config.isPersistenceEnabled());
+        assertTrue(config.isPersistenceEnabled());
         assertEquals(config.getCacheConfigurations().get(GuavaCacheProvider.class.toString()).getConcurrencyLevel(), 1);
         assertEquals(config.getCacheConfigurations().get(GuavaCacheProvider.class.toString()).getHardMemoryLimit(), 1);
         
@@ -367,7 +367,7 @@ public class GWCSettingsPageTest extends GeoServerWicketTestSupport {
         tester.startPage(new GWCSettingsPage());
         // Ensure the page is correctly rendered
         tester.assertRenderedPage(GWCSettingsPage.class);
-        Result res = tester.isVisible("form:cachingOptionsPanel:container:configs:blobstores:container:avoidPersistence");
+        Result res = tester.isVisible("form:cachingOptionsPanel:container:configs:blobstores:container:persistenceEnabled");
         assertTrue(res.wasFailed());
         // Check the GWCConfig
         config = gwc.getConfig();

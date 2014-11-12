@@ -473,12 +473,14 @@ public class ConfigurableBlobStore extends MemoryBlobStore implements BlobStore 
                 LOGGER.warning("Wrong CacheProvider defined, using default one");
             }
             cacheProvider = GuavaCacheProvider.class.toString();
-            gwcConfig.setCacheProviderClass(cacheProvider);
-            try {
-                GWC.get().saveConfig(gwcConfig);
-            } catch (IOException e) {
-                if (LOGGER.isLoggable(Level.SEVERE)) {
-                    LOGGER.log(Level.SEVERE, e.getMessage(), e);
+            if(!initialization){
+                gwcConfig.setCacheProviderClass(cacheProvider);
+                try {
+                    GWC.get().saveConfig(gwcConfig);
+                } catch (IOException e) {
+                    if (LOGGER.isLoggable(Level.SEVERE)) {
+                        LOGGER.log(Level.SEVERE, e.getMessage(), e);
+                    }
                 }
             }
         }

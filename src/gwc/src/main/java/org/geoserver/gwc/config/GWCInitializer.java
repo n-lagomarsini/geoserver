@@ -137,6 +137,14 @@ public class GWCInitializer implements GeoServerInitializer {
 
         // Change ConfigurableBlobStore behavior
         if (blobStore != null) {
+            String cacheProviderClass = gwcConfig.getCacheProviderClass();
+            if(!blobStore.getCacheProviders().containsKey(cacheProviderClass)){
+                gwcConfig.setCacheProviderClass(GuavaCacheProvider.class.toString());
+                configPersister.save(gwcConfig);
+                if(LOGGER.isLoggable(Level.FINEST)){
+                    LOGGER.finest("Unable to find: "+ cacheProviderClass +", used default configuration");
+                }
+            }
             blobStore.setChanged(gwcConfig, true);
             CacheProvider cache = blobStore.getCache();
             // Add all the various Layers to avoid caching
