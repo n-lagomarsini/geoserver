@@ -78,30 +78,6 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
     public static final List<Property<PreviewLayer>> PROPERTIES = Arrays.asList(TYPE,
             NAME, TITLE, ABSTRACT, KEYWORDS, COMMON, ALL);
     
-    /**
-     * A custom property that uses the derived enabled() property instead of isEnabled() to account
-     * for disabled resource/store
-     */
-    static final Property<LayerInfo> ENABLED = new AbstractProperty<LayerInfo>("enabled") {
-
-        public Boolean getPropertyValue(LayerInfo item) {
-            return Boolean.valueOf(item.enabled());
-        }
-
-    };
-    
-    /**
-     * A custom property that uses the derived enabled() property instead of isEnabled() to account
-     * for disabled resource/store
-     */
-    static final Property<LayerInfo> ADVERTISED = new AbstractProperty<LayerInfo>("advertised") {
-
-        public Boolean getPropertyValue(LayerInfo item) {
-            return Boolean.valueOf(item.isAdvertised());
-        }
-
-    };
-    
     @Override
     protected List<PreviewLayer> getItems() {
 //        List<PreviewLayer> result = new ArrayList<PreviewLayer>();
@@ -199,10 +175,10 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
         // Getting total size
 
         final Filter filter = getFilter();
-        int countLayers = getLayerSize(filter);
-        int countLayerGroup = getLayerGroupSize(filter);
-        int size = countLayers + countLayerGroup;
-        int last = first + count;
+        //int countLayers = getLayerSize(filter);
+        //int countLayerGroup = getLayerGroupSize(filter);
+        //int size = countLayers + countLayerGroup;
+        //int last = first + count;
         
         Filter filterL = getLayerFilter(filter);
         Filter filterLG = getLayerGroupFilter(filter);
@@ -212,39 +188,86 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
         //our already filtered and closeable iterator
         Iterator<LayerGroupInfo> itemLayerGroups = null;
 
-        if(count > size){
-            // All the PreviewLayers can be put in a single iterator
-            itemLayers = catalog.list(LayerInfo.class, filterL, null, null, sortOrder);
-            itemLayerGroups = catalog.list(LayerGroupInfo.class, filterLG, null, null, sortOrder);
+        
+        itemLayers = catalog.list(LayerInfo.class, filterL, first, count, sortOrder);
+        
+        int layerSize = 0;
+        
+        while(itemLayers.hasNext()){
+            itemLayers.next();
+            layerSize++;
+        }
+        
+        try{
+            if(itemLayers instanceof CloseableIterator){
+                ((CloseableIterator)(itemLayers)).close();
+            }
+            itemLayers = null;
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+        
+        if(layerSize == count){
+            itemLayers = catalog.list(LayerInfo.class, filterL, first, count, sortOrder);
         } else {
-            // It must be paged
-            if (countLayers > 0) {
-                if (last < countLayers) {
-                    // Only Layers
-                    itemLayers = catalog.list(LayerInfo.class, filterL, first, count, sortOrder);
-                } else if (last >= countLayers && first < countLayers) {
+            int countLayers = getLayerSize(filter);
+            
+            if(countLayers > 0){
+                
+                if(first < countLayers){
                     // Layers
                     int lastLayerCount = countLayers - first;
                     itemLayers = catalog.list(LayerInfo.class, filterL, first, lastLayerCount,
                             sortOrder);
-
-                    if (countLayerGroup > 0) {
-                        // LayerGroups
-                        int lastLayerGroupCount = count - lastLayerCount;
-                        itemLayerGroups = catalog.list(LayerGroupInfo.class, filterLG, 0,
-                                lastLayerGroupCount, sortOrder);
-
-                    }
+                    // LayerGroups
+                    int lastLayerGroupCount = count - lastLayerCount;
+                    itemLayerGroups = catalog.list(LayerGroupInfo.class, filterLG, 0,
+                            lastLayerGroupCount, sortOrder);
                 } else {
                     // Only Layergroups
                     int firstLG = first - countLayers;
                     itemLayerGroups = catalog.list(LayerGroupInfo.class, filterLG, firstLG, count,
                             sortOrder);
                 }
-            } else if(countLayerGroup > 0){
+            }else {
                 itemLayerGroups = catalog.list(LayerGroupInfo.class, filterLG, first, count, sortOrder);
             }
         }
+        
+        
+//        if(count > size){
+//            // All the PreviewLayers can be put in a single iterator
+//            itemLayers = catalog.list(LayerInfo.class, filterL, null, null, sortOrder);
+//            itemLayerGroups = catalog.list(LayerGroupInfo.class, filterLG, null, null, sortOrder);
+//        } else {
+//            // It must be paged
+//            if (countLayers > 0) {
+//                if (last < countLayers) {
+//                    // Only Layers
+//                    itemLayers = catalog.list(LayerInfo.class, filterL, first, count, sortOrder);
+//                } else if (first < countLayers) {
+//                    // Layers
+//                    int lastLayerCount = countLayers - first;
+//                    itemLayers = catalog.list(LayerInfo.class, filterL, first, lastLayerCount,
+//                            sortOrder);
+//
+//                    if (countLayerGroup > 0) {
+//                        // LayerGroups
+//                        int lastLayerGroupCount = count - lastLayerCount;
+//                        itemLayerGroups = catalog.list(LayerGroupInfo.class, filterLG, 0,
+//                                lastLayerGroupCount, sortOrder);
+//
+//                    }
+//                } else {
+//                    // Only Layergroups
+//                    int firstLG = first - countLayers;
+//                    itemLayerGroups = catalog.list(LayerGroupInfo.class, filterLG, firstLG, count,
+//                            sortOrder);
+//                }
+//            } else if(countLayerGroup > 0){
+//                itemLayerGroups = catalog.list(LayerGroupInfo.class, filterLG, first, count, sortOrder);
+//            }
+//        }
 
         // Creation of ad hoc iterators
         CloseableComposedIterator composite = new CloseableComposedIterator();
@@ -278,68 +301,65 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
     
     private Filter getLayerGroupFilter(Filter start) {
         // Creation of a new Filter for the LayerGroups
-        //Filter lg = new LayerGroupFilter();
         Filter lg = FF.equals(FF.function("layerGroupFilter"), FF.literal(true));
         return FF.and(start, lg);
     }
     
     private Filter getLayerFilter(Filter start) {
-        // Creation of a new Filter for the LayerGroups
+        // Creation of a new Filter for the Layers
         Filter f = FF.equals(FF.function("layerFilter"), FF.literal(true));
-//        Filter f = FF.equals(FF.property("isAdvertised"), FF.literal(true));
-//        Filter f2 = FF.equals(FF.property("isEnabled"), FF.literal(true));
         return FF.and(Arrays.asList(start, f));
     }
     
     private int getLayerSize(final Filter filter){
-//        Filter filterL = getLayerFilter(filter);
-//        return getCatalog().count(LayerInfo.class, filterL);
+        Filter filterL = getLayerFilter(filter);
+        return getCatalog().count(LayerInfo.class, filterL);
         
-        List<LayerInfo> layers = getCatalog().getLayers();
-        Predicate<LayerInfo> predicate = new Predicate<LayerInfo>() {
-
-            @Override
-            public boolean apply(LayerInfo input) {
-                boolean evaluate = filter.evaluate(input);
-                if(evaluate){
-                    return input.enabled() && input.isAdvertised();
-                }
-                return false;
-            }
-        };
-        Collection<LayerInfo> layersFiltered = Collections2.filter(layers, predicate);
-        return layersFiltered.size();
+//        List<LayerInfo> layers = getCatalog().getLayers();
+//        Predicate<LayerInfo> predicate = new Predicate<LayerInfo>() {
+//
+//            @Override
+//            public boolean apply(LayerInfo input) {
+//                boolean evaluate = filter.evaluate(input);
+//                if(evaluate){
+//                    return input.enabled() && input.isAdvertised();
+//                }
+//                return false;
+//            }
+//        };
+//        Collection<LayerInfo> layersFiltered = Collections2.filter(layers, predicate);
+//        return layersFiltered.size();
     }
     
     private int getLayerGroupSize(final Filter filter) {
-        // Filter filterLG = getLayerGroupFilter(filter);
-        // return getCatalog().count(LayerGroupInfo.class, filterLG);
-        List<LayerGroupInfo> layers = getCatalog().getLayerGroups();
-        Predicate<LayerGroupInfo> predicate = new Predicate<LayerGroupInfo>() {
-
-            @Override
-            public boolean apply(LayerGroupInfo input) {
-                boolean evaluate = filter.evaluate(input);
-                if(evaluate){
-                    boolean accepted = false;
-                    if (!LayerGroupInfo.Mode.CONTAINER.equals(input.getMode())) {
-                        boolean enabled = true;
-                        for (LayerInfo layer : input.layers()) {
-                            // ask for enabled() instead of isEnabled() to account for disabled resource/store
-                            enabled &= layer.enabled();
-                        }
-
-                        if (enabled && input.layers().size() > 0)
-                            accepted = true;
-                    }
-                    return accepted;
-                }
-                return false;
-            }
-        };
-
-        Collection<LayerGroupInfo> layersFiltered = Collections2.filter(layers, predicate);
-        return layersFiltered.size();
+         Filter filterLG = getLayerGroupFilter(filter);
+         return getCatalog().count(LayerGroupInfo.class, filterLG);
+//        List<LayerGroupInfo> layers = getCatalog().getLayerGroups();
+//        Predicate<LayerGroupInfo> predicate = new Predicate<LayerGroupInfo>() {
+//
+//            @Override
+//            public boolean apply(LayerGroupInfo input) {
+//                boolean evaluate = filter.evaluate(input);
+//                if(evaluate){
+//                    boolean accepted = false;
+//                    if (!LayerGroupInfo.Mode.CONTAINER.equals(input.getMode())) {
+//                        boolean enabled = true;
+//                        for (LayerInfo layer : input.layers()) {
+//                            // ask for enabled() instead of isEnabled() to account for disabled resource/store
+//                            enabled &= layer.enabled();
+//                        }
+//
+//                        if (enabled && input.layers().size() > 0)
+//                            accepted = true;
+//                    }
+//                    return accepted;
+//                }
+//                return false;
+//            }
+//        };
+//
+//        Collection<LayerGroupInfo> layersFiltered = Collections2.filter(layers, predicate);
+//        return layersFiltered.size();
     }
     
     static class CloseableComposedIterator extends CompositeIterator implements CloseableIterator{
