@@ -229,25 +229,6 @@ public class StoreProvider extends GeoServerDataProvider<StoreInfo> {
 
         return items;
     }
-
-    private Filter getFilter() {
-        final String[] keywords = getKeywords();
-        Filter filter = acceptAll();
-        if (null != keywords) {
-            for (String keyword : keywords) {
-                Filter propContains = Predicates.fullTextSearch(keyword);
-                // chain the filters together
-                if (Filter.INCLUDE == filter) {
-                    filter = propContains;
-                } else {
-                    filter = or(filter, propContains);
-                }
-            }
-        }
-
-        
-        return filter;
-    }
     
     private Filter getWorkspaceFilter(Filter filter){
         // Filter by workspace if present
