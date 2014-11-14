@@ -7,13 +7,49 @@ package org.geoserver.coverage.layer;
 import it.geosolutions.imageio.plugins.tiff.TIFFImageWriteParam;
 
 import javax.imageio.ImageWriteParam;
+import javax.media.jai.Interpolation;
 
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
+
+import com.sun.media.jai.util.InterpAverage;
 
 public interface CoverageTileLayerInfo extends GeoServerTileLayerInfo {
 
     public enum SeedingPolicy {
         DIRECT, RECURSIVE;
+    }
+    
+    public enum InterpolationType {
+        NEAREST {
+            @Override
+            public Interpolation getInterpolationObject() {
+                return Interpolation.getInstance(Interpolation.INTERP_NEAREST);
+            }
+        }, BILINEAR {
+            @Override
+            public Interpolation getInterpolationObject() {
+                return Interpolation.getInstance(Interpolation.INTERP_BILINEAR);
+            }
+        }, BICUBIC {
+            @Override
+            public Interpolation getInterpolationObject() {
+                return Interpolation.getInstance(Interpolation.INTERP_BICUBIC);
+            }
+        }, BICUBIC2 {
+            @Override
+            public Interpolation getInterpolationObject() {
+                return Interpolation.getInstance(Interpolation.INTERP_BICUBIC_2);
+            }
+        }, AVERAGE {
+            @Override
+            public Interpolation getInterpolationObject() {
+                return new InterpAverage(DEFAULT_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+            }
+        };
+        
+        public static final int DEFAULT_BLOCK_SIZE = 3;
+        
+        public abstract Interpolation getInterpolationObject();
     }
 
     public enum TiffCompression {
@@ -56,15 +92,15 @@ public interface CoverageTileLayerInfo extends GeoServerTileLayerInfo {
         public abstract ImageWriteParam getCompressionParams();
     }
 
-//    public void setEnabledCaching(boolean enabledCaching);
-//    
-//    public boolean isEnabledCaching();
-    
-    //public void setResamplingAlgorithm(Interpolation resamplingAlgorithm);
-    
-    //public Interpolation getResamplingAlgorithm();
-    
-    //public void setSeedingPolicy(SeedingPolicy seedingPolicy);
-    
-    //public SeedingPolicy getSeedingPolicy();
+    public void setInterpolationType(InterpolationType interpolation);
+
+    public InterpolationType getInterpolationType();
+
+    public void setSeedingPolicy(SeedingPolicy seedingPolicy);
+
+    public SeedingPolicy getSeedingPolicy();
+
+    public void setTiffCompression(TiffCompression tiffCompression);
+
+    public TiffCompression getTiffCompression();
 }

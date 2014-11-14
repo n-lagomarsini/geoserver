@@ -10,6 +10,7 @@ import static org.geoserver.gwc.GWC.tileLayerName;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -51,6 +52,9 @@ import org.geoserver.catalog.impl.ModificationProxy;
 import org.geoserver.coverage.configuration.CoverageConfiguration;
 import org.geoserver.coverage.layer.CoverageTileLayer;
 import org.geoserver.coverage.layer.CoverageTileLayerInfo;
+import org.geoserver.coverage.layer.CoverageTileLayerInfo.InterpolationType;
+import org.geoserver.coverage.layer.CoverageTileLayerInfo.SeedingPolicy;
+import org.geoserver.coverage.layer.CoverageTileLayerInfo.TiffCompression;
 import org.geoserver.gwc.GWC;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
 import org.geoserver.web.wicket.GeoServerDialog;
@@ -65,6 +69,7 @@ import org.geowebcache.grid.GridSubsetFactory;
 import org.geowebcache.layer.TileLayer;
 
 import com.google.common.base.Preconditions;
+import com.sun.media.jai.util.InterpAverage;
 
 /**
  * 
@@ -114,9 +119,11 @@ public class RasterCachingLayerEditor extends FormComponentPanel<GeoServerTileLa
 
     private IModel<? extends CatalogInfo> layerModel;
 
-    //private final DropDownChoice<Interpolation> interpolationPolicy;
+    private final DropDownChoice<InterpolationType> interpolationPolicy;
 
-    //private final DropDownChoice<SeedingPolicy> seedingPolicy;
+    private final DropDownChoice<SeedingPolicy> seedingPolicy;
+
+    private DropDownChoice<TiffCompression> tiffCompression;
 
     /**
      * @param id
@@ -219,22 +226,21 @@ public class RasterCachingLayerEditor extends FormComponentPanel<GeoServerTileLa
         gutter = new DropDownChoice<Integer>("gutter", gutterModel, gutterChoices);
         configs.add(gutter);
         
-//        IModel<SeedingPolicy> policyModel = new PropertyModel<SeedingPolicy>(getModel(), "seedingPolicy");
-//        seedingPolicy = new DropDownChoice<SeedingPolicy>("seedingPolicy", policyModel, Arrays.asList(SeedingPolicy.values()));
-//        configs.add(seedingPolicy);
+        IModel<SeedingPolicy> policyModel = new PropertyModel<SeedingPolicy>(getModel(), "seedingPolicy");
+        seedingPolicy = new DropDownChoice<SeedingPolicy>("seedingPolicy", policyModel, Arrays.asList(SeedingPolicy.values()));
+        configs.add(seedingPolicy);
+
+        IModel<InterpolationType> interpolationModel = new PropertyModel<InterpolationType>(getModel(), "interpolationType");
+
+        interpolationPolicy = new DropDownChoice<InterpolationType>("interpolationType",
+                interpolationModel, Arrays.asList(InterpolationType.values()));
+        configs.add(interpolationPolicy);
         
-        // TODO REQUIRES TO SAVE THEM IN A PLACE AND EVERY TIME TAKING THEM
-//        IModel<Interpolation> interpolationModel = new PropertyModel<Interpolation>(getModel(), "resamplingAlgorithm");
-//        List<Interpolation> interpList = new ArrayList<Interpolation>();
-//        interpList.add(Interpolation.getInstance(Interpolation.INTERP_NEAREST));
-//        interpList.add(Interpolation.getInstance(Interpolation.INTERP_BILINEAR));
-//        interpList.add(Interpolation.getInstance(Interpolation.INTERP_BICUBIC));
-//        interpList.add(Interpolation.getInstance(Interpolation.INTERP_BICUBIC_2));
-//        interpList.add(new InterpAverage(3, 3));
-//        
-//        interpolationPolicy = new DropDownChoice<Interpolation>("resamplingAlgorithm",
-//                interpolationModel, interpList, new InterpolationChoiceRenderer(interpList));
-//        configs.add(interpolationPolicy);
+        IModel<TiffCompression> compressionModel = new PropertyModel<TiffCompression>(getModel(), "tiffCompression");
+
+        tiffCompression = new DropDownChoice<TiffCompression>("tiffCompression", compressionModel,
+                Arrays.asList(TiffCompression.values()));
+        configs.add(tiffCompression);
         
         IModel<Set<XMLGridSubset>> gridSubsetsModel;
         gridSubsetsModel = new PropertyModel<Set<XMLGridSubset>>(getModel(), "gridSubsets");
@@ -423,8 +429,9 @@ public class RasterCachingLayerEditor extends FormComponentPanel<GeoServerTileLa
             gutter.processInput();
             parameterFilters.processInput();
             gridSubsets.processInput();
-//            interpolationPolicy.processInput();
-//            seedingPolicy.processInput();
+            interpolationPolicy.processInput();
+            seedingPolicy.processInput();
+            tiffCompression.processInput();
 
             tileLayerInfo.setId(layerModel.getObject().getId());// TODO CHANGE HERE
             setConvertedInput(tileLayerInfo);
@@ -468,42 +475,4 @@ public class RasterCachingLayerEditor extends FormComponentPanel<GeoServerTileLa
             }
         }
     }
-    
-    static class InterpolationChoiceRenderer implements IChoiceRenderer<Interpolation>{
-        
-        private HashMap<Interpolation,String> map;
-        
-        public InterpolationChoiceRenderer(List<Interpolation> interp){
-            map = new HashMap<Interpolation,String>();
-            
-            for(Interpolation i : interp){
-                String key = null;
-                if(i instanceof InterpolationNearest){
-                    key = "Nearest Interpolation";
-                } else if(i instanceof InterpolationBilinear){
-                    key = "Bilinear Interpolation";
-                } else if(i instanceof InterpolationBicubic){
-                    key = "Bicubic Interpolation";
-                } else if(i instanceof InterpolationBicubic2){
-                    key = "Bicubic2 Interpolation";
-                } 
-                if(key != null){
-                    map.put(i, key);
-                }
-            }
-
-        }
-
-        @Override
-        public Object getDisplayValue(Interpolation object) {
-            return map.get(object);
-        }
-
-        @Override
-        public String getIdValue(Interpolation object, int index) {
-            return map.get(object);
-        }
-
-    }
-
 }

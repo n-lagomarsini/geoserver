@@ -38,6 +38,11 @@
       <version>${gs.version}</version>
     </dependency>
     <dependency>
+      <groupId>org.geotools</groupId>
+      <artifactId>gt-process-raster</artifactId>
+      <version>${gt.version}</version>
+    </dependency>    
+    <dependency>
       <groupId>com.mockrunner</groupId>
       <artifactId>mockrunner</artifactId>
       <scope>test</scope>
