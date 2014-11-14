@@ -333,23 +333,6 @@ class UnconfiguredCachedLayersProvider extends GeoServerDataProvider<TileLayer> 
 
         return composite;
     }
-
-    private Filter getFilter() {
-        final String[] keywords = getKeywords();
-        Filter filter = acceptAll();
-        if (null != keywords) {
-            for (String keyword : keywords) {
-                Filter propContains = Predicates.fullTextSearch(keyword);
-                // chain the filters together
-                if (Filter.INCLUDE == filter) {
-                    filter = propContains;
-                } else {
-                    filter = or(filter, propContains);
-                }
-            }
-        }
-        return filter;
-    }
     
     private Filter getLayerFilter(Filter start) {
         // Creation of a new Filter for the Layers
