@@ -156,9 +156,7 @@ public class WCSSourceHelper {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.fine("Metatile bbox doesn't intersect the coverage bbox; Returning constant image");
             }
-            ImageLayout layout = layer.getLayout();
-            Number[] backgroundValues = ImageUtilities.getBackgroundValues(layout.getSampleModel(null), null);
-            RenderedImage constant = ConstantDescriptor.create(width * 1.0f, height * 1.0f, backgroundValues, null);
+            RenderedImage constant = CoverageMetaTile.createConstantImage(layer.getLayout(), width, height, null);
             coverage = (GridCoverage2D) new GridCoverageFactory().create("empty", constant, new GeneralEnvelope(new Rectangle2D.Double(bbox.getMinX(),
                     bbox.getMinY(), bbox.getWidth(), bbox.getHeight())));
         }

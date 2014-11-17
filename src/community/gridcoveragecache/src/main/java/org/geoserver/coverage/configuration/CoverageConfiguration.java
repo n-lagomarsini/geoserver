@@ -17,11 +17,15 @@ import java.util.concurrent.locks.ReadWriteLock;
 
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CoverageInfo;
+import org.geoserver.catalog.ResourcePool;
 import org.geoserver.coverage.layer.CoverageTileLayer;
 import org.geoserver.gwc.layer.CatalogConfiguration;
 import org.geoserver.gwc.layer.GeoServerTileLayer;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
 import org.geoserver.gwc.layer.TileLayerCatalog;
+import org.geotools.coverage.grid.io.GridCoverage2DReader;
+import org.geotools.factory.GeoTools;
+import org.geotools.factory.Hints;
 import org.geowebcache.config.Configuration;
 import org.geowebcache.config.XMLGridSubset;
 import org.geowebcache.grid.GridSet;
@@ -179,6 +183,12 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
                 List<GridSubset> subsets = parseGridSubsets(gridSetBroker, tileLayerInfo);
                 CoverageInfo coverage = geoServerCatalog.getCoverage(layerId);
                 tileLayer = new CoverageTileLayer(coverage, gridSetBroker, subsets, tileLayerInfo, false);
+                ResourcePool pool = geoServerCatalog.getResourcePool();
+                Hints hints = new Hints(GeoTools.getDefaultHints());
+                hints.add(new Hints(ResourcePool.SKIP_COVERAGE_EXTENSIONS_LOOKUP, true));
+                GridCoverage2DReader reader = (GridCoverage2DReader) pool.getGridCoverageReader(coverage, hints);
+                ((CoverageTileLayer)tileLayer).setLayout(reader.getImageLayout());
+
             } finally {
                 lock.readLock().unlock();
             }

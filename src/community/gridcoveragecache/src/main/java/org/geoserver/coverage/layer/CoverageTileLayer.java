@@ -165,25 +165,23 @@ public class CoverageTileLayer extends GeoServerTileLayer {
     public void seedTile(ConveyorTile tile, boolean tryCache) throws GeoWebCacheException,
             IOException {
         GridSubset gridSubset = getGridSubset(tile.getGridSetId());
-        if (gridSubset.shouldCacheAtZoom(tile.getTileIndex()[2])) {
+        long[] index = tile.getTileIndex();
+        long zLevel = index[2];
+        if (gridSubset.shouldCacheAtZoom(zLevel)) {
             // Always use metaTiling on seeding since we are implementing our
             // custom GWC layer
-            switch (seedingPolicy) {
-            case DIRECT:
+            if (seedingPolicy == SeedingPolicy.DIRECT || zLevel >= gridSubset.getZoomStop()) {
                 if (LOGGER.isLoggable(Level.FINER)) {
                     LOGGER.finer("Seeding tile (DIRECT method): " + tile);
                 }
                 getMetatilingReponse(tile, tryCache, coverageTileLayerInfo.getMetaTilingX(),
                         coverageTileLayerInfo.getMetaTilingY());
-                break;
-            case RECURSIVE:
+            } else {
                 if (LOGGER.isLoggable(Level.FINER)) {
                     LOGGER.finer("Seeding tile (recursive method): " + tile);
                 }
                 recurseTile(tile);
-                break;
             }
-            
         }
     }
 
@@ -204,13 +202,12 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         final long minY = y * 2;
         final long maxY = minY + 1;
 
-
         final int tileWidth = gridSet.getTileWidth();
         final int tileHeight = gridSet.getTileHeight();
         Map<String, ConveyorTile> cTiles = new HashMap<String, ConveyorTile>();
         ConveyorTile ct = null;
-        Map<String, String> parameters = tile.getFullParameters();
-        String gridSetId = tile.getGridSetId();
+        final Map<String, String> parameters = tile.getFullParameters();
+        final String gridSetId = tile.getGridSetId();
         for (long i = minX; i <= maxX; i++) {
             for (long j = minY; j <= maxY; j++) {
                 // Accessing the 4 tiles from the upper level to obtain this tile
@@ -231,37 +228,48 @@ public class CoverageTileLayer extends GeoServerTileLayer {
 
         // setup tile set to satisfy the request
         // TODO: arrange the ConveyorTilesRenderedImage instead of using the mosaic.
-        RenderedImage sources[] = new RenderedImage[4];
-        Set<String> keys = cTiles.keySet();
-        int i = 0;
-        for (String key: keys) {
-            ConveyorTile componentTile = cTiles.get(key);
-            RenderedImage ri = CoverageMetaTile.getResource(componentTile);
-            String indexes[] = key.split("_");
-            final int xIndex = Integer.parseInt(indexes[0]);
-            final int yIndex = Integer.parseInt(indexes[1]);
-            final float translateX = (xIndex - minX) * tileWidth;
-            final float translateY = (maxY - yIndex) * tileHeight;
 
-            // Getting the parent tiles and translate them to setup the proper layout before the scaling operation
-            sources[i++] = TranslateDescriptor.create(ri, translateX, translateY,
-                    Interpolation.getInstance(Interpolation.INTERP_NEAREST), null);
+        final Set<String> keys = cTiles.keySet();
+        final RenderedImage outputTile;
+        if (!keys.isEmpty()) {
+            int i = 0;
+            RenderedImage sources[] = new RenderedImage[4];
+            for (String key : keys) {
+                final ConveyorTile componentTile = cTiles.get(key);
+                final RenderedImage ri = CoverageMetaTile.getResource(componentTile);
+                final String indexes[] = key.split("_");
+                final int xIndex = Integer.parseInt(indexes[0]);
+                final int yIndex = Integer.parseInt(indexes[1]);
+                final float translateX = (xIndex - minX) * tileWidth;
+                final float translateY = (maxY - yIndex) * tileHeight;
+
+                // Getting the parent tiles and translate them to setup the proper layout before the scaling operation
+                sources[i++] = TranslateDescriptor.create(ri, translateX, translateY,
+                        Interpolation.getInstance(Interpolation.INTERP_NEAREST), null);
+            }
+
+            // Mosaick these 4 tiles to get the current tile.
+            // TODO: We should arrange the ConveyorTilesRenderedImage to delegate to job to it.
+
+            final RenderedImage mosaicked = MosaicDescriptor.create(sources,
+                    MosaicDescriptor.MOSAIC_TYPE_BLEND, null, null, null, null, null);
+
+            // create the current Tile from the previous 4 using a scale which
+            outputTile = ScaleDescriptor.create(mosaicked, HALF_FACTOR, HALF_FACTOR, ZERO, ZERO,
+                    interpolation, null);
+        } else {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.fine("Creating constant image for tile with coordinates: x = " + x + " y = "
+                        + y + " z = " + z);
+            }
+            outputTile = CoverageMetaTile.createConstantImage(layout, tileWidth, tileHeight, null);
         }
-
-        // Mosaick these 4 tiles to get the current tile.
-        // TODO: We should arrange the ConveyorTilesRenderedImage to delegate to job to it.
-
-        RenderedImage mosaicked = MosaicDescriptor.create(sources, MosaicDescriptor.MOSAIC_TYPE_BLEND, null, null, null, null, null);
-
-        // create the current Tile from the previous 4 using a scale which
-        RenderedImage scaled = ScaleDescriptor.create(mosaicked, HALF_FACTOR, HALF_FACTOR, ZERO, ZERO, interpolation, null);
 
         // Create a tile on top of the generated image and save it to store.
         CoverageMetaTile metaTile = new CoverageMetaTile(this, gridSubset, TIFF_MIME_TYPE,
                 tile.getTileIndex(), 1, 1, parameters, 0);
-        metaTile.setImage(scaled);
-        long requestTime = System.currentTimeMillis();
-        saveTiles(metaTile, tile, requestTime);
+        metaTile.setImage(outputTile);
+        saveTiles(metaTile, tile, System.currentTimeMillis());
         return tile;
     }
 
@@ -423,7 +431,7 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         ConveyorTile returnTile = null;
 
         try {
-            if (seedingPolicy == SeedingPolicy.DIRECT || zLevel == numLevels - 1 ) {
+            if (seedingPolicy == SeedingPolicy.DIRECT || zLevel == numLevels - 1 || zLevel == gridSubset.getZoomStart()) {
                 returnTile = getMetatilingReponse(tile, true,
                         coverageTileLayerInfo.getMetaTilingX(),
                         coverageTileLayerInfo.getMetaTilingY());

@@ -23,16 +23,20 @@ import java.util.logging.Logger;
 import javax.imageio.IIOImage;
 import javax.imageio.stream.FileCacheImageInputStream;
 import javax.imageio.stream.FileCacheImageOutputStream;
+import javax.media.jai.ImageLayout;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.RenderedOp;
+import javax.media.jai.operator.ConstantDescriptor;
 
 import org.apache.commons.io.IOUtils;
 import org.geoserver.coverage.GridCoveragesCache;
 import org.geoserver.coverage.layer.CoverageTileLayerInfo.TiffCompression;
 import org.geoserver.wms.map.RenderedImageMapResponse;
+import org.geotools.factory.Hints;
 import org.geotools.image.crop.GTCropDescriptor;
 import org.geotools.resources.i18n.ErrorKeys;
 import org.geotools.resources.i18n.Errors;
+import org.geotools.resources.image.ImageUtilities;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.GridSubset;
 import org.geowebcache.io.Resource;
@@ -255,5 +259,12 @@ public class CoverageMetaTile extends MetaTile {
                 }
             }
         }
+    }
+
+    public static RenderedImage createConstantImage(final ImageLayout layout, final int width,
+            final int height, final Hints hints) {
+        Number[] backgroundValues = ImageUtilities.getBackgroundValues(layout.getSampleModel(null),
+                null);
+        return ConstantDescriptor.create(width * 1.0f, height * 1.0f, backgroundValues, hints);
     }
 }
