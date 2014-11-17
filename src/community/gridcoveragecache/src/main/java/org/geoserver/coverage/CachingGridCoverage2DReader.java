@@ -111,13 +111,15 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
         this.cache = cache;
         try {
             delegate = reader;
-            String coverageName = info.getNativeName();
+            String coverageName = info.getNativeCoverageName();
             ImageLayout layout = reader.getImageLayout(coverageName);
 
             // Getting the Metadata Map
             CoverageTileLayerInfo tlInfo = info.getMetadata().get(ResourcePool.COVERAGETILELAYERINFO_KEY, CoverageTileLayerInfoImpl.class);
             gridSubSets = CoverageConfiguration.parseGridSubsets(cache.getGridSetBroker(), tlInfo);
-            defaultGridSet = gridSubSets.get(0).getGridSet();
+            if (gridSubSets != null && !gridSubSets.isEmpty()) {
+                defaultGridSet = gridSubSets.get(0).getGridSet();
+            }
             coverageTileLayer = (CoverageTileLayer) GWC.get().getTileLayerByName(tlInfo.getName());
             coverageTileLayer.setLayout(layout);
             //GeoServerTileLayer tileLayer = (GeoServerTileLayer) gwc.getTileLayerByName(nameSpace + ":" + layerInfo.getName() + "test");

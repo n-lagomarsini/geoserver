@@ -120,7 +120,7 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
             List<GridSubset> gridSubsets = parseGridSubsets(gwcGridSetBroker, info);
 
             CoverageInfo coverageInfo = gsCatalog.getCoverageByName(info.getName());
-            
+
             try {
                 layer = new CoverageTileLayer(coverageInfo, gwcGridSetBroker, gridSubsets, info,
                         false);
@@ -186,7 +186,12 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
                 ResourcePool pool = geoServerCatalog.getResourcePool();
                 Hints hints = new Hints(GeoTools.getDefaultHints());
                 hints.add(new Hints(ResourcePool.SKIP_COVERAGE_EXTENSIONS_LOOKUP, true));
-                GridCoverage2DReader reader = (GridCoverage2DReader) pool.getGridCoverageReader(coverage, hints);
+                String name = coverage.getNativeCoverageName();
+                if (name == null) {
+                    name = coverage.getName();
+                    
+                }
+                GridCoverage2DReader reader = (GridCoverage2DReader) pool.getGridCoverageReader(coverage, name, hints);
                 ((CoverageTileLayer)tileLayer).setLayout(reader.getImageLayout());
 
             } finally {

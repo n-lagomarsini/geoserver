@@ -1367,7 +1367,7 @@ public class ResourcePool {
         
         GridCoverage2DReader wrappedReader = null;
 
-        if (!(hints != null && hints.containsKey(SKIP_COVERAGE_EXTENSIONS_LOOKUP) 
+        if (!(hints != null && hints.containsKey(SKIP_COVERAGE_EXTENSIONS_LOOKUP)
                 && (Boolean) hints.get(SKIP_COVERAGE_EXTENSIONS_LOOKUP)) && coverageInfo != null && coverageName != null) {
             CoverageHintReaderKey key;
             if (info.getId() != null) {

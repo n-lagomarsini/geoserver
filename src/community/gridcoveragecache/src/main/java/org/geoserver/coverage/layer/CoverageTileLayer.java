@@ -91,7 +91,6 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         } catch (MimeException e) {
             throw new RuntimeException("Exception occurred while getting TIFF mimetype", e);
         }
-
     }
 
     public CoverageTileLayer(CoverageInfo info, GridSetBroker broker, List<GridSubset> gridSubsets,
@@ -125,7 +124,7 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         tiffCompression = coverageTileLayerInfo.getTiffCompression();
         InterpolationType interpolationType = coverageTileLayerInfo.getInterpolationType();
         interpolation = interpolationType != null ? interpolationType.getInterpolationObject() : null;
-        //
+        overviewPolicy = coverageTileLayerInfo.getOverviewPolicy();
     }
 
     @Override
