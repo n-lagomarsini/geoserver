@@ -6,27 +6,31 @@ package org.geoserver.coverage.configuration;
 
 import java.util.Arrays;
 
+import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogException;
 import org.geoserver.catalog.CatalogInfo;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.LayerInfo;
+import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.ResourceInfo;
+import org.geoserver.catalog.ResourcePool;
 import org.geoserver.catalog.event.CatalogAddEvent;
 import org.geoserver.catalog.event.CatalogListener;
 import org.geoserver.catalog.event.CatalogModifyEvent;
 import org.geoserver.catalog.event.CatalogPostModifyEvent;
 import org.geoserver.catalog.event.CatalogRemoveEvent;
+import org.geoserver.coverage.CachingGridCoverageReaderCallback;
 import org.geoserver.gwc.GWC;
 
 public class CoverageListener implements CatalogListener {
 
     private final GWC mediator;
 
-    //private final Catalog catalog;
+    private final Catalog catalog;
 
-    public CoverageListener(final GWC mediator) {
+    public CoverageListener(final GWC mediator, final Catalog catalog) {
         this.mediator = mediator;
-        //this.catalog = catalog;
+        this.catalog = catalog;
     }
     
     @Override
@@ -59,6 +63,14 @@ public class CoverageListener implements CatalogListener {
         } else {
             // notify the layer has been removed
             mediator.removeTileLayers(Arrays.asList(prefixedName));
+            
+            // Remove the CoverageTileLayerInfo from the MetadataMap
+            CoverageInfo res = (CoverageInfo)resource;
+            MetadataMap metadata = res.getMetadata();
+            if(metadata != null && metadata.containsKey(CachingGridCoverageReaderCallback.COVERAGETILELAYERINFO_KEY)){
+                metadata.remove(CachingGridCoverageReaderCallback.COVERAGETILELAYERINFO_KEY);
+                catalog.save(res);
+            }
         }
     }
 

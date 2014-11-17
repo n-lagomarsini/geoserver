@@ -16,7 +16,7 @@ public class CoverageCacheInitializer{
     public CoverageCacheInitializer(GWC mediator, Catalog gsCatalog){
 //        this.mediator = mediator;
 //        this.gsCatalog = gsCatalog; 
-        gsCatalog.addListener(new CoverageListener(mediator));
+        gsCatalog.addListener(new CoverageListener(mediator, gsCatalog));
     }
 
 //    @Override

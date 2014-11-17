@@ -21,6 +21,8 @@ import org.geotools.factory.Hints;
  * 
  */
 public class CachingGridCoverageReaderCallback implements GridCoverageReaderCallback {
+    
+    public final static String COVERAGETILELAYERINFO_KEY = "coverageTileLayerInfo.key";
 
     GridCoveragesCache gridCoveragesCache;
     
@@ -36,7 +38,7 @@ public class CachingGridCoverageReaderCallback implements GridCoverageReaderCall
     public boolean canHandle(CoverageInfo info) {
         boolean canHandle = false;
         MetadataMap metadata = info.getMetadata();
-        if(metadata != null && metadata.containsKey(ResourcePool.COVERAGETILELAYERINFO_KEY)){
+        if(metadata != null && metadata.containsKey(COVERAGETILELAYERINFO_KEY)){
             canHandle = true;
         }
         return canHandle;

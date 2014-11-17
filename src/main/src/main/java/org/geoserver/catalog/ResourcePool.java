@@ -198,7 +198,6 @@ public class ResourcePool {
     ThreadPoolExecutor coverageExecutor;
     CatalogRepository repository;
     List<GridCoverageReaderCallback> gridCoverageReaders;
-    public final static String COVERAGETILELAYERINFO_KEY = "coverageTileLayerInfo.key";
 
     /**
      * Creates a new instance of the resource pool.
@@ -1373,8 +1372,6 @@ public class ResourcePool {
             if (info.getId() != null) {
                 // expand the hints if necessary
                 key = new CoverageHintReaderKey(info.getId(), hints);
-                MetadataMap metadata = coverageInfo.getMetadata();
-                if (metadata != null && metadata.containsKey(COVERAGETILELAYERINFO_KEY)) {
                     synchronized (wrappedCoverageReaderCache) {
                         Object cachedReader = wrappedCoverageReaderCache.get(key);
                         wrappedReader = cachedReader != null ? (GridCoverage2DReader) cachedReader
@@ -1387,7 +1384,6 @@ public class ResourcePool {
                                 wrappedCoverageReaderCache.put(key, wrappedReader);
                             }
                         }
-                    }
                 }
             }
         }

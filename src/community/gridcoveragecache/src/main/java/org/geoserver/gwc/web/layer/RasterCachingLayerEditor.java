@@ -59,6 +59,7 @@ import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.ResourcePool;
 import org.geoserver.catalog.impl.CoverageInfoImpl;
 import org.geoserver.catalog.impl.ModificationProxy;
+import org.geoserver.coverage.CachingGridCoverageReaderCallback;
 import org.geoserver.coverage.configuration.CoverageConfiguration;
 import org.geoserver.coverage.layer.CoverageTileLayer;
 import org.geoserver.coverage.layer.CoverageTileLayerInfo;
@@ -348,6 +349,18 @@ public class RasterCachingLayerEditor extends FormComponentPanel<GeoServerTileLa
             if (tileLayerExists) {
                 String tileLayerName = tileLayerInfo.getName();
                 gwc.removeTileLayers(Arrays.asList(tileLayerName));
+                
+                LayerInfo layerInfo = (LayerInfo) layer;
+                
+                CoverageInfo res = (CoverageInfo) layerInfo.getResource();
+                
+                MetadataMap metadata = res.getMetadata();
+                if(metadata != null && metadata.containsKey(CachingGridCoverageReaderCallback.COVERAGETILELAYERINFO_KEY)){
+                    metadata.remove(CachingGridCoverageReaderCallback.COVERAGETILELAYERINFO_KEY);
+                }
+                
+                // Saving catalog
+                gwc.getCatalog().save(res);
             }
             return;
         }
@@ -391,10 +404,10 @@ public class RasterCachingLayerEditor extends FormComponentPanel<GeoServerTileLa
         }
         MetadataMap metadata = coverage.getMetadata();
         if(metadata != null){
-            metadata.put(ResourcePool.COVERAGETILELAYERINFO_KEY, tileLayerInfo);
+            metadata.put(CachingGridCoverageReaderCallback.COVERAGETILELAYERINFO_KEY, tileLayerInfo);
         } else if(coverage instanceof CoverageInfoImpl){
             metadata = new MetadataMap();
-            metadata.put(ResourcePool.COVERAGETILELAYERINFO_KEY, tileLayerInfo);
+            metadata.put(CachingGridCoverageReaderCallback.COVERAGETILELAYERINFO_KEY, tileLayerInfo);
             ((CoverageInfoImpl)coverage).setMetadata(metadata);
         }
         

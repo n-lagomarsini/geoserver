@@ -115,7 +115,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             ImageLayout layout = reader.getImageLayout(coverageName);
 
             // Getting the Metadata Map
-            CoverageTileLayerInfo tlInfo = info.getMetadata().get(ResourcePool.COVERAGETILELAYERINFO_KEY, CoverageTileLayerInfoImpl.class);
+            CoverageTileLayerInfo tlInfo = info.getMetadata().get(CachingGridCoverageReaderCallback.COVERAGETILELAYERINFO_KEY, CoverageTileLayerInfoImpl.class);
             gridSubSets = CoverageConfiguration.parseGridSubsets(cache.getGridSetBroker(), tlInfo);
             if (gridSubSets != null && !gridSubSets.isEmpty()) {
                 defaultGridSet = gridSubSets.get(0).getGridSet();

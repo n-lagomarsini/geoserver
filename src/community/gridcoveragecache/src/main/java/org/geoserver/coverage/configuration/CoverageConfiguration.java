@@ -186,6 +186,7 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
                 ResourcePool pool = geoServerCatalog.getResourcePool();
                 Hints hints = new Hints(GeoTools.getDefaultHints());
                 hints.add(new Hints(ResourcePool.SKIP_COVERAGE_EXTENSIONS_LOOKUP, true));
+
                 String name = coverage.getNativeCoverageName();
                 if (name == null) {
                     name = coverage.getName();
