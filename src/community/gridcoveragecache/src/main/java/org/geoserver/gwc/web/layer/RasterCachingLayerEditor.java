@@ -357,10 +357,12 @@ public class RasterCachingLayerEditor extends FormComponentPanel<GeoServerTileLa
                 MetadataMap metadata = res.getMetadata();
                 if(metadata != null && metadata.containsKey(CachingGridCoverageReaderCallback.COVERAGETILELAYERINFO_KEY)){
                     metadata.remove(CachingGridCoverageReaderCallback.COVERAGETILELAYERINFO_KEY);
+                    
+                    // Avoid Proxy issues
+                    res = gwc.getCatalog().getCoverage(res.getId());
+                    gwc.getCatalog().save(res);
+                    
                 }
-                
-                // Saving catalog
-                gwc.getCatalog().save(res);
             }
             return;
         }

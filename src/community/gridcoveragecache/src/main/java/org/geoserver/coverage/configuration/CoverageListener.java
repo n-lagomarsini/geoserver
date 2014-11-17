@@ -69,6 +69,8 @@ public class CoverageListener implements CatalogListener {
             MetadataMap metadata = res.getMetadata();
             if(metadata != null && metadata.containsKey(CachingGridCoverageReaderCallback.COVERAGETILELAYERINFO_KEY)){
                 metadata.remove(CachingGridCoverageReaderCallback.COVERAGETILELAYERINFO_KEY);
+                // Avoid Proxy issues
+                res = catalog.getCoverage(res.getId());
                 catalog.save(res);
             }
         }

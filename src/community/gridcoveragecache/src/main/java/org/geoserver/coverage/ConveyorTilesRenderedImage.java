@@ -11,6 +11,7 @@ import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
@@ -24,11 +25,15 @@ import javax.media.jai.operator.TranslateDescriptor;
 
 import org.geoserver.coverage.layer.CoverageMetaTile;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.CRS;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.BoundingBox;
 import org.geowebcache.grid.GridSet;
 import org.geowebcache.grid.GridSubset;
+import org.geowebcache.grid.GridSubsetFactory;
 import org.jaitools.imageutils.ImageLayout2;
+import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class ConveyorTilesRenderedImage implements RenderedImage {
@@ -129,6 +134,12 @@ public class ConveyorTilesRenderedImage implements RenderedImage {
         height = layout2.getHeight(null);
         numXTiles = width / tileWidth;
         numYTiles = height / tileHeight;
+    }
+    
+    public ConveyorTilesRenderedImage(Map<String, ConveyorTile> cTiles, GridSet gridSet, GridSubset subset, ImageLayout layout) throws NoSuchAuthorityCodeException, IOException, FactoryException {
+        this(cTiles, extractLayout(cTiles, gridSet, layout), axisOrderingTopDown(gridSet), 2, 2, (int) extractZoomeLevel(cTiles),
+                gridSet, subset, CRS.decode("EPSG:"
+                        + gridSet.getSrs().getNumber()));
     }
 
     @Override
@@ -254,5 +265,68 @@ public class ConveyorTilesRenderedImage implements RenderedImage {
     public WritableRaster copyData(WritableRaster raster) {
         // TODO Auto-generated method stub
         return null;
+    }
+    
+    /**
+     * This method checks if the Gridset Y axis order increases from top to bottom.
+     * @param gridSet 
+     * 
+     * @param gridSet
+    * @return
+     */
+    private static boolean axisOrderingTopDown(GridSet gridSet) {
+        int level = 2;
+        GridSubset subset = GridSubsetFactory.createGridSubSet(gridSet, gridSet.getOriginalExtent(), level, level);
+        BoundingBox b1 = subset.boundsFromIndex(new long[]{0 , 0, level});
+        BoundingBox b2 = subset.boundsFromIndex(new long[]{0 , 1, level});
+        return b2.getMinX() < b1.getMinX();
+    }
+    
+    /**
+     * This method checks if the Gridset Y axis order increases from top to bottom.
+     * @param gridSet 
+     * 
+     * @param gridSet
+    * @return
+     */
+    private static long extractZoomeLevel(Map<String, ConveyorTile> cTiles) {
+        String key = cTiles.keySet().iterator().next();
+        ConveyorTile tile = cTiles.get(key);
+        return tile.getTileIndex()[2];
+    }
+    
+    /**
+     * This method checks if the Gridset Y axis order increases from top to bottom.
+     * @param gridSet 
+     * 
+     * @param gridSet
+     * @param input 
+    * @return
+     */
+    private static ImageLayout extractLayout(Map<String, ConveyorTile> cTiles, GridSet gridSet, ImageLayout input) {
+        
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        for (String key : cTiles.keySet()) {
+            ConveyorTile tile = cTiles.get(key);
+            long[] tileIndex = tile.getTileIndex();
+            if(tileIndex[0] < minX){
+                minX = (int) tileIndex[0];
+            }
+            if(tileIndex[1] < minY){
+                minY = (int) tileIndex[1];
+            }
+        }
+        
+
+        final int wTiles = 2;
+        final int hTiles = 2;
+        final int tileHeight = gridSet.getTileHeight();
+        final int tileWidth = gridSet.getTileWidth();
+        
+        ImageLayout layout = new ImageLayout2(minX,
+                minY, tileWidth * wTiles, tileHeight * hTiles, 0, 0, tileWidth, tileHeight, input.getSampleModel(null), null);
+
+        return layout;
     }
 }

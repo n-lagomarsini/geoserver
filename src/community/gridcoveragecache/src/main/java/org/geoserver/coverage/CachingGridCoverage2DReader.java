@@ -45,6 +45,7 @@ import org.geowebcache.grid.BoundingBox;
 import org.geowebcache.grid.Grid;
 import org.geowebcache.grid.GridSet;
 import org.geowebcache.grid.GridSubset;
+import org.geowebcache.grid.GridSubsetFactory;
 import org.geowebcache.grid.OutsideCoverageException;
 import org.geowebcache.storage.StorageBroker;
 import org.jaitools.imageutils.ImageLayout2;
@@ -126,6 +127,8 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             //coverageTileLayer = new CoverageTileLayer(info, cache.getGridSetBroker(), gridSubSet, layout, tileLayer.getInfo());
 //        } catch (IOException e) {
 //            throw new IllegalArgumentException(e);
+            
+            
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
         }
@@ -167,6 +170,22 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 //        //
 //    }
 
+    /**
+     * This method checks if the Gridset Y axis order increases from top to bottom.
+     * @param gridSet 
+     * 
+     * @param gridSet
+    * @return
+     */
+    private boolean axisOrderingTopDown() {
+        GridSet gridSet=defaultGridSet;
+        int level = 2;
+        GridSubset subset = GridSubsetFactory.createGridSubSet(gridSet, gridSet.getOriginalExtent(), level, level);
+        BoundingBox b1 = subset.boundsFromIndex(new long[]{0 , 0, level});
+        BoundingBox b2 = subset.boundsFromIndex(new long[]{0 , 1, level});
+        return b2.getMinX() < b1.getMinX();
+    }
+    
     @Override
     public Format getFormat() {
         return delegate.getFormat();
@@ -413,7 +432,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
             // setup tile set to satisfy the request
             CoordinateReferenceSystem crs = requestedEnvelope.getCoordinateReferenceSystem();
-            ConveyorTilesRenderedImage finalImage = new ConveyorTilesRenderedImage(cTiles, layout, axisOrderingTopDown, wTiles, hTiles, zoomLevel, defaultGridSet, subset, crs);
+            ConveyorTilesRenderedImage finalImage = new ConveyorTilesRenderedImage(cTiles, layout, axisOrderingTopDown(), wTiles, hTiles, zoomLevel, defaultGridSet, subset, crs);
             ReferencedEnvelope readEnvelope = finalImage.getEnvelope();
             final SampleModel sampleModel = finalImage.getSampleModel();
             final int numBands = sampleModel.getNumBands();
