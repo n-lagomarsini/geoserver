@@ -8,7 +8,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -90,9 +89,8 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
                 | SecurityException e) {
             throw new RuntimeException(e);
         }
-        
         // Add the new Listener for the CoverageConfiguration
-        
+
     }
 
     /**
@@ -113,15 +111,15 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
         if(!(tileLayerById instanceof CoverageTileLayer)){
             GeoServerTileLayerInfo info = tileLayerById.getInfo();
 
-            GridSubset gridSubSet = GridSubsetFactory.createGridSubSet(gwcGridSetBroker.getGridSets()
-                    .get(0));
+//            GridSubset gridSubSet = GridSubsetFactory.createGridSubSet(gwcGridSetBroker.getGridSets()
+//                    .get(0));
+            List<GridSubset> gridSubsets = parseGridSubsets(gwcGridSetBroker, info);
 
             CoverageInfo coverageInfo = gsCatalog.getCoverageByName(info.getName());
-            ;
             
             try {
-                layer = new CoverageTileLayer(coverageInfo, gwcGridSetBroker,
-                        Arrays.asList(gridSubSet), info, false);
+                layer = new CoverageTileLayer(coverageInfo, gwcGridSetBroker, gridSubsets, info,
+                        false);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -193,14 +191,21 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
 
     }
 
+    /**
+     * Parse GridSubsets from XML associated to the {@link GeoServerTileLayerInfo} object
+     * 
+     * @param gridsetBroker
+     * @param tileLayerInfo
+     * @return
+     */
     public static List<GridSubset> parseGridSubsets(GridSetBroker gridsetBroker,
             GeoServerTileLayerInfo tileLayerInfo) {
         Set<XMLGridSubset> subset = tileLayerInfo.getGridSubsets();
         Iterator<XMLGridSubset> subsetIt = subset.iterator();
         List<GridSubset> subSets = new ArrayList<GridSubset>();
         while (subsetIt.hasNext()) {
-            XMLGridSubset element = subsetIt.next();
-            GridSet gridset = gridsetBroker.get(element.getGridSetName());
+            final XMLGridSubset element = subsetIt.next();
+            final GridSet gridset = gridsetBroker.get(element.getGridSetName());
             subSets.add(GridSubsetFactory.createGridSubSet(gridset, element.getExtent(),
                     element.getZoomStart(), element.getZoomStop()));
         }

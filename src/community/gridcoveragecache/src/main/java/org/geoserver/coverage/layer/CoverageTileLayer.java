@@ -28,6 +28,7 @@ import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.impl.LayerGroupInfoImpl;
 import org.geoserver.coverage.WCSSourceHelper;
 import org.geoserver.coverage.configuration.CoverageConfiguration;
+import org.geoserver.coverage.layer.CoverageTileLayerInfo.InterpolationType;
 import org.geoserver.coverage.layer.CoverageTileLayerInfo.SeedingPolicy;
 import org.geoserver.coverage.layer.CoverageTileLayerInfo.TiffCompression;
 import org.geoserver.gwc.GWC;
@@ -79,8 +80,8 @@ public class CoverageTileLayer extends GeoServerTileLayer {
     private CoverageTileLayerInfo coverageTileLayerInfo;
 
     private OverviewPolicy overviewPolicy = OverviewPolicy.QUALITY;
-    
-    private TiffCompression tiffCompression  = TiffCompression.NONE;
+
+    private TiffCompression tiffCompression  = TiffCompression.DEFLATE;
 
     public static final MimeType TIFF_MIME_TYPE;
 
@@ -120,8 +121,11 @@ public class CoverageTileLayer extends GeoServerTileLayer {
             coverageTileLayerInfo.setName(name + CoverageConfiguration.COVERAGE_LAYER_SUFFIX);
             coverageTileLayerInfo.getMimeFormats().add("image/tiff");
         }
-        
-        //TODO: Customize Interpolation, getting it from the GUI
+        seedingPolicy = coverageTileLayerInfo.getSeedingPolicy();
+        tiffCompression = coverageTileLayerInfo.getTiffCompression();
+        InterpolationType interpolationType = coverageTileLayerInfo.getInterpolationType();
+        interpolation = interpolationType != null ? interpolationType.getInterpolationObject() : null;
+        //
     }
 
     @Override

@@ -45,10 +45,7 @@ import org.geowebcache.grid.BoundingBox;
 import org.geowebcache.grid.Grid;
 import org.geowebcache.grid.GridSet;
 import org.geowebcache.grid.GridSubset;
-import org.geowebcache.grid.GridSubsetFactory;
 import org.geowebcache.grid.OutsideCoverageException;
-import org.geowebcache.mime.MimeException;
-import org.geowebcache.mime.MimeType;
 import org.geowebcache.storage.StorageBroker;
 import org.jaitools.imageutils.ImageLayout2;
 import org.opengis.coverage.grid.Format;
@@ -77,11 +74,11 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
     private GridCoveragesCache cache;
 
-    private List<GridSubset> gridSubSet;// TODO CHANGE HERE
+    private List<GridSubset> gridSubSets;
 
     private boolean axisOrderingTopDown;
 
-    private GridSet gridSet;
+    private GridSet defaultGridSet;
 
     private static final GridCoverageFactory gcf = new GridCoverageFactory();
 
@@ -119,8 +116,8 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
             // Getting the Metadata Map
             CoverageTileLayerInfo tlInfo = info.getMetadata().get(ResourcePool.COVERAGETILELAYERINFO_KEY, CoverageTileLayerInfoImpl.class);
-            gridSubSet = CoverageConfiguration.parseGridSubsets(cache.getGridSetBroker(), tlInfo);
-            gridSet = gridSubSet.get(0).getGridSet();
+            gridSubSets = CoverageConfiguration.parseGridSubsets(cache.getGridSetBroker(), tlInfo);
+            defaultGridSet = gridSubSets.get(0).getGridSet();
             coverageTileLayer = (CoverageTileLayer) GWC.get().getTileLayerByName(tlInfo.getName());
             coverageTileLayer.setLayout(layout);
             //GeoServerTileLayer tileLayer = (GeoServerTileLayer) gwc.getTileLayerByName(nameSpace + ":" + layerInfo.getName() + "test");
@@ -364,9 +361,10 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                 gridEnv = (GridEnvelope2D) getOriginalGridRange();
             }
 
-            Integer zoomLevel = findClosestZoom(gridSet, env, gridEnv.width);
-
-            long[] tiles = gridSubSet.get(0).getCoverageIntersection(zoomLevel, bbox);// TODO CHANGE HERE
+            //TODO: customize this behaviour by parsing read params and 
+            // getting the gridset to be used from there
+            Integer zoomLevel = findClosestZoom(defaultGridSet, env, gridEnv.width);
+            long[] tiles = gridSubSets.get(0).getCoverageIntersection(zoomLevel, bbox);// TODO CHANGE HERE
 
             final int minX = (int) tiles[0];
             final int minY = (int) tiles[1];
@@ -375,12 +373,12 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             final int level = (int) tiles[4];
             final int wTiles = maxX - minX + 1;
             final int hTiles = maxY - minY + 1;
-            final int tileHeight = gridSet.getTileHeight();
-            final int tileWidth = gridSet.getTileWidth();
+            final int tileHeight = defaultGridSet.getTileHeight();
+            final int tileWidth = defaultGridSet.getTileWidth();
             Map<String, ConveyorTile> cTiles = new HashMap<String, ConveyorTile>();
 
             String id = coverageTileLayer.getName();
-            String gridSetName = gridSet.getName();
+            String gridSetName = defaultGridSet.getName();
 
             Map<String, String> filteringParameters = extractParameters(parameters);
 
@@ -413,7 +411,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
             // setup tile set to satisfy the request
             CoordinateReferenceSystem crs = requestedEnvelope.getCoordinateReferenceSystem();
-            ConveyorTilesRenderedImage finalImage = new ConveyorTilesRenderedImage(cTiles, layout, axisOrderingTopDown, wTiles, hTiles, zoomLevel, gridSet, subset, crs);
+            ConveyorTilesRenderedImage finalImage = new ConveyorTilesRenderedImage(cTiles, layout, axisOrderingTopDown, wTiles, hTiles, zoomLevel, defaultGridSet, subset, crs);
             ReferencedEnvelope readEnvelope = finalImage.getEnvelope();
             final SampleModel sampleModel = finalImage.getSampleModel();
             final int numBands = sampleModel.getNumBands();
@@ -456,24 +454,10 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                     }
                     params.put(WCSSourceHelper.ELEVATION, elevation.toString());
                 }
-            }
+            } 
             // TODO: ADD management for custom dimensions
         }
         return params;
-    }
-
-    /**
-     * This method checks if the Gridset Y axis order increases from top to bottom.
-     * 
-     * @param gridSet
-     * @return
-     */
-    private boolean axisOrderingTopDown() {
-        int level = 2;
-        GridSubset subset = GridSubsetFactory.createGridSubSet(gridSet, gridSet.getOriginalExtent(), level, level);
-        BoundingBox b1 = subset.boundsFromIndex(new long[]{0 , 0, level});
-        BoundingBox b2 = subset.boundsFromIndex(new long[]{0 , 1, level});
-        return b2.getMinX() < b1.getMinX();
     }
 
     /**

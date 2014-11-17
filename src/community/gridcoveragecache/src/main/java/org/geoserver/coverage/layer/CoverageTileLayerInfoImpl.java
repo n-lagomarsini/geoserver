@@ -6,12 +6,9 @@ package org.geoserver.coverage.layer;
 
 import java.io.Serializable;
 
-import javax.media.jai.Interpolation;
-
-//import javax.media.jai.Interpolation;
-
-import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfoImpl;
+//import javax.media.jai.Interpolation;
+import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
 
 public class CoverageTileLayerInfoImpl extends GeoServerTileLayerInfoImpl implements CoverageTileLayerInfo,Serializable {
 

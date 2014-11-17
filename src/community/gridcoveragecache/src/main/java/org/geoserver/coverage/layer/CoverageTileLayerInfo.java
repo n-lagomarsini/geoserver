@@ -73,7 +73,7 @@ public interface CoverageTileLayerInfo extends GeoServerTileLayerInfo {
             public ImageWriteParam getCompressionParams() {
                 TIFFImageWriteParam writeParam = new TIFFImageWriteParam(null);
                 writeParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-                writeParam.setCompressionType("DEFLATE");
+                writeParam.setCompressionType("Deflate");
                 return writeParam;
             }
 
