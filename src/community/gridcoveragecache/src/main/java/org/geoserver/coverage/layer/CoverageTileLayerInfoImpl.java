@@ -5,10 +5,10 @@
 package org.geoserver.coverage.layer;
 
 import java.io.Serializable;
-
-import org.geoserver.gwc.layer.GeoServerTileLayerInfoImpl;
-//import javax.media.jai.Interpolation;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
+import org.geoserver.gwc.layer.GeoServerTileLayerInfoImpl;
+import org.geotools.coverage.grid.io.OverviewPolicy;
+
 
 public class CoverageTileLayerInfoImpl extends GeoServerTileLayerInfoImpl implements CoverageTileLayerInfo,Serializable {
 
@@ -28,6 +28,7 @@ public class CoverageTileLayerInfoImpl extends GeoServerTileLayerInfoImpl implem
             setInterpolationType(((CoverageTileLayerInfoImpl) info).getInterpolationType());
             setSeedingPolicy(((CoverageTileLayerInfoImpl) info).getSeedingPolicy());
             setTiffCompression(((CoverageTileLayerInfoImpl) info).getTiffCompression());
+            setOverviewPolicy(((CoverageTileLayerInfoImpl) info).getOverviewPolicy());
         }
     }
 
@@ -39,6 +40,8 @@ public class CoverageTileLayerInfoImpl extends GeoServerTileLayerInfoImpl implem
     private InterpolationType interpolationType = InterpolationType.NEAREST;
     
     private TiffCompression tiffCompression = TiffCompression.NONE;
+
+    private OverviewPolicy overviewPolicy = OverviewPolicy.IGNORE;
 
     @Override
     public void setInterpolationType(InterpolationType resamplingAlgorithm) {
@@ -71,6 +74,15 @@ public class CoverageTileLayerInfoImpl extends GeoServerTileLayerInfoImpl implem
     }
 
     @Override
+    public void setOverviewPolicy(OverviewPolicy overviewPolicy) {
+        this.overviewPolicy  = overviewPolicy;
+    }
+
+    @Override
+    public OverviewPolicy getOverviewPolicy() {
+        return overviewPolicy;
+    }
+    @Override
     public GeoServerTileLayerInfoImpl clone() {
         GeoServerTileLayerInfoImpl info = super.clone();
         if(info instanceof CoverageTileLayerInfoImpl){
@@ -80,6 +92,7 @@ public class CoverageTileLayerInfoImpl extends GeoServerTileLayerInfoImpl implem
             infoImpl.setSeedingPolicy(SeedingPolicy.DIRECT);
             infoImpl.setInterpolationType(InterpolationType.NEAREST);
             infoImpl.setTiffCompression(TiffCompression.NONE);
+            infoImpl.setOverviewPolicy(OverviewPolicy.IGNORE);
             return infoImpl;
         }
     }

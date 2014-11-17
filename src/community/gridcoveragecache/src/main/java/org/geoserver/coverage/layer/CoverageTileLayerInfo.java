@@ -10,6 +10,7 @@ import javax.imageio.ImageWriteParam;
 import javax.media.jai.Interpolation;
 
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
+import org.geotools.coverage.grid.io.OverviewPolicy;
 
 import com.sun.media.jai.util.InterpAverage;
 
@@ -103,4 +104,8 @@ public interface CoverageTileLayerInfo extends GeoServerTileLayerInfo {
     public void setTiffCompression(TiffCompression tiffCompression);
 
     public TiffCompression getTiffCompression();
+    
+    public void setOverviewPolicy(OverviewPolicy overviewPolicy);
+
+    public OverviewPolicy getOverviewPolicy();
 }

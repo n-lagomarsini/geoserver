@@ -82,7 +82,7 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
                 .initialCapacity(10)//
                 .maximumSize(100)
                 //
-                .build(new WCSTileLayerLoader(tileLayerCatalog, pendingDeletes, gridSetBroker,
+                .build(new CoverageTileLayerLoader(tileLayerCatalog, pendingDeletes, gridSetBroker,
                         catalog, pendingModications, lock));
 
         try {
@@ -139,7 +139,7 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
      * {@link GeoServerTileLayer} cache loader
      * 
      */
-    static class WCSTileLayerLoader extends CacheLoader<String, GeoServerTileLayer> {
+    static class CoverageTileLayerLoader extends CacheLoader<String, GeoServerTileLayer> {
         private final TileLayerCatalog tileLayerCatalog;
 
         private final GridSetBroker gridSetBroker;
@@ -152,7 +152,7 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
 
         private final ReadWriteLock lock;
 
-        private WCSTileLayerLoader(TileLayerCatalog tileLayerCatalog, Set<String> pendingDeletes,
+        private CoverageTileLayerLoader(TileLayerCatalog tileLayerCatalog, Set<String> pendingDeletes,
                 GridSetBroker gridSetBroker, Catalog geoServerCatalog,
                 Map<String, GeoServerTileLayerInfo> pendingModications, ReadWriteLock lock) {
             this.tileLayerCatalog = tileLayerCatalog;

@@ -24,20 +24,30 @@ import javax.media.jai.InterpolationNearest;
 
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.Component;
+import org.apache.wicket.ajax.AjaxEventBehavior;
 import org.apache.wicket.ajax.AjaxRequestTarget;
+import org.apache.wicket.ajax.form.AjaxFormComponentUpdatingBehavior;
 import org.apache.wicket.ajax.form.OnChangeAjaxBehavior;
 import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.basic.Label;
+import org.apache.wicket.markup.html.form.Button;
 import org.apache.wicket.markup.html.form.CheckBox;
 import org.apache.wicket.markup.html.form.DropDownChoice;
 import org.apache.wicket.markup.html.form.FormComponent;
 import org.apache.wicket.markup.html.form.FormComponentPanel;
 import org.apache.wicket.markup.html.form.IChoiceRenderer;
+import org.apache.wicket.markup.html.form.SubmitLink;
+import org.apache.wicket.markup.html.link.ExternalLink;
+import org.apache.wicket.markup.html.link.Link;
+import org.apache.wicket.markup.html.panel.Fragment;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.Model;
 import org.apache.wicket.model.PropertyModel;
 import org.apache.wicket.model.ResourceModel;
+import org.apache.wicket.validation.IErrorMessageSource;
 import org.apache.wicket.validation.IValidatable;
+import org.apache.wicket.validation.IValidationError;
+import org.apache.wicket.validation.IValidator;
 import org.apache.wicket.validation.ValidationError;
 import org.apache.wicket.validation.validator.AbstractValidator;
 import org.geoserver.catalog.CatalogInfo;
@@ -59,6 +69,7 @@ import org.geoserver.gwc.GWC;
 import org.geoserver.gwc.layer.GeoServerTileLayerInfo;
 import org.geoserver.web.wicket.GeoServerDialog;
 import org.geoserver.web.wicket.ParamResourceModel;
+import org.geotools.coverage.grid.io.OverviewPolicy;
 import org.geowebcache.config.XMLGridSubset;
 import org.geowebcache.diskquota.storage.Quota;
 import org.geowebcache.filter.parameters.ParameterFilter;
@@ -124,6 +135,8 @@ public class RasterCachingLayerEditor extends FormComponentPanel<GeoServerTileLa
     private final DropDownChoice<SeedingPolicy> seedingPolicy;
 
     private DropDownChoice<TiffCompression> tiffCompression;
+
+    private DropDownChoice<OverviewPolicy> overviewPolicy;
 
     /**
      * @param id
@@ -235,7 +248,13 @@ public class RasterCachingLayerEditor extends FormComponentPanel<GeoServerTileLa
         interpolationPolicy = new DropDownChoice<InterpolationType>("interpolationType",
                 interpolationModel, Arrays.asList(InterpolationType.values()));
         configs.add(interpolationPolicy);
-        
+
+        IModel<OverviewPolicy> overviewModel = new PropertyModel<OverviewPolicy>(getModel(), "overviewPolicy");
+
+        overviewPolicy = new DropDownChoice<OverviewPolicy>("overviewPolicy",
+                overviewModel, Arrays.asList(OverviewPolicy.values()));
+        configs.add(overviewPolicy);
+
         IModel<TiffCompression> compressionModel = new PropertyModel<TiffCompression>(getModel(), "tiffCompression");
 
         tiffCompression = new DropDownChoice<TiffCompression>("tiffCompression", compressionModel,
@@ -254,6 +273,30 @@ public class RasterCachingLayerEditor extends FormComponentPanel<GeoServerTileLa
                 parameterFilterModel, layerModel);
         configs.add(parameterFilters);
 
+        // Button for the seeding      
+        final String name = originalLayerName + CoverageConfiguration.COVERAGE_LAYER_SUFFIX;//tileLayerModel.getObject().getName();
+        final String href = "../gwc/rest/seed/" + name;
+
+        // Seeding task
+        final ExternalLink externalLink = new ExternalLink("seedLink", href, new ResourceModel(
+                "RasterCachingLayerEditor.seed").getObject());
+        externalLink.setEnabled(cachedLayerExistedInitially).setOutputMarkupId(true);
+        configs.add(externalLink);
+        
+        Button test = new Button("button"){
+            @Override
+            public void onSubmit() {
+              final boolean enableTileLayer = enabled.getModelObject().booleanValue();
+              if (enableTileLayer) {
+                  save();
+                  externalLink.setEnabled(true);
+              }
+            }
+        };
+        configs.add(test);
+        
+
+        
         // behavior phase
         configs.setVisible(enabled.getModelObject());
         setValidating(enabled.getModelObject());
@@ -432,6 +475,7 @@ public class RasterCachingLayerEditor extends FormComponentPanel<GeoServerTileLa
             interpolationPolicy.processInput();
             seedingPolicy.processInput();
             tiffCompression.processInput();
+            overviewPolicy.processInput();
 
             tileLayerInfo.setId(layerModel.getObject().getId());// TODO CHANGE HERE
             setConvertedInput(tileLayerInfo);
