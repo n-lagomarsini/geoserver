@@ -427,8 +427,9 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
         }
     }
 
-    private Map<String, String> extractParameters(GeneralParameterValue[] parameters) {
+    private Map<String, String> extractParameters(GeneralParameterValue[] parameters) throws IOException {
         Map<String, String> params = null;
+        Set<ParameterDescriptor<List>> dynamicParams = delegate.getDynamicParameters();
         for (GeneralParameterValue gParam : parameters) {
             GeneralParameterDescriptor descriptor = gParam.getDescriptor();
             final ReferenceIdentifier name = descriptor.getName();
@@ -454,7 +455,21 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                     }
                     params.put(WCSSourceHelper.ELEVATION, elevation.toString());
                 }
-            } 
+            } else {
+                for (ParameterDescriptor dynamicDescriptor : dynamicParams) {
+                    if (name.equals(dynamicDescriptor.getName())) {
+                        if (gParam instanceof ParameterValue<?>) {
+                            final ParameterValue<?> param = (ParameterValue<?>) gParam;
+                            final Object value = param.getValue();
+                            List<String> objValue = (List<String>)value;
+                            if (params == null) {
+                                params = new HashMap<String, String>();
+                            }
+                            params.put(name.getCode(), objValue.get(0));
+                        }
+                    }
+                }
+            }
             // TODO: ADD management for custom dimensions
         }
         return params;
