@@ -491,7 +491,6 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                     }
                 }
             }
-            // TODO: ADD management for custom dimensions
         }
         return params;
     }

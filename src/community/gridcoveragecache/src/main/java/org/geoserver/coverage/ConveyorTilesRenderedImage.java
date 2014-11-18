@@ -296,12 +296,7 @@ public class ConveyorTilesRenderedImage implements RenderedImage {
     }
     
     /**
-     * This method checks if the Gridset Y axis order increases from top to bottom.
-     * @param gridSet 
      * 
-     * @param gridSet
-     * @param input 
-    * @return
      */
     private static ImageLayout extractLayout(Map<String, ConveyorTile> cTiles, GridSet gridSet, ImageLayout input) {
         

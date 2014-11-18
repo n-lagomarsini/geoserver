@@ -7,19 +7,19 @@ package org.geoserver.coverage;
 import java.awt.Rectangle;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.RenderedImage;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.media.jai.ImageLayout;
 import javax.media.jai.Interpolation;
 import javax.media.jai.InterpolationBicubic2;
 import javax.media.jai.InterpolationBilinear;
 import javax.media.jai.InterpolationNearest;
-import javax.media.jai.operator.ConstantDescriptor;
 
 import net.opengis.wcs20.DimensionSliceType;
 import net.opengis.wcs20.DimensionSubsetType;
@@ -35,6 +35,9 @@ import net.opengis.wcs20.TargetAxisSizeType;
 import net.opengis.wcs20.Wcs20Factory;
 
 import org.eclipse.emf.common.util.EList;
+import org.geoserver.catalog.CoverageInfo;
+import org.geoserver.catalog.DimensionInfo;
+import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.coverage.layer.CoverageMetaTile;
 import org.geoserver.coverage.layer.CoverageTileLayer;
 import org.geoserver.platform.GeoServerExtensions;
@@ -51,7 +54,6 @@ import org.geotools.factory.GeoTools;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
-import org.geotools.resources.image.ImageUtilities;
 import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.grid.BoundingBox;
@@ -105,6 +107,8 @@ public class WCSSourceHelper {
 
     private CoverageTileLayer layer;
 
+    private HashMap<String, DimensionInfo> dimensions;
+
     private final static Map<Integer, CoordinateReferenceSystem> crsCache = new HashMap<Integer, CoordinateReferenceSystem>(); 
 
     static {
@@ -121,6 +125,13 @@ public class WCSSourceHelper {
         List<DefaultWebCoverageService20> extensions = GeoServerExtensions
                 .extensions(DefaultWebCoverageService20.class);
         service = extensions.get(0);
+        final CoverageInfo coverageInfo = layer.getCoverageInfo();
+        dimensions = new HashMap<String, DimensionInfo>();
+        for (Map.Entry<String, Serializable> entry : coverageInfo.getMetadata().entrySet()) {
+            if (entry.getValue() instanceof DimensionInfo) {
+                dimensions.put(entry.getKey(), (DimensionInfo) entry.getValue());
+            }
+        }
     }
 
     public void makeRequest(CoverageMetaTile metaTile, ConveyorTile tile,
@@ -358,21 +369,42 @@ public class WCSSourceHelper {
         trimLat.setTrimHigh(Double.toString(bbox.getMaxY()));
         dimensionSubset.add(trimLat);
 
-        if (parameters != null && parameters.size() > 0) {
+        final int paramSize = parameters.size();
+        if (parameters != null && paramSize > 0) {
+            int setDimension = 0;
             if (parameters.containsKey(TIME)) {
                 final DimensionSliceType sliceTime = WCS20_FACTORY.createDimensionSliceType();
                 sliceTime.setDimension(DIMENSION_TIME);
                 sliceTime.setSlicePoint(parameters.get(TIME));
                 dimensionSubset.add(sliceTime);
+                setDimension++;
             }
             if (parameters.containsKey(ELEVATION)) {
                 final DimensionSliceType sliceElevation = WCS20_FACTORY.createDimensionSliceType();
                 sliceElevation.setDimension(DIMENSION_ELEVATION);
                 sliceElevation.setSlicePoint(parameters.get(ELEVATION));
                 dimensionSubset.add(sliceElevation);
+                setDimension++;
             }
+            if (setDimension != paramSize) {
+                // looking for more dimensions
+                Set<String> dimensionsKeys = dimensions.keySet();
+                Set<String> parametersKeys = parameters.keySet();
 
-            // TODO: Deal with other dimensions
+                // looking for parameter - dimension matching
+                for (String dimensionKey : dimensionsKeys) {
+                    for (String parameterKey : parametersKeys) {
+                        if (dimensionKey.equalsIgnoreCase(ResourceInfo.CUSTOM_DIMENSION_PREFIX + parameterKey)) {
+                            final DimensionSliceType sliceCustom = WCS20_FACTORY
+                                    .createDimensionSliceType();
+                            sliceCustom.setDimension(parameterKey);
+                            sliceCustom.setSlicePoint(parameters.get(parameterKey));
+                            dimensionSubset.add(sliceCustom);
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
 }

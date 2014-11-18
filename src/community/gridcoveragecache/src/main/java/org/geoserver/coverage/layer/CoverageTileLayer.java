@@ -26,7 +26,6 @@ import javax.media.jai.operator.TranslateDescriptor;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.impl.LayerGroupInfoImpl;
-import org.geoserver.coverage.ConveyorTilesRenderedImage;
 import org.geoserver.coverage.WCSSourceHelper;
 import org.geoserver.coverage.configuration.CoverageConfiguration;
 import org.geoserver.coverage.layer.CoverageTileLayerInfo.InterpolationType;
@@ -59,9 +58,11 @@ public class CoverageTileLayer extends GeoServerTileLayer {
 
     private final static Logger LOGGER = org.geotools.util.logging.Logging
             .getLogger(CoverageTileLayer.class);
-    
+
     private transient WCSSourceHelper sourceHelper;
 
+    private transient CoverageInfo coverageInfo;
+    
     protected String name;
 
     protected Map<String, GridSubset> subSets;
@@ -104,6 +105,7 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         }
 
         final CoverageStoreInfo storeInfo = info.getStore();
+        this.coverageInfo = info;
         workspaceName = storeInfo.getWorkspace().getName();
         coverageName = info.getName();
         name = workspaceName + ":" + coverageName;
@@ -153,6 +155,10 @@ public class CoverageTileLayer extends GeoServerTileLayer {
     @Override
     public GeoServerTileLayerInfo getInfo() {
        return coverageTileLayerInfo;
+    }
+
+    public CoverageInfo getCoverageInfo() {
+        return coverageInfo;
     }
 
     public void setLayout(ImageLayout layout) {
@@ -230,36 +236,36 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         // TODO: arrange the ConveyorTilesRenderedImage instead of using the mosaic.
 
         final Set<String> keys = cTiles.keySet();
-        final RenderedImage outputTile;
+        RenderedImage outputTile;
         if (!keys.isEmpty()) {
-//            int i = 0;
-//            RenderedImage sources[] = new RenderedImage[4];
-//            for (String key : keys) {
-//                final ConveyorTile componentTile = cTiles.get(key);
-//                final RenderedImage ri = CoverageMetaTile.getResource(componentTile);
-//                final String indexes[] = key.split("_");
-//                final int xIndex = Integer.parseInt(indexes[0]);
-//                final int yIndex = Integer.parseInt(indexes[1]);
-//                final float translateX = (xIndex - minX) * tileWidth;
-//                final float translateY = (maxY - yIndex) * tileHeight;
-//
-//                // Getting the parent tiles and translate them to setup the proper layout before the scaling operation
-//                sources[i++] = TranslateDescriptor.create(ri, translateX, translateY,
-//                        Interpolation.getInstance(Interpolation.INTERP_NEAREST), null);
-//            }
-//
-//            // Mosaick these 4 tiles to get the current tile.
-//            // TODO: We should arrange the ConveyorTilesRenderedImage to delegate to job to it.
-//
-//            final RenderedImage mosaicked = MosaicDescriptor.create(sources,
-//                    MosaicDescriptor.MOSAIC_TYPE_BLEND, null, null, null, null, null);
-            RenderedImage mosaicked = null;
-            
-            try{
-                mosaicked = new ConveyorTilesRenderedImage(cTiles, gridSet, gridSubset, layout);
-            }catch (Exception e){
-                throw new RuntimeException(e);
+            int i = 0;
+            RenderedImage sources[] = new RenderedImage[4];
+            for (String key : keys) {
+                final ConveyorTile componentTile = cTiles.get(key);
+                final RenderedImage ri = CoverageMetaTile.getResource(componentTile);
+                final String indexes[] = key.split("_");
+                final int xIndex = Integer.parseInt(indexes[0]);
+                final int yIndex = Integer.parseInt(indexes[1]);
+                final float translateX = (xIndex - minX) * tileWidth;
+                final float translateY = (maxY - yIndex) * tileHeight;
+
+                // Getting the parent tiles and translate them to setup the proper layout before the scaling operation
+                sources[i++] = TranslateDescriptor.create(ri, translateX, translateY,
+                        Interpolation.getInstance(Interpolation.INTERP_NEAREST), null);
             }
+
+            // Mosaick these 4 tiles to get the current tile.
+            // TODO: We should arrange the ConveyorTilesRenderedImage to delegate to job to it.
+
+            final RenderedImage mosaicked = MosaicDescriptor.create(sources,
+                    MosaicDescriptor.MOSAIC_TYPE_BLEND, null, null, null, null, null);
+//            RenderedImage mosaicked = null;
+//
+//            try{
+//                mosaicked = new ConveyorTilesRenderedImage(cTiles, gridSet, gridSubset, layout);
+//            }catch (Exception e){
+//                throw new RuntimeException(e);
+//            }
 
             // create the current Tile from the previous 4 using a scale which
             outputTile = ScaleDescriptor.create(mosaicked, HALF_FACTOR, HALF_FACTOR, ZERO, ZERO,
@@ -273,11 +279,16 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         }
 
         // Create a tile on top of the generated image and save it to store.
-        CoverageMetaTile metaTile = new CoverageMetaTile(this, gridSubset, TIFF_MIME_TYPE,
-                tile.getTileIndex(), 1, 1, parameters, 0);
-        metaTile.setImage(outputTile);
-        saveTiles(metaTile, tile, System.currentTimeMillis());
-        return tile;
+        CoverageMetaTile metaTile = null;
+        try {
+            metaTile = new CoverageMetaTile(this, gridSubset, TIFF_MIME_TYPE, tile.getTileIndex(),
+                    1, 1, parameters, 0);
+            metaTile.setImage(outputTile);
+            saveTiles(metaTile, tile, System.currentTimeMillis());
+            return tile;
+        } finally {
+            metaTile.dispose();
+        }
     }
 
     private ConveyorTile getMetatilingReponse(ConveyorTile tile, final boolean tryCache,
@@ -319,7 +330,7 @@ public class CoverageTileLayer extends GeoServerTileLayer {
             }
             metaTile.dispose();
         }
-        return finalizeTile(tile);
+        return /*finalizeTile(*/tile;/*);*/
     }
 
     private String buildLockKey(ConveyorTile tile, CoverageMetaTile metaTile) {
@@ -372,18 +383,6 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         throw new UnsupportedOperationException();
     }
 
-    private ConveyorTile finalizeTile(ConveyorTile tile) {
-        if (tile.getStatus() == 0 && !tile.getError()) {
-            tile.setStatus(200);
-        }
-
-        if (tile.servletResp != null) {
-            setExpirationHeader(tile.servletResp, (int) tile.getTileIndex()[2]);
-        }
-
-        return tile;
-    }
-
     public void setSourceHelper(WCSSourceHelper source) {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.fine("Setting sourceHelper on " + this.name);
@@ -427,7 +426,7 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         tile.setMetaTileCacheOnly(!gridSubset.shouldCacheAtZoom(zLevel));
 
         if (tryCacheFetch(tile)) {
-            return finalizeTile(tile);
+            return /*finalizeTile(*/tile;/*);*/
         }
 
         final int numLevels = gridSubset.getGridSet().getNumLevels();
