@@ -64,7 +64,8 @@ import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
- * A class used to serve GridCoverages 
+ * A class used to serve GridCoverage using WCS 2.0 requests. 
+ * GridCoverage's underlying images are used to populate requested GWC tiles.
  * 
  * @author Daniele Romagnoli, GeoSolutions SAS
  * @author Nicola Lagomarsini, GeoSolutions SAS
@@ -173,9 +174,12 @@ public class WCSSourceHelper {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.fine("Metatile bbox doesn't intersect the coverage bbox; Returning constant image");
             }
-            RenderedImage constant = CoverageMetaTile.createConstantImage(layer.getLayout(), width, height, null);
-            coverage = (GridCoverage2D) new GridCoverageFactory().create("empty", constant, new GeneralEnvelope(new Rectangle2D.Double(bbox.getMinX(),
-                    bbox.getMinY(), bbox.getWidth(), bbox.getHeight())));
+            RenderedImage constant = CoverageMetaTile.createConstantImage(layer.getLayout()
+                    .getSampleModel(null), width, height, null);
+            coverage = (GridCoverage2D) new GridCoverageFactory().create(
+                    "empty", constant,
+                    new GeneralEnvelope(new Rectangle2D.Double(bbox.getMinX(), bbox.getMinY(), bbox
+                            .getWidth(), bbox.getHeight())));
         }
 
         // WCS May return an area which is smaller then requested since it's internally

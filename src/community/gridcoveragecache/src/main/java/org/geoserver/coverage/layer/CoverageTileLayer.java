@@ -191,6 +191,17 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         }
     }
 
+    /**
+     * This method returns the requested tile by using a recursive approach.
+     * In case the requested tile isn't available in cache, it asks for the
+     * 4 tiles from the higher resolution level. Then it computes the current
+     * tile from them by applying a scale factor of 0.5 across both dimensions.
+     * 
+     * @param tile
+     * @return
+     * @throws GeoWebCacheException
+     * @throws IOException
+     */
     private ConveyorTile recurseTile(ConveyorTile tile) throws GeoWebCacheException, IOException {
         final GridSubset gridSubset = getGridSubset(tile.getGridSetId());
         final GridSet gridSet = gridSubset.getGridSet();
@@ -214,9 +225,10 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         ConveyorTile ct = null;
         final Map<String, String> parameters = tile.getFullParameters();
         final String gridSetId = tile.getGridSetId();
+
+        // Accessing the 4 tiles from the upper level to obtain this tile
         for (long i = minX; i <= maxX; i++) {
             for (long j = minY; j <= maxY; j++) {
-                // Accessing the 4 tiles from the upper level to obtain this tile
                 ct = new ConveyorTile(tile.getStorageBroker(), getName(), gridSetId, new long[] { i, j, z },
                         TIFF_MIME_TYPE, parameters, null, null);
                 try {
@@ -233,8 +245,6 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         }
 
         // setup tile set to satisfy the request
-        // TODO: arrange the ConveyorTilesRenderedImage instead of using the mosaic.
-
         final Set<String> keys = cTiles.keySet();
         RenderedImage outputTile;
         if (!keys.isEmpty()) {
@@ -249,14 +259,16 @@ public class CoverageTileLayer extends GeoServerTileLayer {
                 final float translateX = (xIndex - minX) * tileWidth;
                 final float translateY = (maxY - yIndex) * tileHeight;
 
-                // Getting the parent tiles and translate them to setup the proper layout before the scaling operation
+                // Getting the parent tiles and translate them to setup the 
+                // proper tiles layout before the scaling operation
                 sources[i++] = TranslateDescriptor.create(ri, translateX, translateY,
                         Interpolation.getInstance(Interpolation.INTERP_NEAREST), null);
             }
 
             // Mosaick these 4 tiles to get the current tile.
+            // -------------------------------------------------------------------------------
             // TODO: We should arrange the ConveyorTilesRenderedImage to delegate to job to it.
-
+            // -------------------------------------------------------------------------------
             final RenderedImage mosaicked = MosaicDescriptor.create(sources,
                     MosaicDescriptor.MOSAIC_TYPE_BLEND, null, null, null, null, null);
 //            RenderedImage mosaicked = null;
@@ -281,6 +293,7 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         // Create a tile on top of the generated image and save it to store.
         CoverageMetaTile metaTile = null;
         try {
+            // Note we use a fake metaTile of size 1,1 to use the storing machinery
             metaTile = new CoverageMetaTile(this, gridSubset, TIFF_MIME_TYPE, tile.getTileIndex(),
                     1, 1, parameters, 0);
             metaTile.setImage(outputTile);
@@ -314,10 +327,7 @@ public class CoverageTileLayer extends GeoServerTileLayer {
                 }
                 try {
                     long requestTime = System.currentTimeMillis();
-
-                    sourceHelper.makeRequest(metaTile, tile, interpolation
-                            /*coverageTileLayerInfo.getResamplingAlgorithm()*/,
-                            overviewPolicy);
+                    sourceHelper.makeRequest(metaTile, tile, interpolation, overviewPolicy);
                     saveTiles(metaTile, tile, requestTime);
                 } catch (Exception e) {
                     throw new GeoWebCacheException("Problem communicating with GeoServer", e);
@@ -373,11 +383,13 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         return false;
     }
 
+    @Override
     public ConveyorTile doNonMetatilingRequest(ConveyorTile tile) throws GeoWebCacheException {
         // We are doing our custom GWC layer implementation for gridCoverage setup
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public ConveyorTile getNoncachedTile(ConveyorTile tile) throws GeoWebCacheException {
         // We are doing our custom GWC layer implementation for gridCoverage setup
         throw new UnsupportedOperationException();
@@ -397,7 +409,7 @@ public class CoverageTileLayer extends GeoServerTileLayer {
 
     @Override
     public String getStyles() {
-        // Styles are ignored
+        // Styles are ignored since we are dealing with raw coverages on this kind of tileLayer
         return null;
     }
 
@@ -458,7 +470,6 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         }
 
         sendTileRequestedEvent(returnTile);
-
         return returnTile;
     }
 
