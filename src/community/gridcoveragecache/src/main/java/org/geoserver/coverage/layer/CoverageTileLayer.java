@@ -275,7 +275,7 @@ public class CoverageTileLayer extends GeoServerTileLayer {
                 LOGGER.fine("Creating constant image for tile with coordinates: x = " + x + " y = "
                         + y + " z = " + z);
             }
-            outputTile = CoverageMetaTile.createConstantImage(layout, tileWidth, tileHeight, null);
+            outputTile = CoverageMetaTile.createConstantImage(layout.getSampleModel(null), tileWidth, tileHeight, null);
         }
 
         // Create a tile on top of the generated image and save it to store.
@@ -426,6 +426,11 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         tile.setMetaTileCacheOnly(!gridSubset.shouldCacheAtZoom(zLevel));
 
         if (tryCacheFetch(tile)) {
+            if (LOGGER.isLoggable(Level.FINEST)) {
+                LOGGER.finest("Requested tile is available. (x = "
+                        + tileIndex[0] + "; y = " + tileIndex[1] + 
+                        "; z = " + tileIndex[2] + "\nReturning it");
+            }
             return /*finalizeTile(*/tile;/*);*/
         }
 
@@ -437,7 +442,9 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         ConveyorTile returnTile = null;
 
         try {
-            if (seedingPolicy == SeedingPolicy.DIRECT || zLevel == numLevels - 1 || zLevel == gridSubset.getZoomStart()) {
+            // Differentiate between direct seeding and recursive one.
+            if (seedingPolicy == SeedingPolicy.DIRECT || zLevel == numLevels - 1
+                    || zLevel == gridSubset.getZoomStart()) {
                 returnTile = getMetatilingReponse(tile, true,
                         coverageTileLayerInfo.getMetaTilingX(),
                         coverageTileLayerInfo.getMetaTilingY());
@@ -446,6 +453,7 @@ public class CoverageTileLayer extends GeoServerTileLayer {
             }
 
         } finally {
+            // Clean up the buffers
             cleanUpThreadLocals();
         }
 
@@ -454,6 +462,13 @@ public class CoverageTileLayer extends GeoServerTileLayer {
         return returnTile;
     }
 
+    /**
+     * Create a metatile given the metaTile size and the reference conveyor tile.
+     * @param tile
+     * @param metaX
+     * @param metaY
+     * @return
+     */
     private CoverageMetaTile createMetaTile(ConveyorTile tile, final int metaX, final int metaY) {
         CoverageMetaTile metaTile;
 
@@ -485,6 +500,10 @@ public class CoverageTileLayer extends GeoServerTileLayer {
 
     @Override
     public void setAdvertised(boolean advertised) {
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.fine("Note that CoverageTileLayer aren't never advertised. "
+                    + "Calling this method has no effects");
+        }
         return;
     }
 }

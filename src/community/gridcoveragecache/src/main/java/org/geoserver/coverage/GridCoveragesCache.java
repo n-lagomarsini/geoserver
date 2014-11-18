@@ -9,6 +9,10 @@ import java.io.File;
 import org.geowebcache.grid.GridSetBroker;
 import org.geowebcache.storage.StorageBroker;
 
+/**
+ * A simple classing storing some main Coverage caching configuration properties such as 
+ * the {@link StorageBroker} and the {@link GridSetBroker}
+ */
 public class GridCoveragesCache {
 
     static final File tempDir;

@@ -62,6 +62,14 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.datum.PixelInCell;
 import org.opengis.referencing.operation.MathTransform;
 
+/**
+ * A {@link GridCoverage2DReader} implementation doing caching of read
+ * {@link GridCoverage2D}.
+ * 
+ * @author Daniele Romagnoli, GeoSolutions SAS
+ * @author Nicola Lagomarsini, GeoSolutions SAS
+ *
+ */
 public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
     private final static Logger LOGGER = org.geotools.util.logging.Logging
@@ -69,10 +77,13 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
     private ISO8601Formatter formatter = new ISO8601Formatter();
 
+    /** The underlying gridCoverageReader */
     private GridCoverage2DReader delegate;
 
+    /** A TileLayer instance associated to the coverage served by this reader */
     private CoverageTileLayer coverageTileLayer;
 
+    /** The configuration referencing brokers and temp folder */
     private GridCoveragesCache cache;
 
     private List<GridSubset> gridSubSets;
@@ -81,6 +92,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
     private GridSet defaultGridSet;
 
+    /** A GridCoverageFactory instance used to instantiate GridCoverages */
     private static final GridCoverageFactory gcf = new GridCoverageFactory();
 
     public static CachingGridCoverage2DReader wrap(ResourcePool pool, GridCoveragesCache cache,
@@ -107,6 +119,13 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
     }
 
+    /**
+     * Main constructor for {@link CachingGridCoverage2DReader}
+     * 
+     * @param cache the cache configuration
+     * @param info a {@link CoverageInfo} instance
+     * @param reader the underlying {@link GridCoverage2DReader} used to return reader properties.
+     */
     public CachingGridCoverage2DReader(GridCoveragesCache cache,
             CoverageInfo info, GridCoverage2DReader reader) {
         this.cache = cache;
@@ -123,52 +142,10 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
             }
             coverageTileLayer = (CoverageTileLayer) GWC.get().getTileLayerByName(tlInfo.getName());
             coverageTileLayer.setLayout(layout);
-            //GeoServerTileLayer tileLayer = (GeoServerTileLayer) gwc.getTileLayerByName(nameSpace + ":" + layerInfo.getName() + "test");
-            //coverageTileLayer = new CoverageTileLayer(info, cache.getGridSetBroker(), gridSubSet, layout, tileLayer.getInfo());
-//        } catch (IOException e) {
-//            throw new IllegalArgumentException(e);
-            
-            
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
         }
     }
-
-//    private List<GridSubset> buildGridSubSet() throws IOException {
-//        gridSet = buildGridSet();
-//        axisOrderingTopDown = axisOrderingTopDown();
-////        GeneralEnvelope env = getOriginalEnvelope();
-////        GridSubsetFactory.createGridSubSet(gridSet)
-//        return Arrays.asList(GridSubsetFactory.createGridSubSet(gridSet/*, new BoundingBox(
-//                env.getMinimum(0), env.getMinimum(1), env.getMaximum(0), env.getMaximum(1)), null,
-//                null*/)); // TODO CHANGE HERE
-//    }
-//
-//    GridSet buildGridSet() throws IOException {
-//        // TODO: Replace that using global GridSet
-//        GridSetBroker broker = cache.getGridSetBroker();
-//
-//        // TODO: Support different grids
-//        // GridSet set = broker.get(broker.WORLD_EPSG4326.getName());
-//        GridSet set = broker.get(cache.REFERENCE.getName());
-//        return set;
-//
-//        // Previous code for dynamic gridSet 
-//        //
-//        // int epsgCode = 4326;
-//        // String name = info.getName() + "_" + epsgCode + "_" + 1;
-//        // SRS srs = SRS.getSRS(epsgCode);
-//        // GeneralEnvelope envelope = delegate.getOriginalEnvelope();
-//        // BoundingBox extent = new BoundingBox(envelope.getMinimum(0), envelope.getMinimum(1),
-//        // envelope.getMaximum(0), envelope.getMaximum(1));
-//        // double[][] resolution = delegate.getResolutionLevels();
-//        // return GridSetFactory.createGridSet(name, srs, extent, true /*CHECKTHAT*/, 3 /*CHECKTHAT_LEVELS*/,
-//        // 1d /*CHECKTHAT_METERS_PER_UNIT*/,
-//        // resolution[0][0] /*CHECKTHAT_PIXELSIZE*/,
-//        // 512/*CHECKTHAT_TILEWIDTH*/ , 512/*CHECKTHAT_TILEHEIGHT*/ ,
-//        // false /*CHECKTHAT_yCoordinateFirst*/);
-//        //
-//    }
 
     /**
      * This method checks if the Gridset Y axis order increases from top to bottom.
@@ -374,11 +351,11 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
 
             // Finding tiles involved by the request
             GridEnvelope2D gridEnv = null;
-            if(gridGeometry != null){
+            if (gridGeometry != null) {
                 gridEnv = gridGeometry.getGridRange2D();
             }
-            
-            if(gridEnv == null){
+
+            if (gridEnv == null) {
                 gridEnv = (GridEnvelope2D) getOriginalGridRange();
             }
 
@@ -442,19 +419,28 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                 bands[i] = new GridSampleDimension("band" + i);
             }
 
+            //TODO: Check nodata management
             return  gcf.create(coverageName, finalImage, readEnvelope, bands, null, null);
         } catch (Exception e) {
             throw new IOException(e);
         }
     }
 
+    /**
+     * Extract conveyor tile parameters from the request
+     * @param parameters
+     * @return
+     * @throws IOException
+     */
     private Map<String, String> extractParameters(GeneralParameterValue[] parameters) throws IOException {
         Map<String, String> params = null;
         Set<ParameterDescriptor<List>> dynamicParams = delegate.getDynamicParameters();
         for (GeneralParameterValue gParam : parameters) {
             GeneralParameterDescriptor descriptor = gParam.getDescriptor();
             final ReferenceIdentifier name = descriptor.getName();
+
             if (name.equals(AbstractGridFormat.TIME.getName())) {
+                // TIME management
                 if (gParam instanceof ParameterValue<?>) {
                     final ParameterValue<?> param = (ParameterValue<?>) gParam;
                     final Object value = param.getValue();
@@ -466,6 +452,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                     params.put(WCSSourceHelper.TIME, formatter.format(date));
                 }
             } else if (name.equals(AbstractGridFormat.ELEVATION.getName())) {
+                // ELEVATION management
                 if (gParam instanceof ParameterValue<?>) {
                     final ParameterValue<?> param = (ParameterValue<?>) gParam;
                     final Object value = param.getValue();
@@ -477,6 +464,7 @@ public class CachingGridCoverage2DReader implements GridCoverage2DReader {
                     params.put(WCSSourceHelper.ELEVATION, elevation.toString());
                 }
             } else {
+                // CUSTOM DIMENSION management
                 for (ParameterDescriptor dynamicDescriptor : dynamicParams) {
                     if (name.equals(dynamicDescriptor.getName())) {
                         if (gParam instanceof ParameterValue<?>) {

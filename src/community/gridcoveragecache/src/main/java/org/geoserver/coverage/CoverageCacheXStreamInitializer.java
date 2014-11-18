@@ -6,11 +6,12 @@ package org.geoserver.coverage;
 
 import org.geoserver.config.util.XStreamPersister;
 import org.geoserver.config.util.XStreamPersisterInitializer;
+import org.geoserver.coverage.layer.CoverageTileLayerInfo;
 import org.geoserver.coverage.layer.CoverageTileLayerInfoImpl;
 
 /**
  * 
- * Implementation of XStreamPersisterInitializer extension point to serialize CoverageTileLayer
+ * Implementation of XStreamPersisterInitializer extension point to serialize {@link CoverageTileLayerInfo}
  *
  */
 public class CoverageCacheXStreamInitializer implements XStreamPersisterInitializer {

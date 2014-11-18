@@ -63,6 +63,12 @@ import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
+/**
+ * A class used to serve GridCoverages 
+ * 
+ * @author Daniele Romagnoli, GeoSolutions SAS
+ * @author Nicola Lagomarsini, GeoSolutions SAS
+ */
 public class WCSSourceHelper {
 
     private final static Logger LOGGER = org.geotools.util.logging.Logging
@@ -357,12 +363,14 @@ public class WCSSourceHelper {
         Map<String, String> parameters = tile.getFullParameters();
         final EList<DimensionSubsetType> dimensionSubset = getCoverage.getDimensionSubset();
 
+        // Setting LONGITUDE subset
         final DimensionTrimType trimLon = WCS20_FACTORY.createDimensionTrimType();
         trimLon.setDimension(DIMENSION_LONG);
         trimLon.setTrimLow(Double.toString(bbox.getMinX()));
         trimLon.setTrimHigh(Double.toString(bbox.getMaxX()));
         dimensionSubset.add(trimLon);
 
+        // Setting LATITUDE subset
         final DimensionTrimType trimLat = WCS20_FACTORY.createDimensionTrimType();
         trimLat.setDimension(DIMENSION_LAT);
         trimLat.setTrimLow(Double.toString(bbox.getMinY()));
@@ -373,6 +381,7 @@ public class WCSSourceHelper {
         if (parameters != null && paramSize > 0) {
             int setDimension = 0;
             if (parameters.containsKey(TIME)) {
+                // Setting TIME dimension subset
                 final DimensionSliceType sliceTime = WCS20_FACTORY.createDimensionSliceType();
                 sliceTime.setDimension(DIMENSION_TIME);
                 sliceTime.setSlicePoint(parameters.get(TIME));
@@ -380,6 +389,7 @@ public class WCSSourceHelper {
                 setDimension++;
             }
             if (parameters.containsKey(ELEVATION)) {
+                // Setting ELEVATION dimension subset
                 final DimensionSliceType sliceElevation = WCS20_FACTORY.createDimensionSliceType();
                 sliceElevation.setDimension(DIMENSION_ELEVATION);
                 sliceElevation.setSlicePoint(parameters.get(ELEVATION));
@@ -395,6 +405,7 @@ public class WCSSourceHelper {
                 for (String dimensionKey : dimensionsKeys) {
                     for (String parameterKey : parametersKeys) {
                         if (dimensionKey.equalsIgnoreCase(ResourceInfo.CUSTOM_DIMENSION_PREFIX + parameterKey)) {
+                            // Setting custom dimension subset
                             final DimensionSliceType sliceCustom = WCS20_FACTORY
                                     .createDimensionSliceType();
                             sliceCustom.setDimension(parameterKey);

@@ -40,12 +40,12 @@ import com.google.common.cache.LoadingCache;
 
 public class CoverageConfiguration extends CatalogConfiguration implements Configuration {
 
+    /** A suffix used to distinguish between standard GWC layers and coverage rasters */ 
     public static String COVERAGE_LAYER_SUFFIX = "cov";
 
     private GridSetBroker gwcGridSetBroker;
 
     private Catalog gsCatalog;
-
 
     public CoverageConfiguration(Catalog catalog, TileLayerCatalog tileLayerCatalog,
             GridSetBroker gridSetBroker) {
@@ -57,9 +57,12 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
         Set<String> pendingDeletes = null;
         Map<String, GeoServerTileLayerInfo> pendingModications = null;
         try {
+            // Use reflection
             Field lockRef = this.getClass().getSuperclass().getDeclaredField("lock");
-            Field pendingDeletesRef = this.getClass().getSuperclass().getDeclaredField("pendingDeletes");
-            Field pendingModicationsRef = this.getClass().getSuperclass().getDeclaredField("pendingModications");
+            Field pendingDeletesRef = this.getClass().getSuperclass()
+                    .getDeclaredField("pendingDeletes");
+            Field pendingModicationsRef = this.getClass().getSuperclass()
+                    .getDeclaredField("pendingModications");
 
             lockRef.setAccessible(true);
             pendingDeletesRef.setAccessible(true);
@@ -111,12 +114,12 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
         checkNotNull(layerId, "layer id is null");
 
         GeoServerTileLayer tileLayerById = super.getTileLayerById(layerId);
-        CoverageTileLayer layer = null; 
-        if(!(tileLayerById instanceof CoverageTileLayer)){
+        CoverageTileLayer layer = null;
+        if (!(tileLayerById instanceof CoverageTileLayer)) {
             GeoServerTileLayerInfo info = tileLayerById.getInfo();
 
-//            GridSubset gridSubSet = GridSubsetFactory.createGridSubSet(gwcGridSetBroker.getGridSets()
-//                    .get(0));
+            // GridSubset gridSubSet = GridSubsetFactory.createGridSubSet(gwcGridSetBroker.getGridSets()
+            // .get(0));
             List<GridSubset> gridSubsets = parseGridSubsets(gwcGridSetBroker, info);
 
             CoverageInfo coverageInfo = gsCatalog.getCoverageByName(info.getName());
@@ -130,7 +133,6 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
         } else {
             layer = (CoverageTileLayer) tileLayerById;
         }
-
 
         return layer;
     }
@@ -152,8 +154,8 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
 
         private final ReadWriteLock lock;
 
-        private CoverageTileLayerLoader(TileLayerCatalog tileLayerCatalog, Set<String> pendingDeletes,
-                GridSetBroker gridSetBroker, Catalog geoServerCatalog,
+        private CoverageTileLayerLoader(TileLayerCatalog tileLayerCatalog,
+                Set<String> pendingDeletes, GridSetBroker gridSetBroker, Catalog geoServerCatalog,
                 Map<String, GeoServerTileLayerInfo> pendingModications, ReadWriteLock lock) {
             this.tileLayerCatalog = tileLayerCatalog;
             this.gridSetBroker = gridSetBroker;
@@ -182,7 +184,8 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
                 }
                 List<GridSubset> subsets = parseGridSubsets(gridSetBroker, tileLayerInfo);
                 CoverageInfo coverage = geoServerCatalog.getCoverage(layerId);
-                tileLayer = new CoverageTileLayer(coverage, gridSetBroker, subsets, tileLayerInfo, false);
+                tileLayer = new CoverageTileLayer(coverage, gridSetBroker, subsets, tileLayerInfo,
+                        false);
                 ResourcePool pool = geoServerCatalog.getResourcePool();
                 Hints hints = new Hints(GeoTools.getDefaultHints());
                 hints.add(new Hints(ResourcePool.SKIP_COVERAGE_EXTENSIONS_LOOKUP, true));
@@ -190,10 +193,11 @@ public class CoverageConfiguration extends CatalogConfiguration implements Confi
                 String name = coverage.getNativeCoverageName();
                 if (name == null) {
                     name = coverage.getName();
-                    
+
                 }
-                GridCoverage2DReader reader = (GridCoverage2DReader) pool.getGridCoverageReader(coverage, name, hints);
-                ((CoverageTileLayer)tileLayer).setLayout(reader.getImageLayout());
+                GridCoverage2DReader reader = (GridCoverage2DReader) pool.getGridCoverageReader(
+                        coverage, name, hints);
+                ((CoverageTileLayer) tileLayer).setLayout(reader.getImageLayout());
 
             } finally {
                 lock.readLock().unlock();

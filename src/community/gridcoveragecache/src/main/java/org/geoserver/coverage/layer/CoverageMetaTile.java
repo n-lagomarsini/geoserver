@@ -13,6 +13,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
+import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,7 +24,6 @@ import java.util.logging.Logger;
 import javax.imageio.IIOImage;
 import javax.imageio.stream.FileCacheImageInputStream;
 import javax.imageio.stream.FileCacheImageOutputStream;
-import javax.media.jai.ImageLayout;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.operator.ConstantDescriptor;
@@ -43,15 +43,18 @@ import org.geowebcache.io.Resource;
 import org.geowebcache.layer.MetaTile;
 import org.geowebcache.mime.MimeType;
 
-
+/**
+ * A MetaTile implementation used for Coverage tiles.
+ * Tiles will be stored as TIFF images on cache.
+ * 
+ * @author Daniele Romagnoli, GeoSolutions SAS
+ * @author Nicola Lagomarsini, GeoSolutions SAS
+ *
+ */
 public class CoverageMetaTile extends MetaTile {
     private final static Logger LOGGER = org.geotools.util.logging.Logging.getLogger(CoverageMetaTile.class);
 
     protected CoverageTileLayer coverageTileLayer = null;
-
-    public int[] getGutter() {
-        return gutter.clone();
-    }
 
     protected boolean requestTiled = false;
 
@@ -62,6 +65,11 @@ public class CoverageMetaTile extends MetaTile {
     private final static TIFFImageWriterSpi writerSpi = new TIFFImageWriterSpi();
 
     final boolean isSingleImage;
+
+    public int[] getGutter() {
+        return gutter.clone();
+    }
+
     /**
      * Used for requests by clients
      * 
@@ -113,13 +121,7 @@ public class CoverageMetaTile extends MetaTile {
             }
             iios.flush();
         } finally {
-            if (iios != null) {
-                try {
-                    iios.close();
-                } catch (Throwable t) {
-
-                }
-            }
+            IOUtils.closeQuietly(iios);
             if (writer != null) {
                 try {
                     writer.dispose();
@@ -132,11 +134,19 @@ public class CoverageMetaTile extends MetaTile {
         return true;
     }
 
+    /**
+     * Return the specified sub tile from this {@link MetaTile} instance.
+     * 
+     * @param tileIdx
+     * @return
+     */
     private RenderedImage getSubTile(int tileIdx) {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.fine("Getting subTile: " + tileIdx);
         }
         if (isSingleImage) {
+            // In case the image is a single one (which means metaTiling = 1,1) 
+            // just return the metatile image
             return metaTileImage;
         }
         final Rectangle tileRect = tiles[tileIdx];
@@ -144,7 +154,8 @@ public class CoverageMetaTile extends MetaTile {
         final int y = tileRect.y;
         final int tileWidth = tileRect.width;
         final int tileHeight = tileRect.height;
-        // now do the splitting
+        // now do the splitting and return the requested 
+        // sub section as a RenderedImage
         return getSubImage(x, y, tileWidth, tileHeight);
     }
 
@@ -157,7 +168,7 @@ public class CoverageMetaTile extends MetaTile {
      * @param tileHeight
      * @return
      * 
-     * TODO: We can do this more efficiently
+     * TODO: We can do this more efficiently. This method has been taken from GWC
      */
     private RenderedImage getSubImage(int x, int y, int tileWidth, int tileHeight) {
         if (LOGGER.isLoggable(Level.FINE)) {
@@ -261,10 +272,17 @@ public class CoverageMetaTile extends MetaTile {
         }
     }
 
-    public static RenderedImage createConstantImage(final ImageLayout layout, final int width,
+    /**
+     * Create a constant Image using the specified parameters.
+     * @param sampleModel
+     * @param width
+     * @param height
+     * @param hints
+     * @return
+     */
+    public static RenderedImage createConstantImage(final SampleModel sampleModel, final int width,
             final int height, final Hints hints) {
-        Number[] backgroundValues = ImageUtilities.getBackgroundValues(layout.getSampleModel(null),
-                null);
+        Number[] backgroundValues = ImageUtilities.getBackgroundValues(sampleModel, null);
         return ConstantDescriptor.create(width * 1.0f, height * 1.0f, backgroundValues, hints);
     }
 }

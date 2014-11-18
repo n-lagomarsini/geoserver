@@ -24,8 +24,8 @@ public class CachingGridCoverageReaderCallback implements GridCoverageReaderCall
     
     public final static String COVERAGETILELAYERINFO_KEY = "coverageTileLayerInfo.key";
 
-    GridCoveragesCache gridCoveragesCache;
-    
+    private GridCoveragesCache gridCoveragesCache;
+
     public GridCoveragesCache getGridCoveragesCache() {
         return gridCoveragesCache;
     }
@@ -38,7 +38,7 @@ public class CachingGridCoverageReaderCallback implements GridCoverageReaderCall
     public boolean canHandle(CoverageInfo info) {
         boolean canHandle = false;
         MetadataMap metadata = info.getMetadata();
-        if(metadata != null && metadata.containsKey(COVERAGETILELAYERINFO_KEY)){
+        if (metadata != null && metadata.containsKey(COVERAGETILELAYERINFO_KEY)) {
             canHandle = true;
         }
         return canHandle;
