@@ -4,13 +4,47 @@
  */
 package org.geoserver.coverage.configuration;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.geoserver.catalog.Catalog;
+import org.geoserver.config.GeoServer;
+import org.geoserver.config.GeoServerInitializer;
 import org.geoserver.gwc.GWC;
+import org.geotools.util.logging.Logging;
+
 
 public class CoverageCacheInitializer {
 
-    public CoverageCacheInitializer(GWC mediator, Catalog gsCatalog) {
-        gsCatalog.addListener(new CoverageListener(mediator, gsCatalog));
-    }
+    private static final Logger LOGGER = Logging.getLogger(CoverageCacheInitializer.class);
+//    private Catalog gsCatalog;
+//    private GWC mediator;
+//    private CoverageCacheConfigPersister persister;
 
+
+    public CoverageCacheInitializer(GWC mediator, Catalog gsCatalog, CoverageCacheConfigPersister persister) throws IOException {
+//        this.gsCatalog = gsCatalog;
+//        this.mediator = mediator;
+//        this.persister = persister;
+        
+        // Add a new Listener to the Catalog
+        gsCatalog.addListener(new CoverageListener(mediator, gsCatalog));
+        
+        // Handle the Configuration
+        final File configFile = persister.findConfigFile();
+        if (configFile == null) {
+            if(LOGGER.isLoggable(Level.FINE)){
+                LOGGER.fine("CoverageCache specific configuration not found, creating with old defaults");
+            }
+            CoverageCacheConfig oldDefaults = CoverageCacheConfig.getOldDefaults();
+            persister.save(oldDefaults);
+        }
+
+        final CoverageCacheConfig config = persister.getConfiguration();
+        checkNotNull(config);
+    }
 }
