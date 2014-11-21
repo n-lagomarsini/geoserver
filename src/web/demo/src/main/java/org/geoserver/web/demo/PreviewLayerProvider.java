@@ -7,9 +7,13 @@ package org.geoserver.web.demo;
 
 import static org.geoserver.catalog.Predicates.*;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.wicket.extensions.markup.html.repeater.util.SortParam;
 import org.apache.wicket.model.IModel;
@@ -27,6 +31,10 @@ import org.opengis.filter.FilterFactory2;
 import org.opengis.filter.sort.SortBy;
 
 import com.google.common.base.Function;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 
 /**
@@ -36,6 +44,30 @@ import com.google.common.collect.Lists;
  */
 @SuppressWarnings("serial")
 public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
+    
+    public static final long DEFAULT_CACHE_TIME = 1;
+    
+    public static final String KEY_SIZE = "key.size";
+    
+    public static final String KEY_FULL_SIZE = "key.fullsize";
+
+    private final Cache<String,Integer> cache;
+
+    private SizeCallable sizeCaller;
+
+    private FullSizeCallable fullSizeCaller;
+    
+    public PreviewLayerProvider(){
+        super();
+        
+        CacheBuilder<Object, Object> builder = CacheBuilder.newBuilder();
+        
+        cache = builder.expireAfterWrite(DEFAULT_CACHE_TIME, TimeUnit.SECONDS).build();
+        
+        sizeCaller = new SizeCallable();
+        
+        fullSizeCaller = new FullSizeCallable();
+    }
     
     public static final FilterFactory2 FF = CommonFactoryFinder.getFilterFactory2();
     
@@ -92,12 +124,28 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
     
     @Override
     public int size() {
+        try {
+            return cache.get(KEY_SIZE, sizeCaller);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private int sizeInternal() {
         Filter filter = getFilter();
         return getCatalog().count(PublishedInfo.class, filter);
     }
 
     @Override
     public int fullSize() {
+        try {
+            return cache.get(KEY_FULL_SIZE, fullSizeCaller);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private int fullSizeInternal() {
         Filter filter = Predicates.acceptAll();
         return getCatalog().count(PublishedInfo.class, filter);
     }
@@ -203,4 +251,17 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
     }
 
 
+    class SizeCallable implements Callable<Integer>, Serializable{
+        @Override
+        public Integer call() throws Exception {
+            return sizeInternal();
+        }
+    }
+    
+    class FullSizeCallable implements Callable<Integer>, Serializable{
+        @Override
+        public Integer call() throws Exception {
+            return fullSizeInternal();
+        }
+    }
 }
