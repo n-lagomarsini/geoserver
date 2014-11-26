@@ -106,7 +106,13 @@ public class PreviewLayerProviderTest extends GeoServerWicketTestSupport {
             getCatalog().remove(containerGroup);
         }        
     }    
-    
+
+    @Test(expected=UnsupportedOperationException.class)
+    public void testGetItems() throws Exception {
+        PreviewLayerProvider provider = new PreviewLayerProvider();
+        provider.getItems();
+    }
+
     private PreviewLayer getPreviewLayer(PreviewLayerProvider provider, String prefixedName) {
         for (PreviewLayer pl : Lists.newArrayList(provider.iterator(0, Integer.MAX_VALUE))) {
             if(pl.getName().equals(prefixedName)) {

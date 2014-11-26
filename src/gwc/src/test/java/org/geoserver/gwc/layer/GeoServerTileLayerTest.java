@@ -590,4 +590,14 @@ public class GeoServerTileLayerTest {
         assertEquals(40, layerInfoTileLayer.getInfo().getExpireCache());
     }
 
+    @Test
+    public void testGetPublishedInfo() {
+        layerInfoTileLayer = new GeoServerTileLayer(layerInfo, defaults, gridSetBroker);
+        assertNotNull(layerInfoTileLayer.getLayerInfo());
+        assertNull(layerInfoTileLayer.getLayerGroupInfo());
+        
+        layerGroupInfoTileLayer = new GeoServerTileLayer(layerGroup, defaults, gridSetBroker);
+        assertNull(layerGroupInfoTileLayer.getLayerInfo());
+        assertNotNull(layerGroupInfoTileLayer.getLayerGroupInfo());
+    }
 }

@@ -313,6 +313,7 @@ public abstract class AbstractAuthorizationTest extends SecureObjectsTest {
         stubList(catalog, CoverageInfo.class, coverages);
         expect(catalog.getWorkspaces()).andReturn(workspaces).anyTimes();
         stubList(catalog, WorkspaceInfo.class, workspaces);
+        stubList(catalog, StyleInfo.class, Arrays.asList(pointStyle, lineStyle));
         expect(catalog.getWorkspaceByName("topp")).andReturn(toppWs).anyTimes();
         expect(catalog.getWorkspaceByName("nurc")).andReturn(nurcWs).anyTimes();
         expect(catalog.getStyles()).andReturn(Arrays.asList(pointStyle, lineStyle)).anyTimes();
