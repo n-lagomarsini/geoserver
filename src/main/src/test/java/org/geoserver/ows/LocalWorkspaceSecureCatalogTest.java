@@ -96,28 +96,32 @@ public class LocalWorkspaceSecureCatalogTest extends AbstractAuthorizationTest {
 
     @Test
     public void testAccessToStyleAsIterator() throws Exception {
+        // Getting the access manager
         CatalogFilterAccessManager mgr = setupAccessManager();
 
+        // Defining a SecureCatalog with a user which is not admin
         SecureCatalogImpl sc = new SecureCatalogImpl(catalog, mgr) {
             @Override
             protected boolean isAdmin(Authentication authentication) {
                 return false;
             }
         };
-        
-        CloseableIterator<StyleInfo> styles = sc.list(StyleInfo.class, 
-                Filter.INCLUDE);
+
+        // Get the iterator on the styles
+        CloseableIterator<StyleInfo> styles = sc.list(StyleInfo.class, Filter.INCLUDE);
         int size = Iterators.size(styles);
         assertEquals(2, size);
 
+        // Setting the workspace "topp" and repeating the test
         WorkspaceInfo ws = sc.getWorkspaceByName("topp");
         LocalWorkspace.set(ws);
-        
+
         styles = sc.list(StyleInfo.class, Filter.INCLUDE);
         size = Iterators.size(styles);
         assertEquals(2, size);
         LocalWorkspace.remove();
 
+        // Setting the workspace "nurc" and repeating the test
         ws = sc.getWorkspaceByName("nurc");
         LocalWorkspace.set(ws);
         styles = sc.list(StyleInfo.class, Filter.INCLUDE);

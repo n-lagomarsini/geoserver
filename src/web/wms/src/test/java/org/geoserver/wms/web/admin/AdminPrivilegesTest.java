@@ -27,7 +27,6 @@ import org.geoserver.web.GeoServerWicketTestSupport;
 import org.geoserver.wms.web.data.StyleEditPage;
 import org.geoserver.wms.web.data.StyleNewPage;
 import org.geoserver.wms.web.data.StylePage;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class AdminPrivilegesTest extends GeoServerWicketTestSupport {

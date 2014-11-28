@@ -119,7 +119,7 @@ public class LayerGroupNewPageTest extends LayerGroupBaseTest {
         // Click on the link
         tester.clickLink("form:layers:addLayer");
         tester.assertNoErrorMessage();
-     // Ensure that the Layer List page is rendered correctly
+        // Ensure that the Layer List page is rendered correctly
         tester.assertComponent("form:layers:popup:content:listContainer:items", DataView.class);
         // Get the DataView containing the Layer List
         DataView dataView = (DataView) page.lgEntryPanel.get("popup:content:listContainer:items");

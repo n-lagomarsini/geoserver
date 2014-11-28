@@ -592,6 +592,8 @@ public class GeoServerTileLayerTest {
 
     @Test
     public void testGetPublishedInfo() {
+        // Checking that the getLayerInfo and getLayerGroupInfo methods
+        // returns a not null object
         layerInfoTileLayer = new GeoServerTileLayer(layerInfo, defaults, gridSetBroker);
         assertNotNull(layerInfoTileLayer.getLayerInfo());
         assertNull(layerInfoTileLayer.getLayerGroupInfo());

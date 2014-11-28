@@ -63,13 +63,14 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
     
     public PreviewLayerProvider(){
         super();
-        
+        // Initialization of an inner cache in order to avoid to calculate two times
+        // the size() method in a time minor than a second
         CacheBuilder<Object, Object> builder = CacheBuilder.newBuilder();
         
         cache = builder.expireAfterWrite(DEFAULT_CACHE_TIME, TimeUnit.SECONDS).build();
-        
+        // Callable which internally calls the size method
         sizeCaller = new SizeCallable();
-        
+        // Callable which internally calls the fullSize() method
         fullSizeCaller = new FullSizeCallable();
     }    
 
@@ -212,55 +213,51 @@ public class PreviewLayerProvider extends GeoServerDataProvider<PreviewLayer> {
     @Override
     protected Filter getFilter() {
         Filter filter = super.getFilter();
-        
+
         // need to get only advertised and enabled layers
         Filter isLayerInfo = Predicates.isInstanceOf(LayerInfo.class);
         Filter isLayerGroupInfo = Predicates.isInstanceOf(LayerGroupInfo.class);
-        
-        
-        
+
         Filter enabledFilter = Predicates.equal("resource.enabled", true);
         Filter storeEnabledFilter = Predicates.equal("resource.store.enabled", true);
         Filter advertisedFilter = Predicates.equal("resource.advertised", true);
 
         // return only layer groups that are not containers
-        Filter nonContainerGroup = Predicates.or(
-                Predicates.equal("mode", LayerGroupInfo.Mode.EO),
+        Filter nonContainerGroup = Predicates.or(Predicates.equal("mode", LayerGroupInfo.Mode.EO),
                 Predicates.equal("mode", LayerGroupInfo.Mode.NAMED),
                 Predicates.equal("mode", LayerGroupInfo.Mode.SINGLE));
-        
+
+        // Filter for the Layers
         Filter layerFilter = Predicates.and(isLayerInfo, enabledFilter, storeEnabledFilter,
                 advertisedFilter);
-        
+        // Filter for the LayerGroups
         Filter layerGroupFilter = Predicates.and(isLayerGroupInfo, nonContainerGroup);
-
+        // Or filter for merging them
         Filter orFilter = Predicates.or(layerFilter, layerGroupFilter);
-//        // need to get only advertised and enabled layers
-//        Filter enabledFilter = Predicates.or(Predicates.isNull("resource.enabled"),
-//                Predicates.equal("resource.enabled", true));
-//        Filter storeEnabledFilter = Predicates.or(Predicates.isNull("resource.store.enabled"),
-//                Predicates.equal("resource.store.enabled", true));
-//        Filter advertisedFilter = Predicates.or(Predicates.isNull("resource.advertised"),
-//                Predicates.equal("resource.advertised", true));
-//
-//        // return only layer groups that are not containers
-//        Filter nonContainerGroup = Predicates.or(Predicates.isNull("mode"),
-//                Predicates.equal("mode", LayerGroupInfo.Mode.EO),
-//                Predicates.equal("mode", LayerGroupInfo.Mode.NAMED),
-//                Predicates.equal("mode", LayerGroupInfo.Mode.SINGLE));
-
+        // And between the new filter and the initial filter
         return Predicates.and(filter, orFilter);
     }
 
-
-    class SizeCallable implements Callable<Integer>, Serializable{
+    /**
+     * Inner class which calls the sizeInternal() method
+     * 
+     * @author Nicpla Lagomarsini geosolutions
+     * 
+     */
+    class SizeCallable implements Callable<Integer>, Serializable {
         @Override
         public Integer call() throws Exception {
             return sizeInternal();
         }
     }
-    
-    class FullSizeCallable implements Callable<Integer>, Serializable{
+
+    /**
+     * Inner class which calls the fullsizeInternal() method
+     * 
+     * @author Nicpla Lagomarsini geosolutions
+     * 
+     */
+    class FullSizeCallable implements Callable<Integer>, Serializable {
         @Override
         public Integer call() throws Exception {
             return fullSizeInternal();

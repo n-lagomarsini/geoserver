@@ -48,7 +48,6 @@ public class StyleProvider extends GeoServerDataProvider<StyleInfo> {
     
     @Override
     protected List<StyleInfo> getItems() {
-        //return getCatalog().getStyles();
         throw new UnsupportedOperationException(
                 "This method should not be being called! "
                         + "We use the catalog streaming API");

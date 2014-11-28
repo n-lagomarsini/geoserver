@@ -109,6 +109,7 @@ public class PreviewLayerProviderTest extends GeoServerWicketTestSupport {
 
     @Test(expected=UnsupportedOperationException.class)
     public void testGetItems() throws Exception {
+        // Ensure that the method getItems is no more called
         PreviewLayerProvider provider = new PreviewLayerProvider();
         provider.getItems();
     }

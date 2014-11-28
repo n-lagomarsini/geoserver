@@ -125,8 +125,6 @@ public class StoreProvider extends GeoServerDataProvider<StoreInfo> {
         throw new UnsupportedOperationException(
                 "This method should not be being called! "
                         + "We use the catalog streaming API");
-//        return workspace == null ? getCatalog().getStores(StoreInfo.class) 
-//            : getCatalog().getStoresByWorkspace( workspace, StoreInfo.class );
     }
 
     @Override
