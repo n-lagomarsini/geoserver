@@ -126,6 +126,11 @@ public class PredicatesTest {
     }
 
     @Test
+    public void testPropertyNotEqualsSimple() {
+        assertTrue(Predicates.notEqual("id", "somethingElse").evaluate(ws));
+    }
+
+    @Test
     public void testPropertyEqualsCompound() {
         assertTrue(equal("resource.id", featureType.getId()).evaluate(vectorLayer));
         assertTrue(equal("resource.maxFeatures", featureType.getMaxFeatures())
