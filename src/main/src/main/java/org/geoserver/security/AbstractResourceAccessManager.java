@@ -5,14 +5,12 @@
  */
 package org.geoserver.security;
 
-import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogInfo;
 import org.geoserver.catalog.LayerGroupInfo;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WorkspaceInfo;
-import org.geoserver.platform.GeoServerExtensions;
 import org.opengis.filter.Filter;
 import org.springframework.security.core.Authentication;
 
@@ -52,18 +50,10 @@ public class AbstractResourceAccessManager implements ResourceAccessManager {
         return null;
     }
     
-    protected Catalog getCatalog() {
-        return (Catalog) GeoServerExtensions.bean("catalog");
-    }
-    protected SecureCatalogImpl getSecurityWrapper() {
-        return GeoServerExtensions.bean(SecureCatalogImpl.class);
-    }
-
     @Override
     public Filter getSecurityFilter(final Authentication user,
             final Class<? extends CatalogInfo> clazz) {
-        
-        return Filter.INCLUDE;
+        return InMemorySecurityFilter.buildUserAccessFilter(this, user);
     }
 
 }

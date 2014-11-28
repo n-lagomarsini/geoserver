@@ -13,12 +13,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.geoserver.catalog.Predicates;
 import org.geoserver.function.IsInstanceOf;
 import org.geotools.filter.Capabilities;
 import org.geotools.filter.LikeFilterImpl;
 import org.opengis.filter.And;
 import org.opengis.filter.ExcludeFilter;
 import org.opengis.filter.Filter;
+import org.opengis.filter.FilterFactory;
 import org.opengis.filter.FilterVisitor;
 import org.opengis.filter.Id;
 import org.opengis.filter.IncludeFilter;
@@ -387,6 +389,12 @@ public class FilterToCatalogSQL implements FilterVisitor, ExpressionVisitor {
      */
     @Override
     public Object visit(PropertyIsNotEqualTo filter, Object extraData) {
+        // equivalent to not(propertyisequalto)
+
+        FilterFactory ff = Predicates.factory;
+        Not not = ff.not(ff.equal(filter.getExpression1(), filter.getExpression2(),
+                filter.isMatchingCase(), filter.getMatchAction()));
+        visit(not, extraData);
 
         return extraData;
     }

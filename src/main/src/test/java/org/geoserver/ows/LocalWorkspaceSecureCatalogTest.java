@@ -13,10 +13,11 @@ import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WorkspaceInfo;
 import org.geoserver.catalog.util.CloseableIterator;
-import org.geoserver.security.DataAccessManager;
-import org.geoserver.security.ResourceAccessManager;
-import org.geoserver.security.DataAccessManagerAdapter;
+import org.geoserver.platform.GeoServerExtensionsHelper;
 import org.geoserver.security.CatalogFilterAccessManager;
+import org.geoserver.security.DataAccessManager;
+import org.geoserver.security.DataAccessManagerAdapter;
+import org.geoserver.security.ResourceAccessManager;
 import org.geoserver.security.SecureCatalogImpl;
 import org.geoserver.security.impl.AbstractAuthorizationTest;
 import org.junit.After;
@@ -106,6 +107,7 @@ public class LocalWorkspaceSecureCatalogTest extends AbstractAuthorizationTest {
                 return false;
             }
         };
+        GeoServerExtensionsHelper.singleton("secureCatalog", sc, SecureCatalogImpl.class);
 
         // Get the iterator on the styles
         CloseableIterator<StyleInfo> styles = sc.list(StyleInfo.class, Filter.INCLUDE);

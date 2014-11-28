@@ -5,9 +5,7 @@
  */
 package org.geoserver.web.data.store;
 
-import static org.geoserver.catalog.Predicates.acceptAll;
-import static org.geoserver.catalog.Predicates.or;
-import static org.geoserver.catalog.Predicates.sortBy;
+import static org.geoserver.catalog.Predicates.*;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -20,10 +18,8 @@ import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.LoadableDetachableModel;
 import org.apache.wicket.model.Model;
 import org.geoserver.catalog.Catalog;
-import org.geoserver.catalog.CatalogFacade;
 import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.DataStoreInfo;
-import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.Predicates;
 import org.geoserver.catalog.ResourcePool;
 import org.geoserver.catalog.StoreInfo;
@@ -32,8 +28,6 @@ import org.geoserver.catalog.util.CloseableIterator;
 import org.geoserver.catalog.util.CloseableIteratorAdapter;
 import org.geoserver.web.GeoServerApplication;
 import org.geoserver.web.wicket.GeoServerDataProvider;
-import org.geoserver.web.wicket.GeoServerDataProvider.BeanProperty;
-import org.geoserver.web.wicket.GeoServerDataProvider.Property;
 import org.geotools.data.DataAccessFactory;
 import org.geotools.factory.CommonFactoryFinder;
 import org.opengis.coverage.grid.Format;
@@ -219,6 +213,8 @@ public class StoreProvider extends GeoServerDataProvider<StoreInfo> {
             } else if (property == TYPE) {
                 sortOrder = sortBy("type", sort.isAscending());
             }
+        } else {
+            sortOrder = sortBy("name", true);
         }
 
         final Filter filter = getWorkspaceFilter(getFilter());
