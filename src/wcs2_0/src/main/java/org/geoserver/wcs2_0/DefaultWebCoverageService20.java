@@ -20,6 +20,7 @@ import net.opengis.wcs20.GetCoverageType;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.config.GeoServer;
+import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.OWS20Exception;
 import org.geoserver.platform.ServiceException;
 import org.geoserver.wcs.WCSInfo;
@@ -30,6 +31,7 @@ import org.geoserver.wcs2_0.response.WCS20DescribeCoverageTransformer;
 import org.geoserver.wcs2_0.util.EnvelopeAxesLabelsMapper;
 import org.geoserver.wcs2_0.util.NCNameResourceCodec;
 import org.geoserver.wcs2_0.util.StringUtils;
+import org.geoserver.wcs2_0.util.WCS20DescribeCoverageExtension;
 import org.geotools.util.logging.Logging;
 import org.geotools.xml.transform.TransformerBase;
 import org.opengis.coverage.grid.GridCoverage;
@@ -55,12 +57,20 @@ public class DefaultWebCoverageService20 implements WebCoverageService20 {
     /** Utility class to map envelope dimension*/
     private EnvelopeAxesLabelsMapper envelopeAxesMapper;
 
+    /** Available extension points*/
+    private List<WCS20DescribeCoverageExtension> extensions;
+
+    /** Boolean indicating that at least an extension point is available */
+    private boolean availableExtensions;
+
     public DefaultWebCoverageService20(GeoServer geoServer, CoverageResponseDelegateFinder responseFactory, EnvelopeAxesLabelsMapper envelopeDimensionsMapper,MIMETypeMapper mimemappe) {
         this.geoServer = geoServer;
         this.catalog = geoServer.getCatalog();
         this.responseFactory = responseFactory;
         this.envelopeAxesMapper=envelopeDimensionsMapper;
         this.mimemapper=mimemappe;
+        this.extensions=GeoServerExtensions.extensions(WCS20DescribeCoverageExtension.class);
+        this.availableExtensions = extensions!= null && !extensions.isEmpty();
     }
     
     @Override
@@ -89,7 +99,14 @@ public class DefaultWebCoverageService20 implements WebCoverageService20 {
         List<String> badCoverageIds = new ArrayList<String>();
 
         for (String encodedCoverageId : (List<String>)request.getCoverageId()) {
-            LayerInfo layer = NCNameResourceCodec.getCoverage(catalog, encodedCoverageId);
+            String newCoverageID = encodedCoverageId;
+            // Extension point for encoding the coverageId
+            if(availableExtensions){
+                for(WCS20DescribeCoverageExtension ext : extensions){
+                    newCoverageID = ext.handleCoverageId(newCoverageID);
+                }
+            }
+            LayerInfo layer = NCNameResourceCodec.getCoverage(catalog, newCoverageID);
             if(layer == null) {
                 badCoverageIds.add(encodedCoverageId);
             }
