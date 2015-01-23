@@ -6,7 +6,12 @@
 
 package org.geoserver.catalog;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import java.awt.image.RenderedImage;
 import java.io.File;
@@ -44,6 +49,7 @@ import org.geotools.styling.PolygonSymbolizer;
 import org.geotools.styling.Style;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.Version;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.opengis.coverage.grid.GridCoverageReader;
@@ -302,6 +308,7 @@ public class ResourcePoolTest extends GeoServerSystemTestSupport {
     }
     
     @Test
+    @Ignore
     public void testSEStyleWithRelativePathProtocol() throws IOException {
         StyleInfo si = getCatalog().getStyleByName("relative_protocol");
 

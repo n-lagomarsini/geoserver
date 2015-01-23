@@ -237,13 +237,13 @@ public final class CustomFormatReader extends AbstractGridCoverage2DReader {
         Category noDataCategory = new Category(
                 Vocabulary.formatInternational(VocabularyKeys.NODATA), 
                 new Color[] { new Color(0, 0, 0, 0) }, 
-                NumberRange.create(DEFAULT_NODATA, DEFAULT_NODATA), 
-                NumberRange.create(DEFAULT_NODATA, DEFAULT_NODATA));
+                NumberRange.create(DEFAULT_NODATA, DEFAULT_NODATA)/*, 
+                NumberRange.create(DEFAULT_NODATA, DEFAULT_NODATA)*/);
         Category[] categories = new Category[] { noDataCategory };
         GridSampleDimension[] bands;
         bands = new GridSampleDimension[1];
         bands[0] = 
-            new GridSampleDimension(null, categories, null).geophysics(true);
+            new GridSampleDimension(null, categories, null)/*.geophysics(true)*/;
         final Map<String, Double> properties = new HashMap<String, Double>();
         properties.put("GC_NODATA", DEFAULT_NODATA);
         return this.coverageFactory.create(name, image, this.originalEnvelope,
