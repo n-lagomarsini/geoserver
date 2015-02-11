@@ -1221,7 +1221,7 @@
       </dependencies>
     </profile>
     <profile>
-      <id>gs-rest-upload</id>
+      <id>rest-upload</id>
       <dependencies>
         <dependency>
           <groupId>org.geoserver.community</groupId>
