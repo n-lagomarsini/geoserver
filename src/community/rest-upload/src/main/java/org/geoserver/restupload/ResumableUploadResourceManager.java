@@ -33,12 +33,14 @@ import org.restlet.resource.Representation;
 /**
  * Manages resumable upload resource
  *
+ * @author xandros
  */
 
 public class ResumableUploadResourceManager {
-
+    /** LOGGER class */
     private static final Logger LOGGER = Logging.getLogger(ResumableUploadResourceManager.class);
 
+    /** Resource folder for the temporary uploads */
     private static Resource tmpUploadFolder;
 
     public ResumableUploadResourceManager(String tmpFolder) {

@@ -52,7 +52,7 @@ Here is a description of general workflow that clients must follow to handle fil
 The uploads which are not completed and are not resumed from too much time (default value is 300000 milliseconds) will be removed from server.
 The completed files will be reachable via GET request for a limited time (default value is 300000 milliseconds).
 
-The timeout of files cleaner task and the temporary subfolder path can be configured by adding a **resumableUpload.properties** file to the Geoserver data directory with the definition of properties *resumable.tempPath* and *resumable.expirationDelay* (in milliseconds).
+The timeout of files cleaner task and the temporary subfolder path can be configured by adding a **resumableUpload.properties** file to the Geoserver data directory with the definition of properties *resumable.tempPath* and *resumable.expirationDelay* (in milliseconds). Each modification of this file requires to restart GeoServer.
 
 Example of usage
 -------------------------

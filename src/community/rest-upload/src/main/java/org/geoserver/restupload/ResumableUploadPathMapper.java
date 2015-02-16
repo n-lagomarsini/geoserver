@@ -9,15 +9,19 @@ import java.io.IOException;
 import java.util.Map;
 
 import org.apache.commons.io.FilenameUtils;
-import org.apache.wicket.util.file.File;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.GeoServerResourceLoader;
 import org.geoserver.platform.resource.Resource;
-import org.geoserver.rest.util.IOUtils;
 import org.geoserver.rest.util.RESTUploadPathMapperImpl;
 import org.geoserver.rest.util.RESTUtils;
 
+/**
+ * {@link RESTUploadPathMapperImpl} implementation for the resumable REST upload
+ * 
+ * @author xandros
+ *
+ */
 public class ResumableUploadPathMapper extends RESTUploadPathMapperImpl {
 
     private String sourcePath;

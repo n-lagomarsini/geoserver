@@ -12,11 +12,20 @@ import java.util.logging.Logger;
 
 import org.geotools.util.logging.Logging;
 
+/**
+ * Class used for cleaning the resources in the temporary directory after that the "expirationDelay" has passed
+ * 
+ * @author xandros
+ * 
+ */
 public class ResumableUploadResourceCleaner extends TimerTask {
+    /** LOGGER class */
     private Logger LOGGER = Logging.getLogger(ResumableUploadResourceCleaner.class);
 
+    /** Parameter indicating the cleaning period in milliseconds */
     private Long expirationDelay;
 
+    /** Manager handling all the REST upload operations */
     private ResumableUploadResourceManager resourceManager;
 
     public ResumableUploadResourceCleaner(ResumableUploadResourceManager resourceManager,

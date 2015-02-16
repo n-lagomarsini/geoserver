@@ -38,14 +38,23 @@ import org.restlet.data.Status;
 import com.mockrunner.mock.web.MockHttpServletRequest;
 import com.mockrunner.mock.web.MockHttpServletResponse;
 
+/**
+ * Test class for checking REST resumable upload
+ * 
+ * @author xandros
+ *
+ */
 public class ResumableUploadTest extends CatalogRESTTestSupport {
-
+    /** Resource used for storing temporary uploads */
     private Resource tmpUploadFolder;
 
+    /** Size for partial uploads */
     private long partialSize = 50;
 
+    /** Relative path of the file to upload */
     private String fileName = "/relative/resumableUploadTest.shp";
 
+    /** Root folder */
     private String root;
 
     @Before

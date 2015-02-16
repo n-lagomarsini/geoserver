@@ -7,12 +7,19 @@ package org.geoserver.restupload;
 
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.rest.AbstractCatalogFinder;
+import org.restlet.Finder;
 import org.restlet.data.Request;
 import org.restlet.data.Response;
 import org.restlet.resource.Resource;
 
+/**
+ * {@link Finder} implementation returning a {@link ResumableUploadCatalogResource}.
+ * 
+ * @author xandros
+ *
+ */
 public class ResumableUploadCatalogFinder extends AbstractCatalogFinder {
-
+    /** Manager for the Resumable REST upload */
     private ResumableUploadResourceManager resumableUploadResourceManager;
 
     protected ResumableUploadCatalogFinder(Catalog catalog) {

@@ -9,8 +9,6 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.servlet.http.HttpServletRequest;
-
 import org.apache.commons.lang.StringUtils;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.rest.util.RESTUtils;
@@ -51,6 +49,7 @@ public class ResumableUploadCatalogResource extends Resource {
 
     private static final Logger LOGGER = Logging.getLogger(ResumableUploadCatalogResource.class);
 
+    /** Manager for the Resumable REST upload */
     private ResumableUploadResourceManager resumableUploadResourceManager;
 
     /**
