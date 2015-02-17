@@ -77,6 +77,16 @@
       <enabled>false</enabled>
     </snapshots>
   </repository>
+  
+      <repository>
+      <id>geosolutions</id>
+      <name>geosolutions repository</name>
+      <url>http://maven.geo-solutions.it/</url>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+  </repository>
+    
  </repositories>
 
  <pluginRepositories>
