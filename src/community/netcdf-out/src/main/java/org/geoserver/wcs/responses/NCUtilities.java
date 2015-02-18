@@ -128,6 +128,30 @@ public class NCUtilities {
         }
 
     /**
+     * Transcode a NetCDF Number into a proper Number instance.
+     * 
+     * @param type the {@link DataType} to transcode.
+     * @return the proper number instance
+     */
+    public static Number transcodeNumber(final DataType type, Number value) {
+        if (DataType.DOUBLE.equals(type)) {
+            return Double.valueOf(value.doubleValue());
+        } else if (DataType.FLOAT.equals(type)) {
+            return Float.valueOf(value.floatValue());
+        } else if (DataType.LONG.equals(type)) {
+            return Long.valueOf(value.longValue());
+        } else if (DataType.INT.equals(type)) {
+            return Integer.valueOf(value.intValue());
+        } else if (DataType.SHORT.equals(type)) {
+            return Short.valueOf(value.shortValue());
+        } else if (DataType.BYTE.equals(type)) {
+            return Byte.valueOf(value.byteValue());
+        }
+        throw new IllegalArgumentException("Unsupported type or value: type = " +
+        type.toString() + " value = " + value);
+    }
+    
+    /**
      * Get an Array of proper size and type.
      * 
      * @param dimensions the dimensions

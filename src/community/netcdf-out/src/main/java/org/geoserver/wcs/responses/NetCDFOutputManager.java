@@ -21,6 +21,7 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.measure.unit.Unit;
 import javax.media.jai.iterator.RandomIter;
 import javax.media.jai.iterator.RandomIterFactory;
 
@@ -29,9 +30,11 @@ import org.geoserver.wcs.responses.NetCDFDimensionManager.DimensionValuesSet;
 import org.geoserver.wcs2_0.response.DimensionBean;
 import org.geoserver.wcs2_0.response.GranuleStack;
 import org.geoserver.wcs2_0.response.DimensionBean.DimensionType;
+import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.io.util.DateRangeComparator;
 import org.geotools.coverage.io.util.NumberRangeComparator;
+import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.CRS.AxisOrder;
 import org.geotools.referencing.operation.matrix.XAffineTransform;
@@ -252,7 +255,21 @@ public class NetCDFOutputManager {
             netCDFDimensions.add(manager.getNetCDFDimension());
         }
         final String coverageName = sampleGranule.getName().toString();
-        writer.addVariable(null, coverageName, DataType.FLOAT, netCDFDimensions);
+        Variable var = writer.addVariable(null, coverageName, DataType.FLOAT, netCDFDimensions);
+        GridSampleDimension[] sampleDimensions = sampleGranule.getSampleDimensions();
+        if (sampleDimensions != null && sampleDimensions.length > 0) {
+            GridSampleDimension sampleDimension = sampleDimensions[0];
+            Unit<?> units = sampleDimension.getUnits();
+            double[] noData = sampleDimension.getNoDataValues();
+            if (noData != null && noData.length > 0) {
+                
+                writer.addVariableAttribute(var, new Attribute(NCUtilities.FILLVALUE, 
+                        NCUtilities.transcodeNumber(var.getDataType(), noData[0])));
+            }
+            if (units != null) {
+                writer.addVariableAttribute(var, new Attribute(NCUtilities.UNITS, units.toString()));
+            }
+        }
     }
 
     /**
