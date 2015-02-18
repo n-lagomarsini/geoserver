@@ -32,6 +32,7 @@ import org.geotools.coverage.grid.io.StructuredGridCoverage2DReader;
 import org.geotools.factory.Hints;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.resources.Classes;
+import org.geotools.resources.coverage.CoverageUtilities;
 import org.geotools.util.NumberRange;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.Utilities;
@@ -236,7 +237,7 @@ public class CoverageDimensionCustomizerReader implements GridCoverage2DReader {
             // update the GC_NODATA property (if any) with the latest value, if we have any
             double[] wrappedNoDataValues = wrappedDims[0].getNoDataValues();
             if (wrappedNoDataValues != null && wrappedNoDataValues.length > 0) {
-                properties.put("GC_NODATA", wrappedNoDataValues[0]);
+                CoverageUtilities.setNoDataProperty(properties, wrappedNoDataValues[0]);
             }
         }
 
