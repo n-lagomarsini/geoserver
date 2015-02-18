@@ -7,7 +7,6 @@ package org.geoserver.wms.map;
 
 import it.geosolutions.jaiext.colorindexer.CachingColorIndexer;
 import it.geosolutions.jaiext.colorindexer.ColorIndexer;
-import it.geosolutions.jaiext.colorindexer.ColorIndexerDescriptor;
 import it.geosolutions.jaiext.colorindexer.LRUColorIndexer;
 import it.geosolutions.jaiext.colorindexer.Quantizer;
 

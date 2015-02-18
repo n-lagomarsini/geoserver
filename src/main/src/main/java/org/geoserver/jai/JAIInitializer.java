@@ -5,9 +5,13 @@
  */
 package org.geoserver.jai;
 
+import it.geosolutions.jaiext.ConcurrentOperationRegistry;
+import it.geosolutions.jaiext.JAIExt;
+
 import java.util.List;
 
 import javax.media.jai.JAI;
+import javax.media.jai.OperationRegistry;
 
 import org.geoserver.config.ConfigurationListenerAdapter;
 import org.geoserver.config.GeoServer;
@@ -47,6 +51,9 @@ public class JAIInitializer implements GeoServerInitializer {
         
         JAI jaiDef = JAI.getDefaultInstance();
         jai.setJAI( jaiDef );
+        OperationRegistry registry = ConcurrentOperationRegistry.initializeRegistry();
+        jaiDef.setOperationRegistry(registry);
+        JAIExt.initJAIEXT((ConcurrentOperationRegistry) registry);
         
         // setting JAI wide hints
         jaiDef.setRenderingHint(JAI.KEY_CACHED_TILE_RECYCLING_ENABLED, jai.isRecycling());
