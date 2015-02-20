@@ -22,6 +22,7 @@ import javax.media.jai.PropertySourceImpl;
 
 import org.geotools.coverage.Category;
 import org.geotools.coverage.GridSampleDimension;
+import org.geotools.coverage.NoDataContainer;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.DimensionDescriptor;
 import org.geotools.coverage.grid.io.GranuleSource;
@@ -227,14 +228,15 @@ public class CoverageDimensionCustomizerReader implements GridCoverage2DReader {
         if (coverage == null) {
             return coverage;
         }
-        final Map properties = coverage.getProperties();
+        final Map<String, Object> properties = coverage.getProperties();
         final SampleDimension[] dims = coverage.getSampleDimensions();
         GridSampleDimension[] wrappedDims = wrapDimensions(dims);
         // Wrapping sample dimensions
+        NoDataContainer noDataProperty = CoverageUtilities.getNoDataProperty(coverage);
         if (wrappedDims == null) {
             wrappedDims = (GridSampleDimension[]) dims;
-        } else if (properties != null && properties.containsKey("GC_NODATA")) {
-            // update the GC_NODATA property (if any) with the latest value, if we have any
+        } else if (properties != null && noDataProperty != null) {
+            // update the noData property (if any) with the latest value, if we have any
             double[] wrappedNoDataValues = wrappedDims[0].getNoDataValues();
             if (wrappedNoDataValues != null && wrappedNoDataValues.length > 0) {
                 CoverageUtilities.setNoDataProperty(properties, wrappedNoDataValues[0]);
