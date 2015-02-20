@@ -30,6 +30,7 @@ import org.geoserver.wcs2_0.GetCoverage;
 import org.geoserver.wcs2_0.exception.WCS20Exception;
 import org.geoserver.wcs2_0.util.EnvelopeAxesLabelsMapper;
 import org.geotools.coverage.GridSampleDimension;
+import org.geotools.coverage.NoDataContainer;
 import org.geotools.coverage.TypeMap;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
@@ -851,9 +852,10 @@ class GMLTransformer extends TransformerBase {
                     element("swe:nilValue", String.valueOf(nodata), nodataAttr);
                 }
             } else if (gc2d != null) {
-            // do we have already a a NO_DATA value at hand?
-                if (gc2d.getProperties().containsKey("GC_NODATA")) {
-                    String nodata = (String) gc2d.getProperties().get("GC_NODATA"); // TODO test me
+            // do we have already a NO_DATA value at hand?
+                NoDataContainer noDataProperty = CoverageUtilities.getNoDataProperty(gc2d);
+                if (noDataProperty != null) {
+                    String nodata = Double.valueOf(noDataProperty.getAsSingleValue()).toString();
                     final AttributesImpl nodataAttr = new AttributesImpl();
                     nodataAttr.addAttribute("", "reason", "reason", "",
                             "http://www.opengis.net/def/nil/OGC/0/unknown");
