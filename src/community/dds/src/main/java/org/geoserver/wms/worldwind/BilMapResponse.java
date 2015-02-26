@@ -26,7 +26,6 @@ import javax.imageio.stream.ImageOutputStream;
 import javax.media.jai.Interpolation;
 import javax.media.jai.JAI;
 import javax.media.jai.TiledImage;
-import javax.media.jai.operator.FormatDescriptor;
 
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.data.util.CoverageUtils;
@@ -47,6 +46,7 @@ import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.geometry.GeneralEnvelope;
+import org.geotools.image.ImageWorker;
 import org.geotools.referencing.CRS;
 import org.geotools.resources.coverage.CoverageUtilities;
 import org.geotools.util.logging.Logging;
@@ -197,18 +197,21 @@ public final class BilMapResponse extends RenderedImageMapResponse {
 	        	{
 	        		bilEncoding = defaultDataType;
 	        	}
-
+	        	ImageWorker worker = new ImageWorker(transformedImage);
 	        	if((bilEncoding.equals("application/bil32")) && (dtype != DataBuffer.TYPE_FLOAT))
 	        	{
-	        	    transformedImage = FormatDescriptor.create(transformedImage, DataBuffer.TYPE_FLOAT, null);
+	        	    transformedImage = worker.format(DataBuffer.TYPE_FLOAT).getRenderedImage();
+	        	    //transformedImage = FormatDescriptor.create(transformedImage, DataBuffer.TYPE_FLOAT, null);
 	        	}
 	        	else if((bilEncoding.equals("application/bil16")) && (dtype != DataBuffer.TYPE_SHORT))
 	        	{
-	        	    transformedImage = FormatDescriptor.create(transformedImage, DataBuffer.TYPE_SHORT, null);
+	        	    transformedImage = worker.format(DataBuffer.TYPE_SHORT).getRenderedImage();
+	        	    //transformedImage = FormatDescriptor.create(transformedImage, DataBuffer.TYPE_SHORT, null);
 	        	}
 	        	else if((bilEncoding.equals("application/bil8")) && (dtype != DataBuffer.TYPE_BYTE))
 	        	{
-	        	    transformedImage = FormatDescriptor.create(transformedImage, DataBuffer.TYPE_BYTE, null);
+	        	    transformedImage = worker.format(DataBuffer.TYPE_BYTE).getRenderedImage();
+	        	    //transformedImage = FormatDescriptor.create(transformedImage, DataBuffer.TYPE_BYTE, null);
 	        	}
 
 	        	TiledImage tiled = new TiledImage(transformedImage,width,height);
