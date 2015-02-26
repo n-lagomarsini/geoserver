@@ -5,6 +5,8 @@
  */
 package org.geoserver.wms.worldwind;
 
+import it.geosolutions.jaiext.range.RangeFactory;
+
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
@@ -198,6 +200,8 @@ public final class BilMapResponse extends RenderedImageMapResponse {
 	        		bilEncoding = defaultDataType;
 	        	}
 	        	ImageWorker worker = new ImageWorker(transformedImage);
+	        	Double nod = inNoDataValues != null ? (outNoData != null ? outNoData : inNoDataValues[0]) : null;
+	        	worker.setnoData(nod != null ? RangeFactory.create(nod, nod) : null);
 	        	if((bilEncoding.equals("application/bil32")) && (dtype != DataBuffer.TYPE_FLOAT))
 	        	{
 	        	    transformedImage = worker.format(DataBuffer.TYPE_FLOAT).getRenderedImage();
