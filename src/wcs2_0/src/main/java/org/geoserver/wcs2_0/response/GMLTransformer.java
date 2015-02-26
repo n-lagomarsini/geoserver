@@ -5,6 +5,8 @@
  */
 package org.geoserver.wcs2_0.response;
 
+import it.geosolutions.jaiext.range.NoDataContainer;
+
 import java.awt.image.DataBuffer;
 import java.awt.image.RenderedImage;
 import java.io.IOException;
@@ -30,7 +32,6 @@ import org.geoserver.wcs2_0.GetCoverage;
 import org.geoserver.wcs2_0.exception.WCS20Exception;
 import org.geoserver.wcs2_0.util.EnvelopeAxesLabelsMapper;
 import org.geotools.coverage.GridSampleDimension;
-import org.geotools.coverage.NoDataContainer;
 import org.geotools.coverage.TypeMap;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;

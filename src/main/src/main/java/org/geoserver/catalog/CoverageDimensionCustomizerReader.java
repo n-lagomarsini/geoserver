@@ -5,6 +5,8 @@
  */
 package org.geoserver.catalog;
 
+import it.geosolutions.jaiext.range.NoDataContainer;
+
 import java.awt.image.ColorModel;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,7 +24,6 @@ import javax.media.jai.PropertySourceImpl;
 
 import org.geotools.coverage.Category;
 import org.geotools.coverage.GridSampleDimension;
-import org.geotools.coverage.NoDataContainer;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.DimensionDescriptor;
 import org.geotools.coverage.grid.io.GranuleSource;
