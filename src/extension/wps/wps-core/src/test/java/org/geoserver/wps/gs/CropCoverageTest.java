@@ -15,6 +15,7 @@ import org.geoserver.data.test.MockData;
 import org.geoserver.data.test.SystemTestData;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.wps.WPSTestSupport;
+import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.gce.arcgrid.ArcGridFormat;
 import org.geotools.geometry.DirectPosition2D;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -73,15 +74,17 @@ public class CropCoverageTest extends WPSTestSupport {
         InputStream is = getBinaryInputStream(response);
         
         ArcGridFormat format = new ArcGridFormat();
-        GridCoverage gc = format.getReader(is).read(null);
-        
+        GridCoverage2D gc = format.getReader(is).read(null);
+
         assertTrue(new Envelope(-145.4, 145.6, -41.8, -42.1).contains(new ReferencedEnvelope(gc.getEnvelope())));
         
         double[] valueInside = (double[]) gc.evaluate(new DirectPosition2D(145.55, -42));
         assertEquals(615.0, valueInside[0]);
         double[] valueOutside = (double[]) gc.evaluate(new DirectPosition2D(145.57, -41.9));
-        // this should really be NaN...
-        assertEquals(0.0, valueOutside[0]);
+        // this should really be NoData... (-9999 & 0xFFFF)
+        assertEquals(55537.0, valueOutside[0]);
+
+        gc.dispose(true);
     }
     
     @Test
