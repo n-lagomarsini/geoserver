@@ -48,12 +48,9 @@ public class JAIInitializer implements GeoServerInitializer {
         
         JAI jaiDef = JAI.getDefaultInstance();
         jai.setJAI( jaiDef );
-<<<<<<< HEAD
-=======
         //OperationRegistry registry = ConcurrentOperationRegistry.initializeRegistry();
         //jaiDef.setOperationRegistry(registry);
         JAIExt.initJAIEXT();
->>>>>>> 0444e24... Removed direct JAI calls
         
         // setting JAI wide hints
         jaiDef.setRenderingHint(JAI.KEY_CACHED_TILE_RECYCLING_ENABLED, jai.isRecycling());
