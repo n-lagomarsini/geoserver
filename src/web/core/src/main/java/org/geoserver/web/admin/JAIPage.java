@@ -65,6 +65,8 @@ public class JAIPage extends ServerAdminPage {
         addPngEncoderEditor(form);
         form.add(new CheckBox("allowNativeMosaic"));
         form.add(new CheckBox("allowNativeWarp"));
+        
+        form.add(new JAIEXTPanel("jaiext", jaiModel));
 
         Button submit = new Button("submit", new StringResourceModel("submit", this, null)) {
             @Override

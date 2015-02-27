@@ -69,9 +69,9 @@ public class CoverageViewReader implements GridCoverage2DReader {
 
     private static final CoverageProcessor PROCESSOR = CoverageProcessor.getInstance();
 
-    private static Operation BANDMERGE = PROCESSOR.getOperation("BandMerge");
+    //private static Operation BANDMERGE = PROCESSOR.getOperation("BandMerge");
 
-    private static Operation BANDSELECT = PROCESSOR.getOperation("SelectSampleDimension");
+    //private static Operation BANDSELECT = PROCESSOR.getOperation("SelectSampleDimension");
 
     /**
      * A CoveragesConsistencyChecker checks if the composing coverages respect the constraints which currently are:
@@ -312,12 +312,10 @@ public class CoverageViewReader implements GridCoverage2DReader {
                 // We may consider revisiting this to use integers instead of String
                 // For the moment, let's continue using String
                 String selectedBand = inputBand.getBand();
-                if (BANDSELECT != null) {
-                    final ParameterValueGroup param = BANDSELECT.getParameters();
-                    param.parameter("Source").setValue(coverage);
-                    param.parameter("SampleDimensions").setValue(new int[]{Integer.valueOf(selectedBand)});
-                    coverage = (GridCoverage2D) PROCESSOR.doOperation(param, hints);
-                }
+                final ParameterValueGroup param = PROCESSOR.getOperation("SelectSampleDimension").getParameters();
+                param.parameter("Source").setValue(coverage);
+                param.parameter("SampleDimensions").setValue(new int[]{Integer.valueOf(selectedBand)});
+                coverage = (GridCoverage2D) PROCESSOR.doOperation(param, hints);
 
                 coverages.add(coverage);
                 dims.addAll(Arrays.asList(coverage.getSampleDimensions()));
@@ -332,7 +330,7 @@ public class CoverageViewReader implements GridCoverage2DReader {
         RenderedImage image = null;
         Map properties = null;
         if (coverages.size() > 1) {
-                final ParameterValueGroup param = BANDMERGE.getParameters();
+                final ParameterValueGroup param = PROCESSOR.getOperation("BandMerge").getParameters();
                 param.parameter("sources").setValue(coverages);
                 GridCoverage2D merge = (GridCoverage2D) PROCESSOR.doOperation(param, hints);
                 image = merge.getRenderedImage();
