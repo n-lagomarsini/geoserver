@@ -9,6 +9,7 @@ import it.geosolutions.jaiext.JAIExt;
 
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 import javax.media.jai.JAI;
 
@@ -18,6 +19,7 @@ import org.geoserver.config.GeoServerInfo;
 import org.geoserver.config.GeoServerInitializer;
 import org.geoserver.config.JAIEXTInfo;
 import org.geoserver.config.JAIInfo;
+import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.image.jai.Registry;
 
 import com.sun.media.jai.util.SunTileCache;
@@ -62,10 +64,26 @@ public class JAIInitializer implements GeoServerInitializer {
             Set<String> jaiExtOperations = jaiext.getJAIEXTOperations();
             if(jaiOperations != null && !jaiOperations.isEmpty()){
                 JAIExt.registerOperations(jaiOperations, false);
+                for(String opName : jaiOperations){
+                    // Remove operations with old descriptors
+                    CoverageProcessor.removeOperationFromProcessors(opName);
+                }
             }
             if(jaiExtOperations != null && !jaiExtOperations.isEmpty()){
-                JAIExt.registerOperations(jaiExtOperations, true);
+                Set<String> newJai = new TreeSet<String>(jaiExtOperations);
+                if(jaiOperations != null && !jaiOperations.isEmpty()){
+                    newJai.removeAll(jaiOperations);
+                }
+                for(String opName : newJai){
+                    if(!JAIExt.isJAIExtOperation(opName)){
+                        // Remove operations with old descriptors
+                        CoverageProcessor.removeOperationFromProcessors(opName);
+                    }
+                }
+                JAIExt.registerOperations(newJai, true);
             }
+            // Update all the CoverageProcessor instances
+            CoverageProcessor.updateProcessors();
         }
         
         //

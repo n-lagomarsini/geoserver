@@ -5,6 +5,8 @@
  */
 package org.geoserver.wcs2_0;
 
+import it.geosolutions.rendered.viewer.RenderedImageBrowser;
+
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;

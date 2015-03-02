@@ -30,7 +30,13 @@ public class JAIEXTInfoImpl implements JAIEXTInfo {
         JAIExt.initJAIEXT();
         List<OperationItem> jaiextOps = JAIExt.getJAIEXTOperations();
         for(OperationItem item : jaiextOps){
-            JAIEXT_OPS.add(item.getName());
+            String name = item.getName();
+            if (name.equalsIgnoreCase("algebric") || name.equalsIgnoreCase("operationConst")
+                    || name.equalsIgnoreCase("Stats")) {
+                JAIEXT_OPS.add(name);
+            }else if(JAIExt.isJAIAPI(name)){
+                JAIEXT_OPS.add(name);
+            }
         }
     }
 
@@ -53,7 +59,13 @@ public class JAIEXTInfoImpl implements JAIEXTInfo {
         }
         List<OperationItem> jaiextOps = JAIExt.getJAIEXTOperations();
         for(OperationItem item : jaiextOps){
-            jaiExtOperations.add(item.getName());
+            String name = item.getName();
+            if (name.equalsIgnoreCase("algebric") || name.equalsIgnoreCase("operationConst")
+                    || name.equalsIgnoreCase("Stats")) {
+                jaiExtOperations.add(name);
+            }else if(JAIExt.isJAIAPI(name)){
+                jaiExtOperations.add(name);
+            }
         }
     }
 

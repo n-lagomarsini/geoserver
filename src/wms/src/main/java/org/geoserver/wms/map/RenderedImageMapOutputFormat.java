@@ -736,7 +736,7 @@ public class RenderedImageMapOutputFormat extends AbstractMapOutputFormat {
         layout.setTileWidth(w);
         layout.setTileHeight(h);
         RenderingHints hints = new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout);
-        LookupTable table = LookupTableFactory.create(IDENTITY_TABLE, source.getSampleModel().getDataType());
+        LookupTable table = LookupTableFactory.create(IDENTITY_TABLE);
         // TODO SIMONE why not format?
         //return LookupDescriptor.create(source, IDENTITY_TABLE, hints);
         ImageWorker worker = new ImageWorker(source);
