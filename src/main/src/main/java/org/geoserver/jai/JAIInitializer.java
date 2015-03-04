@@ -67,6 +67,7 @@ public class JAIInitializer implements GeoServerInitializer {
                 for(String opName : jaiOperations){
                     // Remove operations with old descriptors
                     CoverageProcessor.removeOperationFromProcessors(opName);
+                    JAIExt.setJAIAcceleration(opName, true);
                 }
             }
             if(jaiExtOperations != null && !jaiExtOperations.isEmpty()){
