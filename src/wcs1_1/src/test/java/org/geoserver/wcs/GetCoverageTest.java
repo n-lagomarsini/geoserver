@@ -12,8 +12,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.vfny.geoserver.wcs.WcsException.WcsExceptionCode.InvalidParameterValue;
 
-import it.geosolutions.rendered.viewer.RenderedImageBrowser;
-
 import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.FileOutputStream;

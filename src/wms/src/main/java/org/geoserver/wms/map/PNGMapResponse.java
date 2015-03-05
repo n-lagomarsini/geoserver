@@ -105,10 +105,7 @@ public class PNGMapResponse extends RenderedImageMapResponse {
         }
         
         // check to see if we have to see a translucent or bitmask quantizer
-        image = applyPalette(image, mapContent, "image/png8", true);
-        
-        RenderedImageBrowser.showChain(image, false, false);
-        
+        image = applyPalette(image, mapContent, "image/png8", true);        
         
         float quality = (100 - wms.getPngCompression()) / 100.0f;
         JAIInfo.PngEncoderType encoder = wms.getPNGEncoderType();
