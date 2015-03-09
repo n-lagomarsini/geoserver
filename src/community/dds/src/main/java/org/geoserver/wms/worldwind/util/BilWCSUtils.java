@@ -46,7 +46,7 @@ public class BilWCSUtils extends WCSUtils {
     // Static Processors
     //
     // ///////////////////////////////////////////////////////////////////
-    private static final CoverageProcessor processor = new CoverageProcessor();
+    private static final CoverageProcessor processor = CoverageProcessor.getInstance();
     
     //private final static SelectSampleDimension bandSelectFactory = new SelectSampleDimension();
     //private final static Crop cropFactory = new Crop();

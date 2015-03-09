@@ -122,10 +122,12 @@ import org.vfny.geoserver.wcs.WcsException;
  */
 public class GetCoverage {
     
-    private final static Set<String> mdFormats;
+    private static final Hints HINTS = new Hints(
+            Hints.LENIENT_DATUM_SHIFT, Boolean.TRUE);
 
-    private static final CoverageProcessor processor = new CoverageProcessor(new Hints(
-            Hints.LENIENT_DATUM_SHIFT, Boolean.TRUE));
+	private final static Set<String> mdFormats;
+
+    private static final CoverageProcessor processor = CoverageProcessor.getInstance(HINTS);
     
     static {
         //TODO: This one should be pluggable
