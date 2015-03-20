@@ -31,7 +31,7 @@ public class NetCDFSettingsContainer implements Serializable {
 
     private boolean shuffle = DEFAULT_SHUFFLE;
 
-    private Version netcdfVersion = DEFAULT_VERSION;
+//    private Version netcdfVersion = DEFAULT_VERSION;
 
     private List<GlobalAttribute> globalAttributes = DEFAULT_ATTRIBUTES;
 
@@ -51,16 +51,16 @@ public class NetCDFSettingsContainer implements Serializable {
         this.shuffle = shuffle;
     }
 
-    public Version getNetcdfVersion() {
-        if (netcdfVersion == null) {
-            netcdfVersion = DEFAULT_VERSION;
-        }
-        return netcdfVersion;
-    }
-
-    public void setNetcdfVersion(Version netcdfVersion) {
-        this.netcdfVersion = netcdfVersion;
-    }
+//    public Version getNetcdfVersion() {
+//        if (netcdfVersion == null) {
+//            netcdfVersion = DEFAULT_VERSION;
+//        }
+//        return netcdfVersion;
+//    }
+//
+//    public void setNetcdfVersion(Version netcdfVersion) {
+//        this.netcdfVersion = netcdfVersion;
+//    }
 
     public List<GlobalAttribute> getGlobalAttributes() {
         if (globalAttributes == null) {

@@ -49,7 +49,7 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
     public static final ResourceReference DELETE_ICON = new ResourceReference(
             GeoServerBasePage.class, "img/icons/silk/delete.png");
 
-    private final DropDownChoice<NetCDFSettingsContainer.Version> version;
+//    private final DropDownChoice<NetCDFSettingsContainer.Version> version;
 
     public NetCDFPanel(String id, IModel<NetCDFSettingsContainer> netcdfModel) {
         super(id, netcdfModel);
@@ -75,24 +75,24 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
         // DropDown associated to the netcdf version parameter
         List<NetCDFSettingsContainer.Version> versions = Arrays
                 .asList(NetCDFSettingsContainer.Version.values());
-        version = new DropDownChoice<NetCDFSettingsContainer.Version>(
-                "netcdfVersion", new PropertyModel(netcdfModel, "netcdfVersion"), versions);
-        version.setOutputMarkupId(true);
-        version.add(new AjaxFormComponentUpdatingBehavior("onChange") {
-
-            @Override
-            protected void onUpdate(AjaxRequestTarget target) {
-                version.processInput();
-                Version v = version.getConvertedInput();
-                compressionLevel.setEnabled(v == Version.NETCDF_4C);
-                target.addComponent(container);
-            }
-        });
-        container.add(version);
+//        version = new DropDownChoice<NetCDFSettingsContainer.Version>(
+//                "netcdfVersion", new PropertyModel(netcdfModel, "netcdfVersion"), versions);
+//        version.setOutputMarkupId(true);
+//        version.add(new AjaxFormComponentUpdatingBehavior("onChange") {
+//
+//            @Override
+//            protected void onUpdate(AjaxRequestTarget target) {
+//                version.processInput();
+//                Version v = version.getConvertedInput();
+//                compressionLevel.setEnabled(v == Version.NETCDF_4C);
+//                target.addComponent(container);
+//            }
+//        });
+//        container.add(version);
 
         // Update the compressionLevel value
         // Enabling it only for netcdf 1.4
-        compressionLevel.setEnabled(version.getConvertedInput() == Version.NETCDF_4C);
+//        compressionLevel.setEnabled(version.getConvertedInput() == Version.NETCDF_4C);
         // Adding validation on the compression level
         compressionLevel.add(new AbstractValidator<Double>() {
 
@@ -226,7 +226,7 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
         NetCDFSettingsContainer convertedInput = new NetCDFSettingsContainer();
         convertedInput.setCompressionLevel(compressionLevel.getModelObject());
         convertedInput.setGlobalAttributes(info);
-        convertedInput.setNetcdfVersion(version.getModelObject());
+//        convertedInput.setNetcdfVersion(version.getModelObject());
         convertedInput.setShuffle(shuffle.getModelObject());
         setConvertedInput(convertedInput);
     }

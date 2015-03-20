@@ -31,15 +31,15 @@ public class NetCDFOutSettingsPanelTest extends GeoServerWicketTestSupport {
         tester.assertNoErrorMessage();
 
         // check if the component is present and initialized
-        tester.assertComponent("form:extensions:0:content", NETCDFOutSettingsPanel.class);
-        tester.assertComponent("form:extensions:0:content:panel", NETCDFPanel.class);
+        tester.assertComponent("form:extensions:0:content", NetCDFOutSettingsPanel.class);
+        tester.assertComponent("form:extensions:0:content:panel", NetCDFPanel.class);
 
         NetCDFSettingsContainer container = map.get(NetCDFSettingsContainer.NETCDFOUT_KEY,
                 NetCDFSettingsContainer.class);
         // Ensure the element is in the map
         assertNotNull(container);
         // Ensure the panel is present
-        NETCDFPanel panel = (NETCDFPanel) tester
+        NetCDFPanel panel = (NetCDFPanel) tester
                 .getComponentFromLastRenderedPage("form:extensions:0:content:panel");
         assertNotNull(panel);
         // Check that the values are the same
@@ -47,7 +47,7 @@ public class NetCDFOutSettingsPanelTest extends GeoServerWicketTestSupport {
         assertNotNull(container2);
         
         assertEquals(container.getCompressionLevel(), container2.getCompressionLevel(), 0.001d);
-        assertEquals(container.getNetcdfVersion(), container2.getNetcdfVersion());
+//        assertEquals(container.getNetcdfVersion(), container2.getNetcdfVersion());
         assertEquals(container.isShuffle(), container2.isShuffle());
         
         List<GlobalAttribute> attr1 = container.getGlobalAttributes();

@@ -10,18 +10,17 @@
     <bean id="netcdfCoverageResponseDelegate" class="org.geoserver.wcs.responses.NetCDFCoverageResponseDelegate">
         <constructor-arg ref="geoServer"/>
     </bean>
-    
-      <bean id="netcdfSettingsPanel" class="org.geoserver.web.data.settings.SettingsPluginPanelInfo">
-	    <description>This bean adds the necessary form fields to NetCDF Output Settings</description>
-	    <property name="id" value="netcdfSettingsPanel"/>
-	    <property name="titleKey" value="netcdfOutSettings"/>
-	    <property name="componentClass" value="org.geoserver.web.netcdf.NETCDFOutSettingsPanel"/>
-	    <property name="priority" value="100"/>
-	  </bean>
-	  
-      <bean id="netcdfOutInitializer" class="org.geoserver.wcs.responses.NetCDFOutInitializer"/>
+    <bean id="netcdfSettingsPanel" class="org.geoserver.web.data.settings.SettingsPluginPanelInfo">
+        <description>This bean adds the necessary form fields to NetCDF Output Settings</description>
+        <property name="id" value="netcdfSettingsPanel"/>
+        <property name="titleKey" value="netcdfOutSettings"/>
+        <property name="componentClass" value="org.geoserver.web.netcdf.NetCDFOutSettingsPanel"/>
+        <property name="priority" value="100"/>
+    </bean>
 
- 	  <bean id="netcdfOutXStreamInitializer" class="org.geoserver.web.netcdf.NetCDFContainerXStreamInitializer" />
- 	  
- 	  <bean id="globalAttributeXStreamInitializer" class="org.geoserver.web.netcdf.GlobalAttributeXStreamInitializer" />
+    <bean id="netcdfOutInitializer" class="org.geoserver.wcs.responses.NetCDFOutInitializer"/>
+
+    <bean id="netcdfOutXStreamInitializer" class="org.geoserver.web.netcdf.NetCDFContainerXStreamInitializer" />
+
+    <bean id="globalAttributeXStreamInitializer" class="org.geoserver.web.netcdf.GlobalAttributeXStreamInitializer" />
 </beans>

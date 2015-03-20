@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -25,11 +26,17 @@ import javax.measure.unit.Unit;
 import javax.media.jai.iterator.RandomIter;
 import javax.media.jai.iterator.RandomIterFactory;
 
+import org.geoserver.catalog.LayerInfo;
+import org.geoserver.catalog.MetadataMap;
+import org.geoserver.config.GeoServer;
+import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.wcs.responses.NetCDFDimensionManager.DimensionValuesArray;
 import org.geoserver.wcs.responses.NetCDFDimensionManager.DimensionValuesSet;
 import org.geoserver.wcs2_0.response.DimensionBean;
-import org.geoserver.wcs2_0.response.GranuleStack;
 import org.geoserver.wcs2_0.response.DimensionBean.DimensionType;
+import org.geoserver.wcs2_0.response.GranuleStack;
+import org.geoserver.wcs2_0.response.WCS20GetCoverageResponse;
+import org.geoserver.wcs2_0.util.NCNameResourceCodec;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.io.util.DateRangeComparator;
@@ -65,6 +72,12 @@ import ucar.nc2.write.Nc4ChunkingDefault;
  */
 public class NetCDFOutputManager {
 
+    public static final String STANDARD_NAME = "STANDARD_NAME";
+
+    public static final String UNIT = "UNIT";
+
+    public static final String GLOBAL_ATTRIBUTE_PREFIX = "GLOBAL_ATTRIBUTE_";
+
     public static final String NETCDF_VERSION_KEY = "NetCDFVersion";
 
     public static final String NETCDF_COMPRESSION_LEVEL_KEY = "CompressionLevel";
@@ -76,6 +89,7 @@ public class NetCDFOutputManager {
     public static final int DEFAULT_LEVEL = 5;
 
     public static final boolean DEFAULT_SHUFFLE = true;
+
 
     /** 
      * A dimension mapping between dimension names and dimension manager instances
@@ -89,9 +103,12 @@ public class NetCDFOutputManager {
     /** The stack of granules containing all the GridCoverage2D to be written. */
     private GranuleStack granuleStack;
 
+    /** The global attributes to be added to the output NetCDF */
+    private Map<String, String> globalAttributes;
+
     /** The underlying {@link NetcdfFileWriter} which will be used to write down data. */
     private NetcdfFileWriter writer;
-    
+
     private final int getNumDimensions() {
         return dimensionMapping.keySet().size();
     }
@@ -118,7 +135,7 @@ public class NetCDFOutputManager {
             Map<String, String> encodingParameters, String outputFormat) throws IOException {
         this.granuleStack = granuleStack;
         this.writer = getWriter(file, encodingParameters, outputFormat);
-        initialize();
+        initialize(encodingParameters);
     }
 
     private NetcdfFileWriter getWriter(File file, Map<String, String> encodingParameters, String outputFormat) throws IOException {
@@ -181,8 +198,10 @@ public class NetCDFOutputManager {
     /**
      * Initialize the Manager by collecting all dimensions from the granule stack 
      * and preparing the mapping. 
+     * @param encodingParameters
      */
-    private void initialize() {
+    private void initialize(Map<String, String> encodingParameters) {
+        parseParams(encodingParameters);
         final List<DimensionBean> dimensions = granuleStack.getDimensions();
         for (DimensionBean dimension : dimensions) {
 
@@ -229,6 +248,31 @@ public class NetCDFOutputManager {
         }
 
         sampleGranule = granuleStack.getGranules().get(0);
+    }
+
+    private void parseParams(Map<String, String> encodingParameters) {
+        Set<String> keys = encodingParameters.keySet();
+        if (keys != null && !keys.isEmpty() && keys.contains(WCS20GetCoverageResponse.COVERAGE_ID_PARAM)) {
+            String coverageId = encodingParameters.get(WCS20GetCoverageResponse.COVERAGE_ID_PARAM);
+            if (coverageId != null) {
+                LayerInfo info = NCNameResourceCodec.getCoverage(GeoServerExtensions.bean(GeoServer.class).getCatalog(), coverageId);
+                if (info != null) {
+                    MetadataMap map = info.getMetadata();
+                    
+                    //TODO: add here the logic to extract global attributes from the map
+                    Map<String, String> attributes = new HashMap<String, String>();
+                    Set<String> attributesKeys = attributes.keySet();
+                    for (String attributeKey : attributesKeys) {
+                        if (attributeKey.startsWith(GLOBAL_ATTRIBUTE_PREFIX)) {
+                            String value = attributes.get(attributeKey);
+                            if (value != null) {
+                                globalAttributes.put(attributeKey, value);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -337,16 +381,19 @@ public class NetCDFOutputManager {
             netCDFDimensions.add(manager.getNetCDFDimension());
         }
         final String coverageName = sampleGranule.getName().toString();
-        Variable var = writer.addVariable(null, coverageName, DataType.FLOAT, netCDFDimensions);
+
+        // Set the proper dataType
+        final int dataType = sampleGranule.getRenderedImage().getSampleModel().getDataType();
+        DataType varDataType = NetCDFUtilities.transcodeImageDataType(dataType);
+        Variable var = writer.addVariable(null, coverageName, varDataType, netCDFDimensions);
         GridSampleDimension[] sampleDimensions = sampleGranule.getSampleDimensions();
         if (sampleDimensions != null && sampleDimensions.length > 0) {
             GridSampleDimension sampleDimension = sampleDimensions[0];
             Unit<?> units = sampleDimension.getUnits();
             double[] noData = sampleDimension.getNoDataValues();
             if (noData != null && noData.length > 0) {
-                
                 writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.FILL_VALUE, 
-                        NetCDFUtilities.transcodeNumber(var.getDataType(), noData[0])));
+                        NetCDFUtilities.transcodeNumber(varDataType, noData[0])));
             }
             if (units != null) {
                 writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.UNITS, units.toString()));
@@ -409,7 +456,7 @@ public class NetCDFOutputManager {
         if (var == null) {
             throw new IllegalArgumentException("The requested variable doesn't exists: " + sampleGranule.getName());
         }
-        
+
         // Get the data type for a sample image (All granules of the same coverage will use
         final int imageDataType = sampleGranule.getRenderedImage().getSampleModel().getDataType();
         final DataType netCDFDataType = NetCDFUtilities.transcodeImageDataType(imageDataType);
@@ -631,6 +678,7 @@ public class NetCDFOutputManager {
     public void write() throws IOException, InvalidRangeException {
         initializeNetCDFDimensions();
         initializeNetCDFVariables();
+        initializeGlobalAttributes();
 
         // end of define mode
         writer.create();
@@ -642,6 +690,20 @@ public class NetCDFOutputManager {
         // Close the writer
         writer.close();
 
+    }
+
+    private void initializeGlobalAttributes() {
+        if (globalAttributes != null && !globalAttributes.isEmpty()) {
+            Set<String> keys = globalAttributes.keySet();
+            for (String key: keys) {
+                String value = globalAttributes.get(key);
+                if (value == null) {
+                    value = "";
+                }
+                Attribute attr = new Attribute(key, value);
+                writer.addGroupAttribute(null, attr);
+            }
+        }
     }
 
     /**
