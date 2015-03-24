@@ -7,13 +7,16 @@ package org.geoserver.web.netcdf;
 import org.geoserver.config.util.XStreamPersister;
 import org.geoserver.config.util.XStreamPersisterInitializer;
 
-public class NetCDFContainerXStreamInitializer implements
-		XStreamPersisterInitializer {
+import com.thoughtworks.xstream.XStream;
 
-	@Override
-	public void init(XStreamPersister persister) {
-		persister.registerBreifMapComplexType("netcdfSettingsContainer",
-				NetCDFSettingsContainer.class);
-	}
+public class NetCDFContainerXStreamInitializer implements XStreamPersisterInitializer {
+
+    @Override
+    public void init(XStreamPersister persister) {
+        persister.registerBreifMapComplexType("netcdfSettingsContainer",
+                NetCDFSettingsContainer.class);
+        XStream xs = persister.getXStream();
+        xs.alias("netCDFSettings", NetCDFSettingsContainer.class);
+    }
 
 }

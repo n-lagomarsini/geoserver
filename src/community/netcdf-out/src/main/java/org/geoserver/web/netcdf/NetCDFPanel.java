@@ -11,7 +11,6 @@ import java.util.List;
 import org.apache.wicket.Component;
 import org.apache.wicket.ResourceReference;
 import org.apache.wicket.ajax.AjaxRequestTarget;
-import org.apache.wicket.ajax.form.AjaxFormComponentUpdatingBehavior;
 import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.CheckBox;
@@ -30,7 +29,6 @@ import org.apache.wicket.validation.ValidationError;
 import org.apache.wicket.validation.validator.AbstractValidator;
 import org.geoserver.web.GeoServerBasePage;
 import org.geoserver.web.netcdf.NetCDFSettingsContainer.GlobalAttribute;
-import org.geoserver.web.netcdf.NetCDFSettingsContainer.Version;
 import org.geoserver.web.wicket.GeoServerAjaxFormLink;
 import org.geoserver.web.wicket.Icon;
 import org.geoserver.web.wicket.ImageAjaxLink;
@@ -41,7 +39,7 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
     private final ListView<GlobalAttribute> globalAttributes;
     private final CheckBox shuffle;
 
-    private final TextField<Double> compressionLevel;
+    private final TextField<Integer> compressionLevel;
 
     public static final ResourceReference ADD_ICON = new ResourceReference(GeoServerBasePage.class,
             "img/icons/silk/add.png");
@@ -51,6 +49,8 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
 
 //    private final DropDownChoice<NetCDFSettingsContainer.Version> version;
 
+    private final DropDownChoice<DataPacking> dataPacking;
+    
     public NetCDFPanel(String id, IModel<NetCDFSettingsContainer> netcdfModel) {
         super(id, netcdfModel);
         // Model associated to the metadata map
@@ -69,12 +69,12 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
         container.add(shuffle);
 
         // TextBox associated to the compression parameter
-        compressionLevel = new TextField<Double>("compressionLevel",
+        compressionLevel = new TextField<Integer>("compressionLevel",
                 new PropertyModel(netcdfModel, "compressionLevel"));
 
         // DropDown associated to the netcdf version parameter
-        List<NetCDFSettingsContainer.Version> versions = Arrays
-                .asList(NetCDFSettingsContainer.Version.values());
+//        List<NetCDFSettingsContainer.Version> versions = Arrays
+//                .asList(NetCDFSettingsContainer.Version.values());
 //        version = new DropDownChoice<NetCDFSettingsContainer.Version>(
 //                "netcdfVersion", new PropertyModel(netcdfModel, "netcdfVersion"), versions);
 //        version.setOutputMarkupId(true);
@@ -89,12 +89,28 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
 //            }
 //        });
 //        container.add(version);
+        List<DataPacking> dataPackings = Arrays.asList(DataPacking.values());        
+        dataPacking = new DropDownChoice<DataPacking>(
+              "dataPacking", new PropertyModel(netcdfModel, "dataPacking"), dataPackings);
+      dataPacking.setOutputMarkupId(true);
+//      dataPacking.add(new AjaxFormComponentUpdatingBehavior("onChange") {
+//
+//          @Override
+//          protected void onUpdate(AjaxRequestTarget target) {
+//              dataPacking.processInput();
+//              DataPacking v = dataPacking.getConvertedInput();
+      //TODO ADD CHECKS ON DATAPACKING
+//              target.addComponent(container);
+//          }
+//      });
+      container.add(dataPacking);
+        
 
         // Update the compressionLevel value
         // Enabling it only for netcdf 1.4
 //        compressionLevel.setEnabled(version.getConvertedInput() == Version.NETCDF_4C);
         // Adding validation on the compression level
-        compressionLevel.add(new AbstractValidator<Double>() {
+        compressionLevel.add(new AbstractValidator<Integer>() {
 
             @Override
             public boolean validateOnNullValue() {
@@ -102,9 +118,9 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
             }
 
             @Override
-            protected void onValidate(IValidatable<Double> validatable) {
+            protected void onValidate(IValidatable<Integer> validatable) {
                 if (validatable != null && validatable.getValue() != null) {
-                    Double value = validatable.getValue();
+                    Integer value = validatable.getValue();
                     if (value < 0) {
                         ValidationError error = new ValidationError();
                         error.setMessage(new ParamResourceModel(
@@ -227,6 +243,7 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
         convertedInput.setCompressionLevel(compressionLevel.getModelObject());
         convertedInput.setGlobalAttributes(info);
 //        convertedInput.setNetcdfVersion(version.getModelObject());
+        convertedInput.setDataPacking(dataPacking.getModelObject());
         convertedInput.setShuffle(shuffle.getModelObject());
         setConvertedInput(convertedInput);
     }

@@ -26,7 +26,6 @@ import javax.measure.unit.Unit;
 import javax.media.jai.iterator.RandomIter;
 import javax.media.jai.iterator.RandomIterFactory;
 
-import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.config.GeoServer;
 import org.geoserver.platform.GeoServerExtensions;
@@ -36,7 +35,9 @@ import org.geoserver.wcs2_0.response.DimensionBean;
 import org.geoserver.wcs2_0.response.DimensionBean.DimensionType;
 import org.geoserver.wcs2_0.response.GranuleStack;
 import org.geoserver.wcs2_0.response.WCS20GetCoverageResponse;
-import org.geoserver.wcs2_0.util.NCNameResourceCodec;
+import org.geoserver.web.netcdf.DataPacking;
+import org.geoserver.web.netcdf.NetCDFSettingsContainer;
+import org.geoserver.web.netcdf.NetCDFSettingsContainer.GlobalAttribute;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.io.util.DateRangeComparator;
@@ -48,6 +49,7 @@ import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.util.logging.Logging;
 import org.opengis.coverage.grid.GridGeometry;
 import org.opengis.geometry.Envelope;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
 
 import ucar.ma2.Array;
@@ -76,20 +78,9 @@ public class NetCDFOutputManager {
 
     public static final String UNIT = "UNIT";
 
-    public static final String GLOBAL_ATTRIBUTE_PREFIX = "GLOBAL_ATTRIBUTE_";
-
     public static final String NETCDF_VERSION_KEY = "NetCDFVersion";
 
-    public static final String NETCDF_COMPRESSION_LEVEL_KEY = "CompressionLevel";
-
-    public static final String NETCDF_SHUFFLE_KEY = "Chunking";
-
-    public static final Logger LOGGER = Logging.getLogger("org.geoserver.wcs.responses.NetCDFFileManager");
-
-    public static final int DEFAULT_LEVEL = 5;
-
-    public static final boolean DEFAULT_SHUFFLE = true;
-
+    public static final Logger LOGGER = Logging.getLogger("org.geoserver.wcs.responses.NetCDFOutputManager");
 
     /** 
      * A dimension mapping between dimension names and dimension manager instances
@@ -106,8 +97,16 @@ public class NetCDFOutputManager {
     /** The global attributes to be added to the output NetCDF */
     private Map<String, String> globalAttributes;
 
+    private boolean shuffle = NetCDFSettingsContainer.DEFAULT_SHUFFLE;
+
+    private int compressionLevel = NetCDFSettingsContainer.DEFAULT_COMPRESSION;
+    
+    private DataPacking dataPacking = DataPacking.getDefault();
+
     /** The underlying {@link NetcdfFileWriter} which will be used to write down data. */
     private NetcdfFileWriter writer;
+
+    private Version version;
 
     private final int getNumDimensions() {
         return dimensionMapping.keySet().size();
@@ -134,61 +133,24 @@ public class NetCDFOutputManager {
     public NetCDFOutputManager(GranuleStack granuleStack, File file,
             Map<String, String> encodingParameters, String outputFormat) throws IOException {
         this.granuleStack = granuleStack;
-        this.writer = getWriter(file, encodingParameters, outputFormat);
         initialize(encodingParameters);
+        this.writer = getWriter(file, encodingParameters, outputFormat);
     }
 
     private NetcdfFileWriter getWriter(File file, Map<String, String> encodingParameters, String outputFormat) throws IOException {
-        if (outputFormat == null || outputFormat.equalsIgnoreCase(NetCDFUtilities.NETCDF3_MIMETYPE) 
-                || encodingParameters == null || encodingParameters.isEmpty()) {
-            return NetcdfFileWriter.createNew(Version.netcdf3, file.getAbsolutePath());
-
-        } else {
-            //TODO properly parse encoding parameters
-            return getCustomWriter(file, outputFormat, encodingParameters);
-        }
-    }
-
-    private NetcdfFileWriter getCustomWriter(File file, String outputFormat,
-            Map<String, String> encodingParameters) throws IOException {
-        NetcdfFileWriter writer = null;
-        Version version = null;
-        if (NetCDFUtilities.NETCDF3_MIMETYPE.equalsIgnoreCase(outputFormat)) {
-            version = Version.netcdf3;
-        } else if (NetCDFUtilities.NETCDF4_MIMETYPE.equalsIgnoreCase(outputFormat)) {
+        if (NetCDFUtilities.NETCDF4_MIMETYPE.equalsIgnoreCase(outputFormat)) {
             version = Version.netcdf4_classic;
+        } else {
+            // Version 3 as fallback (the Default)
+            version = Version.netcdf3;
         }
-        if (version == null && encodingParameters.containsKey(NETCDF_VERSION_KEY)) {
-            String versionS = encodingParameters.get(NETCDF_VERSION_KEY);
-            version = NetCDFUtilities.NETCDF_4C.equalsIgnoreCase(versionS) ? Version.netcdf4_classic
-                    : Version.netcdf3;
-        }
+
+        NetcdfFileWriter writer = null;
         if (version == Version.netcdf4_classic) {
             if (!NetCDFUtilities.isNC4CAvailable()) {
                 throw new IOException(NetCDFUtilities.NC4_ERROR_MESSAGE);
             }
-            Nc4Chunking chunker = null;
-            int level = DEFAULT_LEVEL;
-            if (encodingParameters.containsKey(NETCDF_COMPRESSION_LEVEL_KEY)) {
-                String levelS = encodingParameters.get(NETCDF_COMPRESSION_LEVEL_KEY);
-                if (levelS != null && !levelS.isEmpty()) {
-                    level = Integer.parseInt(levelS);
-                    if (level < 0 && level > 9) {
-                        if (LOGGER.isLoggable(Level.WARNING)) {
-                            LOGGER.warning("NetCDF 4 compression Level not in the proper range [0, 9]: "
-                                    + level + "\nProceeding with default value: " + DEFAULT_LEVEL);
-                        }
-                    }
-                }
-            }
-            boolean shuffle = DEFAULT_SHUFFLE;
-            if (encodingParameters.containsKey(NETCDF_SHUFFLE_KEY)) {
-                String shuffleS = encodingParameters.get(NETCDF_SHUFFLE_KEY);
-                if (shuffleS != null && !shuffleS.isEmpty()) {
-                    shuffle = Boolean.parseBoolean(shuffleS);
-                }
-            }
-            chunker = new Nc4ChunkingDefault(level, shuffle);
+            Nc4Chunking chunker = new Nc4ChunkingDefault(compressionLevel, shuffle);
             writer = NetcdfFileWriter.createNew(version, file.getAbsolutePath(), chunker);
         }
 
@@ -255,24 +217,47 @@ public class NetCDFOutputManager {
         if (keys != null && !keys.isEmpty() && keys.contains(WCS20GetCoverageResponse.COVERAGE_ID_PARAM)) {
             String coverageId = encodingParameters.get(WCS20GetCoverageResponse.COVERAGE_ID_PARAM);
             if (coverageId != null) {
-                LayerInfo info = NCNameResourceCodec.getCoverage(GeoServerExtensions.bean(GeoServer.class).getCatalog(), coverageId);
-                if (info != null) {
-                    MetadataMap map = info.getMetadata();
-                    
-                    //TODO: add here the logic to extract global attributes from the map
-                    Map<String, String> attributes = new HashMap<String, String>();
-                    Set<String> attributesKeys = attributes.keySet();
-                    for (String attributeKey : attributesKeys) {
-                        if (attributeKey.startsWith(GLOBAL_ATTRIBUTE_PREFIX)) {
-                            String value = attributes.get(attributeKey);
-                            if (value != null) {
-                                globalAttributes.put(attributeKey, value);
-                            }
-                        }
+                GeoServer geoserver = GeoServerExtensions.bean(GeoServer.class);
+                MetadataMap map = null;
+                if (geoserver != null) {
+                    // TODO REMOVE THIS ONE ONCE READY... SEE BELOW
+                    map = geoserver.getSettings().getMetadata();
+                }
+                
+//                  TODO: Enable these rows in replacement of the above when 
+//                  NetCDFSettings are available per layer.
+//                  Catalog gsCatalog = geoserver.getCatalog();
+//                  LayerInfo info = NCNameResourceCodec.getCoverage(gsCatalog, coverageId);
+//                  if (info != null) {
+//                      map = info.getMetadata();
+//                  }
+                if (map != null && !map.isEmpty() && map.containsKey(NetCDFSettingsContainer.NETCDFOUT_KEY)) {
+                    NetCDFSettingsContainer settings = (NetCDFSettingsContainer) map.get(NetCDFSettingsContainer.NETCDFOUT_KEY);
+                    shuffle = settings.isShuffle();
+                    dataPacking = settings.getDataPacking();
+                    compressionLevel = checkLevel(settings.getCompressionLevel());
+
+                    // Extract global attributes
+                    globalAttributes = new HashMap<String, String>();
+                    List<GlobalAttribute> globalAttributesSettings = settings.getGlobalAttributes();
+                    for (GlobalAttribute globalAttribute : globalAttributesSettings) {
+                        globalAttributes.put(globalAttribute.getKey(), globalAttribute.getValue());
                     }
                 }
             }
         }
+    }
+
+    private int checkLevel(Integer level) {
+        if (level == null || (level < 0 || level > 9)) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.warning("NetCDF 4 compression Level not in the proper range [0, 9]: "
+                        + level + "\nProceeding with default value: " +
+                        NetCDFSettingsContainer.DEFAULT_COMPRESSION);
+            }
+            return NetCDFSettingsContainer.DEFAULT_COMPRESSION;
+        }
+        return level;
     }
 
     /**
@@ -602,7 +587,8 @@ public class NetCDFOutputManager {
 
         GridGeometry gridGeometry = sampleGranule.getGridGeometry();
         MathTransform transform = gridGeometry.getGridToCRS();
-        AxisOrder axisOrder = CRS.getAxisOrder(sampleGranule.getCoordinateReferenceSystem());
+        CoordinateReferenceSystem crs = sampleGranule.getCoordinateReferenceSystem();
+        AxisOrder axisOrder = CRS.getAxisOrder(crs);
 
         final int numLat = image.getHeight();
         final int numLon = image.getWidth();
@@ -621,6 +607,7 @@ public class NetCDFOutputManager {
         ymin += (periodY / 2d);
 
         // Adding lat lon dimensions
+        // TODO: Support more coordinate reference systems
         final Dimension latDim = writer.addDimension(null, NetCDFUtilities.LAT, numLat);
         final Dimension lonDim = writer.addDimension(null, NetCDFUtilities.LON, numLon);
 

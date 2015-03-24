@@ -27,20 +27,30 @@ public class NetCDFSettingsContainer implements Serializable {
 
     public static final List<GlobalAttribute> DEFAULT_ATTRIBUTES = new ArrayList<GlobalAttribute>();
 
-    private double compressionLevel = DEFAULT_COMPRESSION;
+    private int compressionLevel = DEFAULT_COMPRESSION;
 
     private boolean shuffle = DEFAULT_SHUFFLE;
 
 //    private Version netcdfVersion = DEFAULT_VERSION;
+    
+    private DataPacking dataPacking = DataPacking.getDefault();
 
     private List<GlobalAttribute> globalAttributes = DEFAULT_ATTRIBUTES;
 
-    public double getCompressionLevel() {
+    public int getCompressionLevel() {
         return compressionLevel;
     }
 
-    public void setCompressionLevel(double compressionLevel) {
+    public void setCompressionLevel(int compressionLevel) {
         this.compressionLevel = compressionLevel;
+    }
+
+    public DataPacking getDataPacking() {
+        return dataPacking;
+    }
+
+    public void setDataPacking(DataPacking dataPacking) {
+        this.dataPacking = dataPacking;
     }
 
     public boolean isShuffle() {
@@ -73,7 +83,7 @@ public class NetCDFSettingsContainer implements Serializable {
         this.globalAttributes = globalAttributes;
     }
 
-    static class GlobalAttribute implements Serializable {
+    public static class GlobalAttribute implements Serializable {
         private static final long serialVersionUID = 1L;
 
         private String key;
