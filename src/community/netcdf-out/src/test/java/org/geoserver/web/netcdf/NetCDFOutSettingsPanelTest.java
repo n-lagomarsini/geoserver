@@ -43,7 +43,7 @@ public class NetCDFOutSettingsPanelTest extends GeoServerWicketTestSupport {
                 .getComponentFromLastRenderedPage("form:extensions:0:content:panel");
         assertNotNull(panel);
         // Check that the values are the same
-        NetCDFSettingsContainer container2 = panel.getModelObject();
+        NetCDFSettingsContainer container2 = (NetCDFSettingsContainer) panel.getModelObject();
         assertNotNull(container2);
         
         assertEquals(container.getCompressionLevel(), container2.getCompressionLevel(), 0.001d);

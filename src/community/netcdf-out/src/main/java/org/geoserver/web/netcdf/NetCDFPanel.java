@@ -34,12 +34,14 @@ import org.geoserver.web.wicket.Icon;
 import org.geoserver.web.wicket.ImageAjaxLink;
 import org.geoserver.web.wicket.ParamResourceModel;
 
-public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
+public class NetCDFPanel<T extends NetCDFSettingsContainer> extends FormComponentPanel<T>{
 
-    private final ListView<GlobalAttribute> globalAttributes;
-    private final CheckBox shuffle;
+    /** serialVersionUID */
+    private static final long serialVersionUID = 1L;
+    protected final ListView<GlobalAttribute> globalAttributes;
+    protected final CheckBox shuffle;
 
-    private final TextField<Integer> compressionLevel;
+    protected final TextField<Integer> compressionLevel;
 
     public static final ResourceReference ADD_ICON = new ResourceReference(GeoServerBasePage.class,
             "img/icons/silk/add.png");
@@ -49,9 +51,11 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
 
 //    private final DropDownChoice<NetCDFSettingsContainer.Version> version;
 
-    private final DropDownChoice<DataPacking> dataPacking;
+    protected final DropDownChoice<DataPacking> dataPacking;
     
-    public NetCDFPanel(String id, IModel<NetCDFSettingsContainer> netcdfModel) {
+    protected final WebMarkupContainer container;
+    
+    public NetCDFPanel(String id, IModel<T> netcdfModel) {
         super(id, netcdfModel);
         // Model associated to the metadata map
         //final PropertyModel<MetadataMap> metadata = new PropertyModel<MetadataMap>(model,
@@ -59,7 +63,7 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
 
         // New Container
         // container for ajax updates
-        final WebMarkupContainer container = new WebMarkupContainer("container");
+        container = new WebMarkupContainer("container");
         container.setOutputMarkupId(true);
         add(container);
 
@@ -238,6 +242,9 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
                 return Component.IVisitor.CONTINUE_TRAVERSAL;
             }
         });
+        compressionLevel.processInput();
+        dataPacking.processInput();
+        shuffle.processInput();
         List<GlobalAttribute> info = globalAttributes.getModelObject();
         NetCDFSettingsContainer convertedInput = new NetCDFSettingsContainer();
         convertedInput.setCompressionLevel(compressionLevel.getModelObject());
@@ -245,6 +252,6 @@ public class NetCDFPanel extends FormComponentPanel<NetCDFSettingsContainer>{
 //        convertedInput.setNetcdfVersion(version.getModelObject());
         convertedInput.setDataPacking(dataPacking.getModelObject());
         convertedInput.setShuffle(shuffle.getModelObject());
-        setConvertedInput(convertedInput);
+        setConvertedInput((T) convertedInput);
     }
 }
