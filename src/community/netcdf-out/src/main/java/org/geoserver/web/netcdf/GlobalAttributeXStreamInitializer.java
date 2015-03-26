@@ -17,7 +17,6 @@ public class GlobalAttributeXStreamInitializer implements XStreamPersisterInitia
         persister.registerBreifMapComplexType("globalAttribute", GlobalAttribute.class);
         XStream xs = persister.getXStream();
         xs.alias("globalAttribute", GlobalAttribute.class);
-
     }
 
 }
