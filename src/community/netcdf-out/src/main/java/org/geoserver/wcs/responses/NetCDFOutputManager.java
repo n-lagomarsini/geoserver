@@ -41,8 +41,11 @@ import org.geoserver.web.netcdf.DataPacking;
 import org.geoserver.web.netcdf.NetCDFSettingsContainer;
 import org.geoserver.web.netcdf.NetCDFSettingsContainer.GlobalAttribute;
 import org.geoserver.web.netcdf.layer.NetCDFLayerSettingsContainer;
+import org.geoserver.web.netcdf.layer.NetCDFParserBean;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.coverage.io.netcdf.cf.Entry;
+import org.geotools.coverage.io.netcdf.cf.NetCDFCFParser;
 import org.geotools.coverage.io.util.DateRangeComparator;
 import org.geotools.coverage.io.util.NumberRangeComparator;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
@@ -105,6 +108,17 @@ public class NetCDFOutputManager {
 
     private NetCDFCoordinatesManager crsManager;
 
+    private String variableName;
+
+    private String variableUoM;
+
+    /** Bean related to the {@link NetCDFCFParser} */
+    private static NetCDFParserBean parserBean;
+
+    static {
+        // Getting the NetCDFCFParser bean
+        parserBean = GeoServerExtensions.bean(NetCDFParserBean.class);
+    }
 
     private final int getNumDimensions() {
         return dimensionMapping.keySet().size();
@@ -252,6 +266,8 @@ public class NetCDFOutputManager {
                     shuffle = settings.isShuffle();
                     dataPacking = settings.getDataPacking();
                     compressionLevel = checkLevel(settings.getCompressionLevel());
+                    variableName = settings.getLayerName();
+                    variableUoM = settings.getLayerUOM();
 
                     // Extract global attributes
                     globalAttributes = new HashMap<String, String>();
@@ -400,9 +416,59 @@ public class NetCDFOutputManager {
                 writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.UNITS, units.toString()));
             }
         }
+        // Adding long-name
+        if (variableName != null && !variableName.isEmpty()) {
+            writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.LONG_NAME, variableName));
+        }
+        // Adding Units
+        if (var.findAttribute(NetCDFUtilities.UNITS) == null
+                && (variableUoM != null && !variableUoM.isEmpty())) {
+            writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.UNITS, variableUoM));
+        }
+        // Adding standard name if name and units are cf-compliant
+        if (checkCompliant(var)) {
+            writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.STANDARD_NAME,
+                    variableName));
+        }
         return var;
     }
 
+    /**
+     * Method checking if LayerName and LayerUOM are compliant
+     */
+    private boolean checkCompliant(Variable var) {
+        // Check in the Variable
+        if (var == null) {
+            // Variable is not present
+            return false;
+        }
+        // Check the layer name
+        if (variableName == null || variableName.isEmpty()) {
+            // Wrong Layer name
+            return false;
+        }
+        // Check the unit is defined
+        Attribute unit = var.findAttribute(NetCDFUtilities.UNITS);
+        if (unit == null) {
+            // No unit defined
+            return false;
+        }
+        if (parserBean == null || parserBean.getParser() == null) {
+            // Unable to check if it is cf-compliant
+            return false;
+        }
+        // Getting the parser
+        NetCDFCFParser parser = parserBean.getParser();
+        // Checking CF convention
+        boolean validName = parser.hasEntryId(variableName) || parser.hasAliasId(variableName);
+        // Checking UOM
+        Entry e = parser.getEntry(variableName) != null ? parser.getEntry(variableName) : parser
+                .getEntryFromAlias(variableName);
+        boolean validUOM = e != null ? e.getCanonicalUnits()
+                .equalsIgnoreCase(unit.getStringValue()) : false;
+        // Return the result
+        return validName && validUOM;
+    }
 
     /**
      * Set the variables values
