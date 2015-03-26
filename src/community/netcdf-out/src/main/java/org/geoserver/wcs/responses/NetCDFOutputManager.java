@@ -5,7 +5,6 @@
  */
 package org.geoserver.wcs.responses;
 
-import java.awt.geom.AffineTransform;
 import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
@@ -26,34 +25,30 @@ import javax.measure.unit.Unit;
 import javax.media.jai.iterator.RandomIter;
 import javax.media.jai.iterator.RandomIterFactory;
 
+import org.geoserver.catalog.Catalog;
+import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.MetadataMap;
+import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.config.GeoServer;
 import org.geoserver.platform.GeoServerExtensions;
-import org.geoserver.wcs.responses.NetCDFDimensionManager.DimensionValuesArray;
 import org.geoserver.wcs.responses.NetCDFDimensionManager.DimensionValuesSet;
 import org.geoserver.wcs2_0.response.DimensionBean;
 import org.geoserver.wcs2_0.response.DimensionBean.DimensionType;
 import org.geoserver.wcs2_0.response.GranuleStack;
 import org.geoserver.wcs2_0.response.WCS20GetCoverageResponse;
+import org.geoserver.wcs2_0.util.NCNameResourceCodec;
 import org.geoserver.web.netcdf.DataPacking;
 import org.geoserver.web.netcdf.NetCDFSettingsContainer;
 import org.geoserver.web.netcdf.NetCDFSettingsContainer.GlobalAttribute;
+import org.geoserver.web.netcdf.layer.NetCDFLayerSettingsContainer;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.io.util.DateRangeComparator;
 import org.geotools.coverage.io.util.NumberRangeComparator;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
-import org.geotools.referencing.CRS;
-import org.geotools.referencing.CRS.AxisOrder;
-import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.util.logging.Logging;
-import org.opengis.coverage.grid.GridGeometry;
-import org.opengis.geometry.Envelope;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
 
 import ucar.ma2.Array;
-import ucar.ma2.ArrayFloat;
 import ucar.ma2.DataType;
 import ucar.ma2.Index;
 import ucar.ma2.InvalidRangeException;
@@ -108,6 +103,9 @@ public class NetCDFOutputManager {
 
     private Version version;
 
+    private NetCDFCoordinatesManager crsManager;
+
+
     private final int getNumDimensions() {
         return dimensionMapping.keySet().size();
     }
@@ -133,14 +131,29 @@ public class NetCDFOutputManager {
     public NetCDFOutputManager(GranuleStack granuleStack, File file,
             Map<String, String> encodingParameters, String outputFormat) throws IOException {
         this.granuleStack = granuleStack;
-        initialize(encodingParameters);
-        this.writer = getWriter(file, encodingParameters, outputFormat);
+        this.writer = getWriter(file, outputFormat);
+        parseParams(encodingParameters);
+        collectCoverageDimensions();
+        initializeNetCDF();
     }
 
-    private NetcdfFileWriter getWriter(File file, Map<String, String> encodingParameters, String outputFormat) throws IOException {
+    private void initializeNetCDF() {
+        initializeDimensions();
+        crsManager = new NetCDFCoordinatesManager(writer, sampleGranule);
+        dimensionMapping.putAll(crsManager.getCoordinatesDimensions());
+        Variable var = initializeVariable();
+        crsManager.initializeGridMapping(var);
+        initializeGlobalAttributes();
+    }
+
+    private NetcdfFileWriter getWriter(File file, String outputFormat) throws IOException {
         if (NetCDFUtilities.NETCDF4_MIMETYPE.equalsIgnoreCase(outputFormat)) {
             version = Version.netcdf4_classic;
         } else {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.fine("Requested output format " + outputFormat + " isn't "
+                        + NetCDFUtilities.NETCDF4_MIMETYPE + "\nFallback to Version 3");
+            }
             // Version 3 as fallback (the Default)
             version = Version.netcdf3;
         }
@@ -160,10 +173,9 @@ public class NetCDFOutputManager {
     /**
      * Initialize the Manager by collecting all dimensions from the granule stack 
      * and preparing the mapping. 
-     * @param encodingParameters
      */
-    private void initialize(Map<String, String> encodingParameters) {
-        parseParams(encodingParameters);
+    private void collectCoverageDimensions() {
+
         final List<DimensionBean> dimensions = granuleStack.getDimensions();
         for (DimensionBean dimension : dimensions) {
 
@@ -221,18 +233,22 @@ public class NetCDFOutputManager {
                 MetadataMap map = null;
                 if (geoserver != null) {
                     // TODO REMOVE THIS ONE ONCE READY... SEE BELOW
-                    map = geoserver.getSettings().getMetadata();
+                    // map = geoserver.getSettings().getMetadata();
+                    // }
+                    //
+                    // TODO: Enable these rows in replacement of the above when
+                    // NetCDFSettings are available per layer.
+                    Catalog gsCatalog = geoserver.getCatalog();
+                    LayerInfo info = NCNameResourceCodec.getCoverage(gsCatalog, coverageId);
+                    if (info != null) {
+                        map = info.getResource().getMetadata();
+                    }
                 }
-                
-//                  TODO: Enable these rows in replacement of the above when 
-//                  NetCDFSettings are available per layer.
-//                  Catalog gsCatalog = geoserver.getCatalog();
-//                  LayerInfo info = NCNameResourceCodec.getCoverage(gsCatalog, coverageId);
-//                  if (info != null) {
-//                      map = info.getMetadata();
-//                  }
-                if (map != null && !map.isEmpty() && map.containsKey(NetCDFSettingsContainer.NETCDFOUT_KEY)) {
-                    NetCDFSettingsContainer settings = (NetCDFSettingsContainer) map.get(NetCDFSettingsContainer.NETCDFOUT_KEY);
+                if (map != null && !map.isEmpty()
+                        && map.containsKey(NetCDFSettingsContainer.NETCDFOUT_KEY)) {
+                    NetCDFLayerSettingsContainer settings = (NetCDFLayerSettingsContainer) map.get(
+                            NetCDFSettingsContainer.NETCDFOUT_KEY,
+                            NetCDFLayerSettingsContainer.class);
                     shuffle = settings.isShuffle();
                     dataPacking = settings.getDataPacking();
                     compressionLevel = checkLevel(settings.getCompressionLevel());
@@ -298,7 +314,7 @@ public class NetCDFOutputManager {
     /**
      * Initialize the dimensions by creating NetCDF Dimensions of the proper type.
      */
-    private void initializeNetCDFDimensions() {
+    private void initializeDimensions() {
 
         // TODO: Do we support coverages which doesn't share same BBox?
         // I assume they will still have the same bbox, eventually filled with background data/fill value
@@ -351,21 +367,21 @@ public class NetCDFOutputManager {
                 writer.addVariable(null, boundName, NetCDFUtilities.getNetCDFDataType(dim.getDatatype()), boundsDimensions);
             }
         }
-
-        setupCoordinates();
     }
 
     /**
      * Initialize the NetCDF variables on this writer
-     * 
-     * @param writer
      */
-    private void initializeNetCDFVariables() {
+    private Variable initializeVariable() {
+
+        // group the dimensions to be added to the variable
         List<Dimension> netCDFDimensions = new LinkedList<Dimension>();
         for (NetCDFDimensionManager manager : dimensionMapping.values()) {
             netCDFDimensions.add(manager.getNetCDFDimension());
         }
+
         final String coverageName = sampleGranule.getName().toString();
+        // TODO: override that when need to use different name, taken from the GUI
 
         // Set the proper dataType
         final int dataType = sampleGranule.getRenderedImage().getSampleModel().getDataType();
@@ -384,42 +400,9 @@ public class NetCDFOutputManager {
                 writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.UNITS, units.toString()));
             }
         }
+        return var;
     }
 
-    /**
-     * Set the coordinate values for all the dimensions
-     * 
-     * @param writer
-     * @throws IOException
-     * @throws InvalidRangeException
-     */
-    private void setCoordinateVariables() throws IOException, InvalidRangeException {
-        for (NetCDFDimensionManager manager : dimensionMapping.values()) {
-            Dimension dimension = manager.getNetCDFDimension();
-            if (dimension == null) {
-                throw new IllegalArgumentException("No Dimension found for this manager: " + manager.getName());
-            }
-
-            // Getting coordinate variable for that dimension
-            final String dimensionName = dimension.getShortName();
-            Variable var = writer.findVariable(dimensionName);
-            if (var == null) {
-                throw new IllegalArgumentException("Unable to find the specified coordinate variable: " + dimensionName);
-            }
-            // Writing coordinate variable values
-            writer.write(var, manager.getDimensionData(false));
-
-            // handle ranges
-            DimensionBean coverageDimension = manager.getCoverageDimension();
-            if (coverageDimension != null) { // lat and lon may be null
-                boolean isRange = coverageDimension.isRange();
-                if (isRange) {
-                    var = writer.findVariable(dimensionName + NetCDFUtilities.BOUNDS_SUFFIX);
-                    writer.write(var, manager.getDimensionData(true));
-                }
-            }
-        }
-    }
 
     /**
      * Set the variables values
@@ -443,6 +426,7 @@ public class NetCDFOutputManager {
         }
 
         // Get the data type for a sample image (All granules of the same coverage will use
+        // the same sample model 
         final int imageDataType = sampleGranule.getRenderedImage().getSampleModel().getDataType();
         final DataType netCDFDataType = NetCDFUtilities.transcodeImageDataType(imageDataType);
         final Array matrix = NetCDFUtilities.getArray(dimSize, netCDFDataType);
@@ -573,105 +557,19 @@ public class NetCDFOutputManager {
     }
 
     /**
-     * Setup lat lon dimension and related coordinates variable
-     * 
-     * @param ncFileOut
-     * @param ri
-     * @param transform
-     * @param latLonCoordinates
-     */
-    private void setupCoordinates() {
-        //TODO: support more CRSs and coordinates
-        final RenderedImage image = sampleGranule.getRenderedImage();
-        final Envelope envelope = sampleGranule.getEnvelope2D();
-
-        GridGeometry gridGeometry = sampleGranule.getGridGeometry();
-        MathTransform transform = gridGeometry.getGridToCRS();
-        CoordinateReferenceSystem crs = sampleGranule.getCoordinateReferenceSystem();
-        AxisOrder axisOrder = CRS.getAxisOrder(crs);
-
-        final int numLat = image.getHeight();
-        final int numLon = image.getWidth();
-
-        final AffineTransform at = (AffineTransform) transform;
-
-        // Setup resolutions and bbox extrema to populate regularly gridded coordinate data
-        //TODO: investigate whether we need to do some Y axis flipping
-        double xmin = (axisOrder == AxisOrder.NORTH_EAST) ? envelope.getMinimum(1) : envelope.getMinimum(0);
-        double ymin = (axisOrder == AxisOrder.NORTH_EAST) ? envelope.getMinimum(0) : envelope.getMinimum(1);
-        final double periodY = ((axisOrder == AxisOrder.NORTH_EAST) ? XAffineTransform.getScaleX0(at) : XAffineTransform.getScaleY0(at));
-        final double periodX = (axisOrder == AxisOrder.NORTH_EAST) ? XAffineTransform.getScaleY0(at) : XAffineTransform.getScaleX0(at);
-
-        // NetCDF coordinates are relative to center. Envelopes are relative to corners: apply an half pixel shift to go back to center
-        xmin += (periodX / 2d);
-        ymin += (periodY / 2d);
-
-        // Adding lat lon dimensions
-        // TODO: Support more coordinate reference systems
-        final Dimension latDim = writer.addDimension(null, NetCDFUtilities.LAT, numLat);
-        final Dimension lonDim = writer.addDimension(null, NetCDFUtilities.LON, numLon);
-
-        // --------
-        // latitude
-        // -------- 
-        final ArrayFloat latData = new ArrayFloat(new int[] { numLat });
-        final Index latIndex = latData.getIndex();
-        final Variable varLat = writer.addVariable(null, NetCDFUtilities.LAT, DataType.FLOAT, NetCDFUtilities.LAT);
-        writer.addVariableAttribute(varLat, new Attribute(NetCDFUtilities.LONG_NAME, NetCDFUtilities.LATITUDE));
-        writer.addVariableAttribute(varLat, new Attribute(NetCDFUtilities.UNITS, NetCDFUtilities.LAT_UNITS));
-
-        for (int yPos = 0; yPos < numLat; yPos++) {
-            latData.setFloat(latIndex.set(yPos),
-            // new Float(
-            // ymax
-            // - (new Float(yPos)
-            // .floatValue() * periodY))
-            // .floatValue());
-                    new Float(ymin + (new Float(yPos).floatValue() * periodY)).floatValue());
-        }
-
-        // ---------
-        // longitude
-        // ---------
-        final ArrayFloat lonData = new ArrayFloat(new int[] { numLon });
-        final Index lonIndex = lonData.getIndex();
-        final Variable varLon = writer.addVariable(null, NetCDFUtilities.LON, DataType.FLOAT, NetCDFUtilities.LON);
-        writer.addVariableAttribute(varLon, new Attribute(NetCDFUtilities.LONG_NAME, NetCDFUtilities.LONGITUDE));
-        writer.addVariableAttribute(varLon, new Attribute(NetCDFUtilities.UNITS, NetCDFUtilities.LON_UNITS));
-
-        for (int xPos = 0; xPos < numLon; xPos++) {
-            lonData.setFloat(lonIndex.set(xPos), new Float(xmin
-                    + (new Float(xPos).floatValue() * periodX)).floatValue());
-        }
-
-        // Latitude management
-        final NetCDFDimensionManager latManager = new NetCDFDimensionManager(NetCDFUtilities.LAT);
-        latManager.setNetCDFDimension(latDim);
-        latManager.setDimensionValues(new DimensionValuesArray(latData));
-        dimensionMapping.put(NetCDFUtilities.LAT, latManager);
-
-        // Longitude management
-        final NetCDFDimensionManager lonManager = new NetCDFDimensionManager(NetCDFUtilities.LON);
-        lonManager.setNetCDFDimension(lonDim);
-        lonManager.setDimensionValues(new DimensionValuesArray(lonData));
-        dimensionMapping.put(NetCDFUtilities.LON, lonManager);
-    }
-
-    /**
      * Write the NetCDF file
      * @throws IOException
      * @throws InvalidRangeException
      */
     public void write() throws IOException, InvalidRangeException {
-        initializeNetCDFDimensions();
-        initializeNetCDFVariables();
-        initializeGlobalAttributes();
-
         // end of define mode
         writer.create();
 
         // Setting values
-        setCoordinateVariables();
+        for (NetCDFDimensionManager manager : dimensionMapping.values()) {
+            crsManager.setCoordinateVariable(manager);
+        }
+
         writeDataValues();
 
         // Close the writer
@@ -686,6 +584,10 @@ public class NetCDFOutputManager {
                 String value = globalAttributes.get(key);
                 if (value == null) {
                     value = "";
+                }
+                if (value.equalsIgnoreCase(NetCDFUtilities.CONVENTIONS)) {
+                    Attribute attr = new Attribute(NetCDFUtilities.COORD_SYS_BUILDER, NetCDFUtilities.COORD_SYS_BUILDER_CONVENTION);
+                    writer.addGroupAttribute(null, attr);
                 }
                 Attribute attr = new Attribute(key, value);
                 writer.addGroupAttribute(null, attr);
