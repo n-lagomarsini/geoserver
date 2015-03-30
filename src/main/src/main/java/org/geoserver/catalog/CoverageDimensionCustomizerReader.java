@@ -5,6 +5,8 @@
  */
 package org.geoserver.catalog;
 
+import it.geosolutions.jaiext.range.NoDataContainer;
+
 import java.awt.image.ColorModel;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,6 +34,7 @@ import org.geotools.coverage.grid.io.StructuredGridCoverage2DReader;
 import org.geotools.factory.Hints;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.resources.Classes;
+import org.geotools.resources.coverage.CoverageUtilities;
 import org.geotools.util.NumberRange;
 import org.geotools.util.SimpleInternationalString;
 import org.geotools.util.Utilities;
@@ -226,17 +229,18 @@ public class CoverageDimensionCustomizerReader implements GridCoverage2DReader {
         if (coverage == null) {
             return coverage;
         }
-        final Map properties = coverage.getProperties();
+        final Map<String, Object> properties = coverage.getProperties();
         final SampleDimension[] dims = coverage.getSampleDimensions();
         GridSampleDimension[] wrappedDims = wrapDimensions(dims);
         // Wrapping sample dimensions
+        NoDataContainer noDataProperty = CoverageUtilities.getNoDataProperty(coverage);
         if (wrappedDims == null) {
             wrappedDims = (GridSampleDimension[]) dims;
-        } else if (properties != null && properties.containsKey("GC_NODATA")) {
+        } else if (properties != null && noDataProperty != null) {
             // update the GC_NODATA property (if any) with the latest value, if we have any
             double[] wrappedNoDataValues = wrappedDims[0].getNoDataValues();
             if (wrappedNoDataValues != null && wrappedNoDataValues.length > 0) {
-                properties.put("GC_NODATA", wrappedNoDataValues[0]);
+                CoverageUtilities.setNoDataProperty(properties, wrappedNoDataValues[0]);
             }
         }
 

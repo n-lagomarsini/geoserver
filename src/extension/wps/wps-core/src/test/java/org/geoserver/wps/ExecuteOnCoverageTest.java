@@ -97,7 +97,7 @@ public class ExecuteOnCoverageTest extends WPSTestSupport {
         double[] valueInside = (double[]) gc.evaluate(new DirectPosition2D(145.55, -42));
         assertEquals(615.0, valueInside[0]);
         double[] valueOutside = (double[]) gc.evaluate(new DirectPosition2D(145.57, -41.9));
-        // this should really be NaN...
-        assertEquals(0.0, valueOutside[0]);
+        // this should really be NoData
+        assertEquals(-9999 & 0xFFFF, (int)valueOutside[0]);
     }
 }

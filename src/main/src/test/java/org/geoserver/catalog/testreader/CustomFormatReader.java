@@ -243,8 +243,8 @@ public final class CustomFormatReader extends AbstractGridCoverage2DReader {
         GridSampleDimension[] bands;
         bands = new GridSampleDimension[1];
         bands[0] = new GridSampleDimension(null, categories, null);
-        final Map<String, Double> properties = new HashMap<String, Double>();
-        properties.put("GC_NODATA", DEFAULT_NODATA);
+        final Map<String, Object> properties = new HashMap<String, Object>();
+        CoverageUtilities.setNoDataProperty(properties, DEFAULT_NODATA);
         return this.coverageFactory.create(name, image, this.originalEnvelope,
                                            bands, null, properties);
     }

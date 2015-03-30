@@ -24,7 +24,6 @@ import org.geoserver.wms.WMS;
 import org.geoserver.wms.WMSMapContent;
 import org.geoserver.wms.map.png.PNGJWriter;
 import org.geotools.image.ImageWorker;
-import org.geotools.image.palette.ColorIndexerDescriptor;
 import org.geotools.util.logging.Logging;
 
 /**
@@ -51,9 +50,6 @@ public class PNGMapResponse extends RenderedImageMapResponse {
         Octree, MedianCut
     };
 
-    static {
-        ColorIndexerDescriptor.register();
-    }
 
     /**
      * Default capabilities for PNG format.
