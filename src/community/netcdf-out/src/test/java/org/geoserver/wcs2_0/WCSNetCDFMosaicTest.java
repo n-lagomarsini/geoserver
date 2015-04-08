@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
 
 import javax.xml.namespace.QName;
 
@@ -35,6 +36,8 @@ import org.geoserver.data.test.SystemTestData;
 import org.geoserver.wcs.WCSInfo;
 import org.geoserver.wcs2_0.response.GranuleStack;
 import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.imageio.netcdf.NetCDFImageReaderSpi;
+import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -167,6 +170,32 @@ public class WCSNetCDFMosaicTest extends WCSTestSupport {
         dataset.close();
     }
 
+    @Test
+    public void testRequestNetCDF4() throws Exception {
+
+        boolean isNC4Available = NetCDFUtilities.isNC4CAvailable();
+        if (!isNC4Available && LOGGER.isLoggable(Level.INFO)) {
+            LOGGER.info("NetCDF C library not found. NetCDF4 output will not be created");
+        }
+
+        // http response from the request inside the string
+        MockHttpServletResponse response = getAsServletResponse("ows?request=GetCoverage&service=WCS&version=2.0.1" +
+                "&coverageId=wcs__dummyView&format=application/x-netcdf4&subset=http://www.opengis.net/def/axis/OGC/0/time(\"2013-01-08T00:00:00.000Z\")");
+        assertNotNull(response);
+
+        assertEquals((isNC4Available ? "application/x-netcdf4" : "application/xml"),
+                response.getContentType());
+        if (isNC4Available) {
+            byte[] netcdfOut = getBinary(response);
+            File file = File.createTempFile("netcdf", "out.nc", new File("./target"));
+            FileUtils.writeByteArrayToFile(file, netcdfOut);
+
+            NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
+            assertNotNull(dataset);
+            dataset.close();
+        }
+    }
+    
     private void addViewToCatalog() throws Exception {
         final Catalog cat = getCatalog();
         final CoverageStoreInfo storeInfo = cat.getCoverageStoreByName(DUMMYMOSAIC.getLocalPart());
