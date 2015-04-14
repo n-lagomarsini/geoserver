@@ -5,7 +5,7 @@
 package org.geoserver.web.netcdf;
 
 public enum DataPacking {
-    NONE, BYTE, SHORT, INT;
+    NONE/*, BYTE, SHORT, INT*/;
 
     public static DataPacking getDefault() {
         return NONE;
