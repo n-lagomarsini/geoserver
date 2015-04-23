@@ -11,6 +11,8 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.ParsePosition;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -23,7 +25,10 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.measure.converter.ConversionException;
+import javax.measure.converter.UnitConverter;
 import javax.measure.unit.Unit;
+import javax.measure.unit.UnitFormat;
 import javax.media.jai.iterator.RandomIter;
 import javax.media.jai.iterator.RandomIterFactory;
 
@@ -87,6 +92,8 @@ public class NetCDFOutputManager {
 
     public static final Logger LOGGER = Logging.getLogger("org.geoserver.wcs.responses.NetCDFOutputManager");
 
+    private static final double EQUALITY_DELTA = 1E-10; //Consider customizing it depending on the noData magnitude
+
     /** 
      * A dimension mapping between dimension names and dimension manager instances
      * We use a Linked map to preserve the dimension order 
@@ -114,15 +121,29 @@ public class NetCDFOutputManager {
 
     private Version version;
 
+    /** The user supplied variableName */
     private String variableName;
 
+    /** The user supplied unit of measure */
     private String variableUoM;
+
+    /** 
+     * The unitConverter to be used to convert the pixel values from the input unit 
+     * (the one coming from the original coverage) to output unit (the one specified
+     * by the user). As an instance, we may work against a sea_surface_temperature 
+     * coverage having temperature in celsius whilst we want to store it back
+     * as a sea_surface_temperature in kelvin. In that case the machinery will setup
+     * a not-null unitConverter to be used at time of data writing.
+     * */
+    private UnitConverter unitConverter = null;
 
     /** Bean related to the {@link NetCDFCFParser} */
     private static NetCDFParserBean parserBean;
 
     /** The instance of the class delegated to do proper NetCDF coordinates setup*/
     private NetCDFCRSWriter crsWriter;
+
+    private double noDataValue;
 
     static {
         // Getting the NetCDFCFParser bean
@@ -237,7 +258,6 @@ public class NetCDFOutputManager {
             }
             mapper.setDimensionValues(new DimensionValuesSet(tree));
             dimensionsManager.add(name, mapper);
-            
         }
 
         // Get the dimension values from the coverage and put them on the mapping
@@ -406,17 +426,15 @@ public class NetCDFOutputManager {
 
         // no data management
         boolean noDataSet = false;
-        double noDataValue = Double.NaN;
+        noDataValue = Double.NaN;
+        Unit<?> inputUoM = null;
         if (sampleDimensions != null && sampleDimensions.length > 0) {
             GridSampleDimension sampleDimension = sampleDimensions[0];
-            Unit<?> units = sampleDimension.getUnits();
+            inputUoM = sampleDimension.getUnits();
             double[] noData = sampleDimension.getNoDataValues();
             if (noData != null && noData.length > 0) {
                 noDataValue = noData[0];
                 noDataSet = true;
-            }
-            if (units != null) {
-                writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.UNITS, units.toString()));
             }
         }
         if (!noDataSet) {
@@ -435,10 +453,50 @@ public class NetCDFOutputManager {
         if (variableName != null && !variableName.isEmpty()) {
             writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.LONG_NAME, variableName));
         }
+
         // Adding Units
-        if (var.findAttribute(NetCDFUtilities.UNITS) == null
-                && (variableUoM != null && !variableUoM.isEmpty())) {
-            writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.UNITS, variableUoM));
+        if (var.findAttribute(NetCDFUtilities.UNITS) == null) {
+            String unit = null;
+            boolean hasDefinedUoM = (variableUoM != null && !variableUoM.isEmpty());
+            if (hasDefinedUoM) {
+                unit = variableUoM;
+            } else if (inputUoM != null) {
+                unit = inputUoM.toString();
+            }
+            if (unit != null) {
+                writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.UNITS, variableUoM));
+            }
+            if (inputUoM != null && hasDefinedUoM) {
+                // Replace some chars from the UOM to make sure it can be properly parsed
+                // by the JSR Unit class. We can refactor this replacement by using bytes check
+                // instead of specific replace calls.
+                String unitString = variableUoM.replace(" ", "*").replace("-", "^-").replace(".", "*")
+                .replace("m2","m^2").replace("m3","m^3").replace("s2", "s^2");
+                try {
+                    Unit outputUoM = Unit.valueOf(unitString);
+                    if (outputUoM != null && !inputUoM.equals(outputUoM)) {
+                        if (!inputUoM.isCompatible(outputUoM)){
+                            if (LOGGER.isLoggable(Level.WARNING)) {
+                                LOGGER.warning("input unit " + inputUoM.toString() 
+                                        + " and output unit " + outputUoM.toString() 
+                                        + " are incompatible.\nNo unit conversion will be performed");
+                            }
+                        } else {
+                            unitConverter = inputUoM.getConverterTo(outputUoM);
+                        }
+                    }
+                } catch (ConversionException ce) {
+                    if (LOGGER.isLoggable(Level.SEVERE)) {
+                        LOGGER.severe("Unable to create a converter for the specified unit: " + unitString 
+                                + "\nNo unit conversion will be performed" );
+                    }
+                } catch (IllegalArgumentException e) {
+                    if (LOGGER.isLoggable(Level.SEVERE)) {
+                        LOGGER.severe("Unable to parse the specified unit: " + unitString 
+                                + "\nNo unit conversion will be performed" );
+                    }
+                }
+            }
         }
         // Adding standard name if name and units are cf-compliant
         if (checkCompliant(var)) {
@@ -563,30 +621,7 @@ public class NetCDFOutputManager {
                                     indexing[numDimensions - 1] = k - minX;
                                     indexing[numDimensions - 2] = yPos;
                                     matrixIndex.set(indexing);
-
-                                    // Write data
-                                    switch (netCDFDataType) {
-                                    case BYTE:
-                                        byte sampleByte = (byte) data.getSampleFloat(k, j, 0);
-                                        matrix.setByte(matrixIndex, sampleByte);
-                                        break;
-                                    case SHORT:
-                                        short sampleShort = (short) data.getSampleFloat(k, j, 0);
-                                        matrix.setShort(matrixIndex, sampleShort);
-                                        break;
-                                    case INT:
-                                        int sampleInt = (int) data.getSampleFloat(k, j, 0);
-                                        matrix.setInt(matrixIndex, sampleInt);
-                                        break;
-                                    case FLOAT:
-                                        float sampleFloat = data.getSampleFloat(k, j, 0);
-                                        matrix.setFloat(matrixIndex, sampleFloat);
-                                        break;
-                                    case DOUBLE:
-                                        double sampleDouble = data.getSampleDouble(k, j, 0);
-                                        matrix.setDouble(matrixIndex, sampleDouble);
-                                        break;
-                                    }
+                                    setPixel(k, j, netCDFDataType, data, matrix, matrixIndex);
                                 }
                             }
                         }
@@ -602,6 +637,62 @@ public class NetCDFOutputManager {
         // ------------------------------
         writer.write(var, matrix);
         writer.flush();
+    }
+
+    /**
+     * Get the x, y pixel from the data iterator and assign it to the NetCDF array matrix.
+     * Also check if the read pixel is noData and apply the unitConversion (if needed).
+     * @param x
+     * @param y
+     * @param netCDFDataType
+     * @param data
+     * @param matrix
+     * @param matrixIndex
+     */
+    private void setPixel(int x, int y, DataType netCDFDataType, RandomIter data, Array matrix, Index matrixIndex) {
+
+        // Read the data, check if nodata and convert it if needed 
+        switch (netCDFDataType) {
+        case BYTE:
+        case SHORT:
+        case INT:
+            int sample =  data.getSample(x, y, 0);
+            if (unitConverter != null && !Double.isNaN(noDataValue) && !isNaN(sample, noDataValue)) {
+                sample = (int) unitConverter.convert(sample);
+            }
+            switch (netCDFDataType) {
+            case BYTE:
+                matrix.setByte(matrixIndex, (byte) sample);
+                break;
+            case SHORT:
+                short sampleShort = (short) sample;
+                matrix.setShort(matrixIndex, sampleShort);
+                break;
+            case INT:
+                matrix.setInt(matrixIndex, sample);
+                break;
+            }
+        case FLOAT:
+            float sampleFloat = data.getSampleFloat(x, y, 0);
+            if (unitConverter != null && !Double.isNaN(noDataValue) && !isNaN(sampleFloat, noDataValue)) {
+                sampleFloat = (float) unitConverter.convert(sampleFloat);
+            }
+            matrix.setFloat(matrixIndex, sampleFloat);
+            break;
+        case DOUBLE:
+            double sampleDouble = data.getSampleDouble(x, y, 0);
+            if (unitConverter != null && !Double.isNaN(noDataValue) && !isNaN(sampleDouble, noDataValue)) {
+                sampleDouble = unitConverter.convert(sampleDouble);
+            }
+            matrix.setDouble(matrixIndex, sampleDouble);
+            break;
+        default:
+            throw new UnsupportedOperationException("Operation not supported for this dataType: " + netCDFDataType);
+        }
+    }
+
+    private boolean isNaN(Number sample, double noDataValue) {
+        return (Math.abs(noDataValue - sample.doubleValue()) < EQUALITY_DELTA);
     }
 
     /**
@@ -661,6 +752,9 @@ public class NetCDFOutputManager {
 
     }
 
+    /** 
+     * Add global attributes to the Dataset if needed 
+     */
     private void initializeGlobalAttributes() {
         if (globalAttributes != null && !globalAttributes.isEmpty()) {
             Set<String> keys = globalAttributes.keySet();

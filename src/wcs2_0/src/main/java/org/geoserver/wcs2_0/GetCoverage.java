@@ -412,6 +412,9 @@ public class GetCoverage {
         if (reader instanceof StructuredGridCoverage2DReader && coverageDimensions != null) {
             // Setting dimensions as properties
             Map map = coverage.getProperties();
+            if (map == null) {
+                map = new HashMap();
+            }
             for (DimensionBean coverageDimension : coverageDimensions) {
                 helper.setCoverageDimensionProperty(map, gridCoverageRequest, coverageDimension);
             }
