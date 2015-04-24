@@ -25,6 +25,7 @@ Footprint can be configured in three different ways:
 1.	By using for each mosaic granule a *Sidecar File*, a Shapefile with the same name of the granule which contains the footprint for it;
 2.  By using a single Shapefile called *footprints.shp* which contains all the footprints for each granule; each footprint is associated to a granule with the **location** attribute;
 3.  By using a file called **footprints.properties** . 
+4.  By using **footprints.properties** and using internal/external mask bands for each granule. This feature is currently supported for GeoTiff only.
 
 The last option should be used when the first two are not available and requires to write the following piece of code inside the **footprints.properties** file::
 	
