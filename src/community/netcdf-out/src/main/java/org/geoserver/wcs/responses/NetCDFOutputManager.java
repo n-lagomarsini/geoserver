@@ -464,7 +464,7 @@ public class NetCDFOutputManager {
                 unit = inputUoM.toString();
             }
             if (unit != null) {
-                writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.UNITS, variableUoM));
+                writer.addVariableAttribute(var, new Attribute(NetCDFUtilities.UNITS, unit));
             }
             if (inputUoM != null && hasDefinedUoM) {
                 // Replace some chars from the UOM to make sure it can be properly parsed

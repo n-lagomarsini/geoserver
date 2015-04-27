@@ -30,27 +30,34 @@ import org.geoserver.catalog.CoverageView.CoverageBand;
 import org.geoserver.catalog.CoverageView.InputCoverageBand;
 import org.geoserver.catalog.DimensionPresentation;
 import org.geoserver.catalog.LayerInfo;
+import org.geoserver.catalog.ProjectionPolicy;
 import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.data.test.CiteTestData;
 import org.geoserver.data.test.SystemTestData;
 import org.geoserver.wcs.WCSInfo;
 import org.geoserver.wcs2_0.response.GranuleStack;
+import org.geoserver.web.netcdf.DataPacking;
+import org.geoserver.web.netcdf.NetCDFSettingsContainer.GlobalAttribute;
+import org.geoserver.web.netcdf.layer.NetCDFLayerSettingsContainer;
 import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.imageio.netcdf.NetCDFImageReaderSpi;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
+import ucar.nc2.Variable;
 import ucar.nc2.dataset.NetcdfDataset;
 
 import com.mockrunner.mock.web.MockHttpServletResponse;
 
 public class WCSNetCDFMosaicTest extends WCSTestSupport {
 
-    
     public static QName LATLONMOSAIC = new QName(CiteTestData.WCS_URI, "2DLatLonCoverage", CiteTestData.WCS_PREFIX);
     public static QName DUMMYMOSAIC = new QName(CiteTestData.WCS_URI, "DummyCoverage", CiteTestData.WCS_PREFIX);
+    public static QName VISIBILITY = new QName(CiteTestData.WCS_URI, "visibility", CiteTestData.WCS_PREFIX);
+
+    private final static String STANDARD_NAME = "visibility_in_air";
 
     private CoverageView coverageView = null;
 
@@ -99,6 +106,28 @@ public class WCSNetCDFMosaicTest extends WCSTestSupport {
 
         createCoverageView();
         addViewToCatalog();
+
+//        testData.addRasterLayer(VISIBILITY, "visibility.zip", null, null, this.getClass(), getCatalog());
+//        CoverageInfo info = getCatalog().getCoverageByName(getLayerId(VISIBILITY));
+//        setupNetCDFoutSettings(info);
+    }
+
+    private void setupNetCDFoutSettings(CoverageInfo info) {
+        info.setSRS("EPSG:4326");
+        info.setProjectionPolicy(ProjectionPolicy.REPROJECT_TO_DECLARED);
+        NetCDFLayerSettingsContainer container = new NetCDFLayerSettingsContainer();
+        container.setCompressionLevel(0);
+        container.setShuffle(true);
+        container.setDataPacking(DataPacking.NONE);
+        List<GlobalAttribute> attributes = new ArrayList<GlobalAttribute>();
+        attributes.add(new GlobalAttribute("custom_attribute", "testing WCS"));
+        attributes.add(new GlobalAttribute("Conventions", "CF-1.6"));
+        container.setGlobalAttributes(attributes);
+        container.setLayerName(STANDARD_NAME);
+        container.setLayerUOM("m");
+        String key = "NetCDFOutput.Key";
+        info.getMetadata().put(key, container);
+        getCatalog().save(info);
     }
 
     @Test
@@ -147,9 +176,7 @@ public class WCSNetCDFMosaicTest extends WCSTestSupport {
         } finally {
             wcsInfo.setLatLon(oldLatLon);
             getGeoServer().save(wcsInfo);
-
         }
-
     }
 
     @Test
@@ -164,7 +191,7 @@ public class WCSNetCDFMosaicTest extends WCSTestSupport {
         byte[] netcdfOut = getBinary(response);
         File file = File.createTempFile("netcdf", "out.nc", new File("./target"));
         FileUtils.writeByteArrayToFile(file, netcdfOut);
-        
+
         NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
         assertNotNull(dataset);
         dataset.close();
@@ -194,6 +221,29 @@ public class WCSNetCDFMosaicTest extends WCSTestSupport {
             assertNotNull(dataset);
             dataset.close();
         }
+    }
+
+    @Test
+    @Ignore
+    public void testRequestNetCDFUomConversion() throws Exception {
+
+        // http response from the request inside the string
+        MockHttpServletResponse response = getAsServletResponse("ows?request=GetCoverage&service=WCS&version=2.0.1" +
+                "&coverageId=wcs__visibility&format=application/x-netcdf");
+        assertNotNull(response);
+        byte[] netcdfOut = getBinary(response);
+        File file = File.createTempFile("netcdf", "out.nc", new File("./target"));
+        FileUtils.writeByteArrayToFile(file, netcdfOut);
+
+        NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
+        Variable var = dataset.findVariable(STANDARD_NAME);
+
+        // Check the unit has been converted to meter
+        String unit = var.getUnitsString();
+        assertEquals(unit, "m");
+
+        assertNotNull(var);
+        dataset.close();
     }
     
     private void addViewToCatalog() throws Exception {
