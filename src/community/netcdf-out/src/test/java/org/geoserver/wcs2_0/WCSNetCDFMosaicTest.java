@@ -22,6 +22,7 @@ import javax.xml.namespace.QName;
 import org.apache.commons.io.FileUtils;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogBuilder;
+import org.geoserver.catalog.CoverageDimensionInfo;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.CoverageView;
@@ -40,12 +41,13 @@ import org.geoserver.web.netcdf.DataPacking;
 import org.geoserver.web.netcdf.NetCDFSettingsContainer.GlobalAttribute;
 import org.geoserver.web.netcdf.layer.NetCDFLayerSettingsContainer;
 import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.feature.NameImpl;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
+import ucar.nc2.Attribute;
 import ucar.nc2.Variable;
 import ucar.nc2.dataset.NetcdfDataset;
 
@@ -81,6 +83,7 @@ public class WCSNetCDFMosaicTest extends WCSTestSupport {
 
     @Override
     protected void setUpTestData(SystemTestData testData) throws Exception {
+        testData.copyTo(getClass().getResourceAsStream("reduced-cf-standard-name-table.xml"), "cf-standard-name-table.xml");
         testData.setUpDefaultRasterLayers();
     }
 
@@ -107,14 +110,26 @@ public class WCSNetCDFMosaicTest extends WCSTestSupport {
         createCoverageView();
         addViewToCatalog();
 
-//        testData.addRasterLayer(VISIBILITY, "visibility.zip", null, null, this.getClass(), getCatalog());
-//        CoverageInfo info = getCatalog().getCoverageByName(getLayerId(VISIBILITY));
-//        setupNetCDFoutSettings(info);
+        testData.addRasterLayer(VISIBILITY, "visibility.zip", null, null, this.getClass(), getCatalog());
+        setupNetCDFoutSettings();
     }
 
-    private void setupNetCDFoutSettings(CoverageInfo info) {
+    private void setupNetCDFoutSettings() {
+        CoverageInfo info = getCatalog().getCoverageByName(getLayerId(VISIBILITY));
+
+        // Set the Declared SRS
         info.setSRS("EPSG:4326");
         info.setProjectionPolicy(ProjectionPolicy.REPROJECT_TO_DECLARED);
+
+        // Update the UnitOfMeasure to km and noData to -9999
+        CoverageDimensionInfo dimension = info.getDimensions().get(0);
+        dimension.setUnit("km");
+        List<Double> nullValues = dimension.getNullValues();
+        if (nullValues != null) {
+            nullValues.clear();
+            nullValues.add(-9999d);
+        }
+
         NetCDFLayerSettingsContainer container = new NetCDFLayerSettingsContainer();
         container.setCompressionLevel(0);
         container.setShuffle(true);
@@ -123,6 +138,9 @@ public class WCSNetCDFMosaicTest extends WCSTestSupport {
         attributes.add(new GlobalAttribute("custom_attribute", "testing WCS"));
         attributes.add(new GlobalAttribute("Conventions", "CF-1.6"));
         container.setGlobalAttributes(attributes);
+
+        // Setting a different name from the standard table as well as the proper
+        // canonical unit
         container.setLayerName(STANDARD_NAME);
         container.setLayerUOM("m");
         String key = "NetCDFOutput.Key";
@@ -143,7 +161,6 @@ public class WCSNetCDFMosaicTest extends WCSTestSupport {
 
         //we expect a single granule which covers the entire mosaic
         for(GridCoverage2D c : stack.getGranules()){
-            System.out.println(c.getEnvelope());
             assertEquals(30., c.getEnvelope2D().getHeight(),0.001);
             assertEquals(45., c.getEnvelope2D().getWidth(),0.001);
         }
@@ -224,10 +241,12 @@ public class WCSNetCDFMosaicTest extends WCSTestSupport {
     }
 
     @Test
-    @Ignore
     public void testRequestNetCDFUomConversion() throws Exception {
 
         // http response from the request inside the string
+        CoverageInfo info = getCatalog().getCoverageByName(new NameImpl("wcs", "visibility"));
+        assertTrue(info.getDimensions().get(0).getUnit().equalsIgnoreCase("km"));
+
         MockHttpServletResponse response = getAsServletResponse("ows?request=GetCoverage&service=WCS&version=2.0.1" +
                 "&coverageId=wcs__visibility&format=application/x-netcdf");
         assertNotNull(response);
@@ -237,12 +256,21 @@ public class WCSNetCDFMosaicTest extends WCSTestSupport {
 
         NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
         Variable var = dataset.findVariable(STANDARD_NAME);
+        assertNotNull(var);
 
         // Check the unit has been converted to meter
         String unit = var.getUnitsString();
         assertEquals(unit, "m");
 
-        assertNotNull(var);
+        Attribute fillValue = var.findAttribute(NetCDFUtilities.FILL_VALUE); 
+        assertNotNull(fillValue);
+        assertEquals(-9999d, fillValue.getNumericValue().doubleValue(), 1E-6);
+
+        // Check global attributes have been added
+        Attribute attribute = dataset.findGlobalAttribute("custom_attribute");
+        assertNotNull(attribute);
+        assertEquals("testing WCS", attribute.getStringValue());
+
         dataset.close();
     }
     

@@ -7,12 +7,9 @@ package org.geoserver.wcs.responses;
 
 import it.geosolutions.jaiext.range.NoDataContainer;
 
-import java.awt.geom.AffineTransform;
 import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
-import java.text.ParseException;
-import java.text.ParsePosition;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -28,7 +25,6 @@ import java.util.logging.Logger;
 import javax.measure.converter.ConversionException;
 import javax.measure.converter.UnitConverter;
 import javax.measure.unit.Unit;
-import javax.measure.unit.UnitFormat;
 import javax.media.jai.iterator.RandomIter;
 import javax.media.jai.iterator.RandomIterFactory;
 
@@ -56,9 +52,6 @@ import org.geotools.coverage.io.netcdf.cf.NetCDFCFParser;
 import org.geotools.coverage.io.util.DateRangeComparator;
 import org.geotools.coverage.io.util.NumberRangeComparator;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
-import org.geotools.referencing.CRS;
-import org.geotools.referencing.CRS.AxisOrder;
-import org.geotools.referencing.operation.matrix.XAffineTransform;
 import org.geotools.resources.coverage.CoverageUtilities;
 import org.geotools.util.logging.Logging;
 
@@ -73,6 +66,14 @@ import ucar.nc2.NetcdfFileWriter.Version;
 import ucar.nc2.Variable;
 import ucar.nc2.write.Nc4Chunking;
 import ucar.nc2.write.Nc4ChunkingDefault;
+import ucar.units.NoSuchUnitException;
+import ucar.units.PrefixDBException;
+import ucar.units.SpecificationException;
+import ucar.units.StandardUnitFormat;
+import ucar.units.UnitDBException;
+import ucar.units.UnitFormatImpl;
+import ucar.units.UnitParseException;
+import ucar.units.UnitSystemException;
 
 /**
  * A class which takes care of initializing NetCDF dimension from coverages dimension, 
@@ -84,6 +85,8 @@ import ucar.nc2.write.Nc4ChunkingDefault;
  */
 public class NetCDFOutputManager {
 
+    private static StandardUnitFormat SUF = StandardUnitFormat.instance(); 
+    
     public static final String STANDARD_NAME = "STANDARD_NAME";
 
     public static final String UNIT = "UNIT";
@@ -416,11 +419,14 @@ public class NetCDFOutputManager {
             netCDFDimensions.add(dimension.getNetCDFDimension());
         }
 
-        final String coverageName = sampleGranule.getName().toString();
+        String coverageName = sampleGranule.getName().toString();
 
         // Set the proper dataType
         final int dataType = sampleGranule.getRenderedImage().getSampleModel().getDataType();
         DataType varDataType = NetCDFUtilities.transcodeImageDataType(dataType);
+        if (variableName != null && !variableName.isEmpty()) {
+            coverageName = variableName;
+        }
         Variable var = writer.addVariable(null, coverageName, varDataType, netCDFDimensions);
         GridSampleDimension[] sampleDimensions = sampleGranule.getSampleDimensions();
 
@@ -540,8 +546,45 @@ public class NetCDFOutputManager {
         // Checking UOM
         Entry e = parser.getEntry(variableName) != null ? parser.getEntry(variableName) : parser
                 .getEntryFromAlias(variableName);
-        boolean validUOM = e != null ? e.getCanonicalUnits()
-                .equalsIgnoreCase(unit.getStringValue()) : false;
+        
+        boolean validUOM = false;
+        if (e != null) {
+            String canonical = e.getCanonicalUnits();
+            String definedUnit = unit.getStringValue();
+            if (canonical.equalsIgnoreCase(definedUnit)) {
+                validUOM = true;
+            } else {
+                try {
+                    ucar.units.Unit ucarUnit = SUF.parse(definedUnit);
+                    ucar.units.Unit canonicalUnit = SUF.parse(canonical);
+                    if (ucarUnit.isCompatible(canonicalUnit)) {
+                        validUOM = true;
+                    }
+                } catch (NoSuchUnitException e1) {
+                    // TODO Auto-generated catch block
+                    
+                } catch (UnitParseException e1) {
+                    // TODO Auto-generated catch block
+                    
+                } catch (SpecificationException e1) {
+                    // TODO Auto-generated catch block
+                    
+                } catch (UnitDBException e1) {
+                    // TODO Auto-generated catch block
+                    
+                } catch (PrefixDBException e1) {
+                    // TODO Auto-generated catch block
+                    
+                } catch (UnitSystemException e1) {
+                    // TODO Auto-generated catch block
+                    
+                }
+
+                //                } catch ()
+            }
+        }
+                
+                
         // Return the result
         return validName && validUOM;
     }
@@ -561,10 +604,10 @@ public class NetCDFOutputManager {
         for (NetCDFDimensionMapping dimension: dimensionsManager.getDimensions()) {
             dimSize[iDim++] = dimension.getDimensionValues().getSize();
         }
-
-        final Variable var = writer.findVariable(sampleGranule.getName().toString());
+        String name = variableName != null ? variableName : sampleGranule.getName().toString();
+        final Variable var = writer.findVariable(name);
         if (var == null) {
-            throw new IllegalArgumentException("The requested variable doesn't exists: " + sampleGranule.getName());
+            throw new IllegalArgumentException("The requested variable doesn't exists: " + name);
         }
 
         // Get the data type for a sample image (All granules of the same coverage will use
